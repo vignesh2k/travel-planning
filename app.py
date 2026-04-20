@@ -43,7 +43,18 @@ Return a single JSON object with exactly two keys:
    ## Neighbourhoods  (3–5 key neighbourhoods)
    ## Vegetarian Restaurants  (6–8 specific restaurants)
    ## Photography Spots  (6–8 specific locations)
-   ## {trip_length}-Day Itinerary  (morning / afternoon / evening each day)
+   ## {trip_length}-Day Itinerary
+   For EVERY day use exactly this structure — no variations:
+   ### Day N: Title
+   **Morning:**
+   - bullet
+   - bullet
+   **Afternoon:**
+   - bullet
+   - bullet
+   **Evening:**
+   - bullet
+   - bullet
    ## Logistics  (transport, accommodation areas, practical tips)
 
 2. "places" — an array of objects for every named location in the document:
@@ -87,26 +98,36 @@ def geocode_place(place_name: str, api_key: str) -> tuple[float | None, float | 
     return None, None
 
 
-def build_pydeck_map(places: list[dict]) -> pdk.Deck | None:
+CATEGORY_LABELS = {
+    "neighbourhood": "Neighbourhood",
+    "restaurant": "Vegetarian Restaurant",
+    "photography_spot": "Photography Spot",
+    "logistics": "Logistics",
+}
+
+
+def build_pydeck_map(places: list[dict]) -> tuple[pdk.Deck, list[dict]] | tuple[None, None]:
     data = [
         {
             "lat": p["lat"],
             "lon": p["lng"],
             "name": p["name"],
             "description": p["description"],
+            "category": p["category"],
             "color": CATEGORY_RGB.get(p["category"], [255, 152, 0, 220]),
         }
         for p in places
         if p.get("lat") is not None
     ]
     if not data:
-        return None
+        return None, None
 
     avg_lat = sum(d["lat"] for d in data) / len(data)
     avg_lon = sum(d["lon"] for d in data) / len(data)
 
     layer = pdk.Layer(
         "ScatterplotLayer",
+        id="places",
         data=data,
         get_position=["lon", "lat"],
         get_fill_color="color",
@@ -120,15 +141,41 @@ def build_pydeck_map(places: list[dict]) -> pdk.Deck | None:
 
     return pdk.Deck(
         layers=[layer],
-        initial_view_state=pdk.ViewState(
-            latitude=avg_lat,
-            longitude=avg_lon,
-            zoom=11,
-            pitch=0,
-        ),
-        tooltip={"text": "{name}\n{description}"},
+        initial_view_state=pdk.ViewState(latitude=avg_lat, longitude=avg_lon, zoom=11, pitch=0),
+        tooltip={"text": "{name}"},
         map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
-    )
+    ), data
+
+
+def render_guide(document: str) -> None:
+    """Renders the travel guide with every section collapsed into expanders."""
+    parts = re.split(r"(?m)(?=^## )", document)
+    for part in parts:
+        if not part.strip():
+            continue
+        header, _, body = part.partition("\n")
+        title = header.lstrip("#").strip()
+
+        if re.search(r"(?i)itinerary", header):
+            # Itinerary: header as plain markdown, then one expander per day
+            # (Streamlit doesn't allow nested expanders)
+            st.markdown(f"## {title}")
+            day_parts = re.split(r"(?m)(?=^### )", body)
+            for day in day_parts:
+                if not day.strip():
+                    continue
+                if day.startswith("### "):
+                    day_title, _, content = day.partition("\n")
+                    with st.expander(day_title[4:]):
+                        st.markdown(content)
+                else:
+                    st.markdown(day)
+        else:
+            # Title as a proper heading, content in expander below
+            st.markdown(f"## {title}")
+            expanded = title.lower().startswith("overview")
+            with st.expander("Show", expanded=expanded):
+                st.markdown(body)
 
 
 def _find_font(candidates: list[str]) -> str | None:
@@ -171,38 +218,67 @@ def generate_pdf(document: str, destination: str) -> bytes:
         reg, bold = "Helvetica", "Helvetica"
 
     pdf.add_page()
+    w = pdf.epw  # effective page width (page minus both margins)
 
     pdf.set_font(bold, "B", 22)
-    pdf.multi_cell(0, 11, f"Travel Guide: {destination}", align="C")
+    pdf.multi_cell(w, 11, f"Travel Guide: {destination}", align="C")
     pdf.ln(8)
 
-    for line in document.split("\n"):
-        line = line.rstrip()
+    TIME_OF_DAY = re.compile(
+        r"^\*{0,2}(morning|afternoon|evening|lunch|night)\b[\*:]*\s*(.*)?",
+        re.IGNORECASE,
+    )
+    indent = 4
+
+    for raw_line in document.split("\n"):
+        line = raw_line.strip()
 
         if line.startswith("## "):
+            pdf.set_x(pdf.l_margin)
             pdf.ln(3)
             pdf.set_fill_color(230, 242, 255)
             pdf.set_font(bold, "B", 15)
-            pdf.multi_cell(0, 9, line[3:], fill=True)
+            pdf.multi_cell(w, 9, line[3:], fill=True)
             pdf.ln(2)
 
         elif line.startswith("### "):
+            pdf.set_x(pdf.l_margin)
             pdf.set_font(bold, "B", 12)
-            pdf.multi_cell(0, 7, line[4:])
+            pdf.multi_cell(w, 7, line[4:])
             pdf.ln(1)
+
+        elif TIME_OF_DAY.match(line):
+            # Extract just the label (e.g. "Morning:") and any trailing content
+            m = TIME_OF_DAY.match(line)
+            label = m.group(1).capitalize() + ":"
+            remainder = re.sub(r"\*{1,2}(.*?)\*{1,2}", r"\1", m.group(2)).strip() if m.group(2) else ""
+            pdf.set_x(pdf.l_margin)
+            pdf.ln(1)
+            pdf.set_font(bold, "BU", 11)
+            pdf.multi_cell(w, 7, label)
+            pdf.set_x(pdf.l_margin)
+            if remainder:
+                text = "\u2022  " + remainder
+                pdf.set_font(reg, "", 11)
+                pdf.set_x(pdf.l_margin + indent)
+                pdf.multi_cell(w - indent, 6, text)
+                pdf.set_x(pdf.l_margin)
 
         elif line.startswith(("- ", "* ")):
             text = "\u2022  " + re.sub(r"\*\*(.*?)\*\*", r"\1", line[2:])
             pdf.set_font(reg, "", 11)
-            pdf.set_x(24)
-            pdf.multi_cell(0, 6, text)
+            pdf.set_x(pdf.l_margin + indent)
+            pdf.multi_cell(w - indent, 6, text)
+            pdf.set_x(pdf.l_margin)
 
-        elif line.strip():
+        elif line:
             text = re.sub(r"\*\*(.*?)\*\*", r"\1", line)
+            pdf.set_x(pdf.l_margin)
             pdf.set_font(reg, "", 11)
-            pdf.multi_cell(0, 6, text)
+            pdf.multi_cell(w, 6, text)
 
         else:
+            pdf.set_x(pdf.l_margin)
             pdf.ln(3)
 
     return bytes(pdf.output())
@@ -305,14 +381,32 @@ def main():
                 file_name=f"{dest.replace(' ', '_')}_travel_guide.pdf",
                 mime="application/pdf",
             )
-            st.markdown(doc)
+            render_guide(doc)
 
         with tab_map:
-            deck = build_pydeck_map(places)
+            deck, map_data = build_pydeck_map(places)
             if deck:
-                st.pydeck_chart(deck, use_container_width=True)
+                event = st.pydeck_chart(
+                    deck,
+                    on_select="rerun",
+                    selection_mode="single-object",
+                    use_container_width=True,
+                )
+                # Show place detail card on pin click
+                selected_indices = (
+                    event.selection.get("indices", {}).get("places", [])
+                    if event and event.selection else []
+                )
+                if selected_indices and map_data:
+                    place = map_data[selected_indices[0]]
+                    label = CATEGORY_LABELS.get(place["category"], place["category"])
+                    st.info(
+                        f"**{place['name']}**  \n"
+                        f"{place['description']}  \n"
+                        f"*{label} — see {place['category'].replace('_', ' ')} section in Travel Guide*"
+                    )
                 if geocoded < len(places):
-                    st.caption(f"{len(places) - geocoded} place(s) could not be geocoded and are not shown.")
+                    st.caption(f"{len(places) - geocoded} place(s) could not be geocoded.")
             else:
                 st.info("No places could be mapped.")
     else:
