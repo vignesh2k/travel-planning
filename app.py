@@ -12,6 +12,22 @@ from fpdf import FPDF, FontFace
 GEOCODE_CAP = 15
 GEOCODE_PRIORITY = ["restaurant", "photography_spot", "neighbourhood", "logistics"]
 
+
+def _extract_json(raw: str) -> str:
+    """Strip markdown fences and extract the first JSON object or array."""
+    raw = raw.strip()
+    if raw.startswith("```"):
+        raw = raw.split("```", 2)[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+        raw = raw.rsplit("```", 1)[0].strip()
+    if not (raw.startswith("{") or raw.startswith("[")):
+        m = re.search(r"(\{[\s\S]*\}|\[[\s\S]*\])", raw)
+        if m:
+            return m.group(1)
+    return raw
+
+
 CATEGORY_RGB = {
     "neighbourhood":    [66,  133, 244, 220],
     "restaurant":       [52,  168, 83,  220],
@@ -39,13 +55,7 @@ def get_suggestions(destination: str, api_key: str) -> list[str]:
             )},
         ],
     )
-    raw = response.choices[0].message.content.strip()
-    if raw.startswith("```"):
-        raw = raw.split("```", 2)[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
-        raw = raw.rsplit("```", 1)[0].strip()
-    return json.loads(raw)
+    return json.loads(_extract_json(response.choices[0].message.content.strip()))
 
 
 @st.cache_data(show_spinner=False)
@@ -108,16 +118,10 @@ Return ONLY the JSON object."""
         ],
     )
 
-    raw = response.choices[0].message.content.strip()
-    if raw.startswith("```"):
-        raw = raw.split("```", 2)[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
-        raw = raw.rsplit("```", 1)[0].strip()
-
-    return json.loads(raw)
+    return json.loads(_extract_json(response.choices[0].message.content.strip()))
 
 
+@st.cache_data(show_spinner=False)
 def geocode_place(place_name: str, api_key: str) -> tuple[float | None, float | None]:
     try:
         resp = requests.get(
@@ -178,7 +182,7 @@ def build_pydeck_map(places: list[dict]) -> tuple[pdk.Deck, list[dict]] | tuple[
     return pdk.Deck(
         layers=[layer],
         initial_view_state=pdk.ViewState(latitude=avg_lat, longitude=avg_lon, zoom=11, pitch=0),
-        tooltip={"text": "{name}"},
+        tooltip={"text": "{name}\n{description}"},
         map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
     ), data
 
@@ -241,6 +245,7 @@ FONT_BOLD = _find_font([
 ])
 
 
+@st.cache_data(show_spinner=False)
 def generate_pdf(document: str, destination: str) -> bytes:
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=20)
@@ -441,13 +446,7 @@ def get_hotel_segments(document: str, destination: str, trip_start: str, trip_le
             )},
         ],
     )
-    raw = response.choices[0].message.content.strip()
-    if raw.startswith("```"):
-        raw = raw.split("```", 2)[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
-        raw = raw.rsplit("```", 1)[0].strip()
-    return json.loads(raw)
+    return json.loads(_extract_json(response.choices[0].message.content.strip()))
 
 
 @st.cache_data(show_spinner=False)
@@ -650,7 +649,16 @@ def main():
             parts.append("Airports: " + ", ".join(airport_parts))
         travel_style = ". ".join(parts)
 
-        submitted = st.button("Generate Travel Research", type="primary", use_container_width=True)
+        bcol1, bcol2 = st.columns([3, 1])
+        with bcol1:
+            submitted = st.button("Generate Travel Research", type="primary", use_container_width=True)
+        with bcol2:
+            if st.button("Clear", use_container_width=True, help="Start a new search"):
+                st.session_state.result = None
+                st.session_state.places = []
+                st.session_state.hotel_segments = []
+                st.session_state.hotel_error = ""
+                st.rerun()
 
         st.divider()
         st.markdown(
@@ -692,12 +700,14 @@ def main():
             if p.get("category") in GEOCODE_PRIORITY else len(GEOCODE_PRIORITY),
         )[:GEOCODE_CAP]
 
+        total_to_geocode = len(places_to_geocode)
         progress = st.progress(0, text="Geocoding places…")
         places_with_coords = []
         for i, place in enumerate(places_to_geocode):
             lat, lng = geocode_place(place["name"], google_key)
             places_with_coords.append({**place, "lat": lat, "lng": lng})
-            progress.progress((i + 1) / GEOCODE_CAP, text=f"Geocoding: {place['name']}")
+            pct = (i + 1) / total_to_geocode if total_to_geocode else 1
+            progress.progress(pct, text=f"Geocoding {i + 1}/{total_to_geocode}: {place['name']}")
         progress.empty()
 
         result["destination"] = destination
@@ -718,8 +728,8 @@ def main():
             doc = st.session_state.result.get("document", "")
             dest = st.session_state.result.get("destination", "Trip")
 
-            # ── Refine bar ────────────────────────────────────────────────────
-            rcol1, rcol2 = st.columns([5, 1])
+            # ── Toolbar: refine + PDF export ─────────────────────────────────
+            rcol1, rcol2, rcol3 = st.columns([5, 1, 1])
             with rcol1:
                 refine_instruction = st.text_input(
                     "refine",
@@ -728,6 +738,15 @@ def main():
                 )
             with rcol2:
                 refine_btn = st.button("✨ Refine", use_container_width=True)
+            with rcol3:
+                pdf_bytes = generate_pdf(doc, dest)
+                st.download_button(
+                    label="📄 PDF",
+                    data=pdf_bytes,
+                    file_name=f"{dest.replace(' ', '_')}_travel_guide.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
+                )
 
             if refine_btn and refine_instruction.strip():
                 with st.spinner("✨ Refining with AI…"):
@@ -739,14 +758,6 @@ def main():
                         st.error(f"Refine failed: {exc}")
 
             st.divider()
-
-            pdf_bytes = generate_pdf(doc, dest)
-            st.download_button(
-                label="Export as PDF",
-                data=pdf_bytes,
-                file_name=f"{dest.replace(' ', '_')}_travel_guide.pdf",
-                mime="application/pdf",
-            )
             render_guide(doc)
         else:
             st.info("Fill in the form on the left and click **Generate Travel Research** to get started.")
@@ -754,6 +765,16 @@ def main():
     with tab_map:
         if st.session_state.result:
             places = st.session_state.places
+            all_categories = sorted({p["category"] for p in places if p.get("category")})
+            category_display = {k: v for k, v in CATEGORY_LABELS.items() if k in all_categories}
+            if len(all_categories) > 1:
+                selected_cats = st.multiselect(
+                    "Filter by category",
+                    options=list(category_display.keys()),
+                    default=list(category_display.keys()),
+                    format_func=lambda k: category_display.get(k, k),
+                )
+                places = [p for p in places if p.get("category") in selected_cats]
             deck, map_data = build_pydeck_map(places)
             if deck:
                 event = st.pydeck_chart(
@@ -876,7 +897,11 @@ def main():
                                     stars_str = "★" * hotel["stars"] + "☆" * max(0, 5 - hotel["stars"]) if hotel["stars"] else ""
                                     st.markdown(f"**{hotel['name']}** {stars_str}")
                                     if hotel["review_score"]:
-                                        st.caption(f"⭐ {hotel['review_score']:.1f} · {hotel['review_word']}")
+                                        try:
+                                            score_fmt = f"{float(hotel['review_score']):.1f}"
+                                        except (TypeError, ValueError):
+                                            score_fmt = str(hotel["review_score"])
+                                        st.caption(f"⭐ {score_fmt} · {hotel['review_word']}")
                                     if hotel["price"] is not None:
                                         total = hotel["price"] * nights
                                         st.markdown(f"**£{hotel['price']:.0f}** / night · £{total:.0f} total ({nights} night{'s' if nights != 1 else ''})")
