@@ -1,9 +1,0 @@
-README.md
-pyproject.toml
-api/__init__.py
-api/main.py
-atlas_api.egg-info/PKG-INFO
-atlas_api.egg-info/SOURCES.txt
-atlas_api.egg-info/dependency_links.txt
-atlas_api.egg-info/requires.txt
-atlas_api.egg-info/top_level.txt
