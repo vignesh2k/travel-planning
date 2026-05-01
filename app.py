@@ -24,6 +24,42 @@ SUGGESTION_MODEL = "google/gemini-2.5-flash-lite"
 REFINE_MODEL = "deepseek/deepseek-v3.2"
 HOTEL_SEGMENT_MODEL = "google/gemini-2.5-flash-lite"
 
+_LOADING_HTML = """
+<style>
+  @keyframes planeFly {
+    0%,100% { transform: translateX(-10px) rotate(-4deg); }
+    50%     { transform: translateX(10px)  rotate( 4deg); }
+  }
+  @keyframes fadeMsg {
+    0%     { opacity: 0; transform: translateY(6px);  }
+    3.33%  { opacity: 1; transform: translateY(0);    }
+    16.67% { opacity: 1; transform: translateY(0);    }
+    20%    { opacity: 0; transform: translateY(-6px); }
+    100%   { opacity: 0; }
+  }
+  .lw        { text-align:center; padding:72px 20px; }
+  .lw-plane  { font-size:2.8em; display:inline-block;
+                animation: planeFly 2.4s ease-in-out infinite; }
+  .lw-title  { margin:18px 0 28px; font-size:1.15em;
+                font-weight:600; color:#555; }
+  .lw-msgs   { position:relative; height:30px; }
+  .lm        { position:absolute; left:0; right:0; opacity:0;
+                font-size:1em; color:#777;
+                animation: fadeMsg 15s ease-in-out infinite; }
+</style>
+<div class="lw">
+  <div class="lw-plane">✈️</div>
+  <div class="lw-title">Fill in the form and click Generate to get started</div>
+  <div class="lw-msgs">
+    <div class="lm" style="animation-delay:0s" >🗺️ Mapping neighbourhoods</div>
+    <div class="lm" style="animation-delay:3s" >🍽️ Sourcing vegetarian restaurants</div>
+    <div class="lm" style="animation-delay:6s" >📸 Scouting photography spots</div>
+    <div class="lm" style="animation-delay:9s" >📅 Planning your daily itinerary</div>
+    <div class="lm" style="animation-delay:12s">🧳 Checking transport &amp; logistics</div>
+  </div>
+</div>
+"""
+
 
 @st.cache_data(show_spinner=False)
 def get_suggestions(destination: str, api_key: str) -> list[str]:
@@ -580,6 +616,8 @@ def main():
     if "hotel_segments" not in st.session_state:
         st.session_state.hotel_segments = []
         st.session_state.hotel_error = ""
+    if "has_submitted" not in st.session_state:
+        st.session_state.has_submitted = False
 
     with st.sidebar:
         st.header("Plan Your Trip")
@@ -674,6 +712,7 @@ def main():
 
         st.session_state.result = None
         st.session_state.places = []
+        st.session_state.has_submitted = True
 
         with st.spinner(f"✨ Researching {destination} with AI…"):
             try:
@@ -748,6 +787,8 @@ def main():
                 mime="application/pdf",
             )
             render_guide(doc)
+        elif st.session_state.has_submitted:
+            st.markdown(_LOADING_HTML, unsafe_allow_html=True)
         else:
             st.info("Fill in the form on the left and click **Generate Travel Research** to get started.")
 
@@ -778,8 +819,10 @@ def main():
                     st.caption(f"{len(places) - geocoded} place(s) could not be geocoded.")
             else:
                 st.info("No places could be mapped.")
+        elif st.session_state.has_submitted:
+            st.markdown(_LOADING_HTML, unsafe_allow_html=True)
         else:
-            st.info("Generate travel research first to see the map.")
+            st.info("Fill in the form on the left and click **Generate Travel Research** to get started.")
 
     with tab_hotels:
         if not rapidapi_key:
