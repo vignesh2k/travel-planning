@@ -142,3 +142,51 @@ def test_get_trip_by_slug_returns_full_trip(monkeypatch, auth_headers) -> None:
     res = TestClient(app).get("/trips/kyoto-7d-aaa", headers=auth_headers)
     assert res.status_code == 200
     assert res.json()["slug"] == "kyoto-7d-aaa"
+
+
+def test_post_trips_stream_emits_events(monkeypatch, auth_headers) -> None:
+    monkeypatch.setattr(
+        "api.routes.trips.parse_brief",
+        lambda b: MagicMock(
+            destination="Kyoto", days=7, travel_style="veg",
+            start_date=None, airport_entry=None, airport_exit=None,
+        ),
+    )
+    monkeypatch.setattr(
+        "api.routes.trips.get_travel_research",
+        lambda d, l, s: {
+            "document": "## x",
+            "places": [{"name": "Gion", "category": "neighbourhood", "description": "x"}],
+        },
+    )
+    monkeypatch.setattr("api.routes.trips.geocode_place", lambda n: (35.0, 135.7))
+
+    inserted = {
+        "id": "t1", "slug": "kyoto-7d-zzz", "user_id": "u", "destination": "Kyoto",
+        "days": 7, "travel_style": "veg",
+        "start_date": None, "airport_entry": None, "airport_exit": None,
+        "document": {"document_markdown": "## x",
+                     "places": [{"name": "Gion", "category": "neighbourhood",
+                                 "description": "x", "lat": 35.0, "lng": 135.7}],
+                     "neighborhoods": []},
+        "places": [],
+        "created_at": "2026-05-01T00:00:00+00:00",
+    }
+    table = MagicMock()
+    table.insert.return_value.execute.return_value = MagicMock(data=[inserted])
+    client = MagicMock()
+    client.table.return_value = table
+    monkeypatch.setattr("api.routes.trips.service_client", lambda: client)
+
+    with TestClient(app).stream(
+        "POST", "/trips/stream",
+        headers=auth_headers,
+        json={"text": "Kyoto"},
+    ) as res:
+        assert res.status_code == 200
+        body = res.read().decode()
+
+    assert "event: status" in body
+    assert "event: place" in body
+    assert "event: done" in body
+    assert "kyoto-7d-zzz" in body

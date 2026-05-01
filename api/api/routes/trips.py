@@ -1,3 +1,5 @@
+from typing import Any
+
 from fastapi import APIRouter, HTTPException
 
 from api.auth import CurrentUser
@@ -7,6 +9,7 @@ from api.llm.parse_brief import parse_brief
 from api.llm.research import get_travel_research
 from api.models import Place, TripBriefIn, TripDocument, TripFull, TripSummary
 from api.slug import make_trip_slug
+from api.sse import sse_stream
 
 router = APIRouter(tags=["trips"])
 
@@ -57,6 +60,54 @@ def create_trip(brief: TripBriefIn, user: CurrentUser) -> TripFull:
     inserted_data = {**inserted}
     doc_dict = inserted_data.pop("document")
     return TripFull(**inserted_data, document=TripDocument(**doc_dict))
+
+
+@router.post("/trips/stream")
+def create_trip_stream(brief: TripBriefIn, user: CurrentUser):
+    def events():
+        yield ("status", "Parsing your brief…")
+        parsed = parse_brief(brief)
+
+        yield ("status", f"Researching {parsed.destination} for {parsed.days} days…")
+        research = get_travel_research(parsed.destination, parsed.days, parsed.travel_style)
+
+        yield ("status", "Mapping places…")
+        raw_places = research.get("places", [])
+        raw_places.sort(
+            key=lambda p: GEOCODE_PRIORITY.index(p.get("category", "logistics"))
+            if p.get("category") in GEOCODE_PRIORITY else len(GEOCODE_PRIORITY),
+        )
+        geocoded: list[dict[str, Any]] = []
+        for p in raw_places[:GEOCODE_CAP]:
+            lat, lng = geocode_place(p["name"])
+            place = {**p, "lat": lat, "lng": lng}
+            geocoded.append(place)
+            yield ("place", place)
+
+        document = {
+            "document_markdown": research["document"],
+            "places": geocoded,
+            "neighborhoods": [],
+        }
+
+        slug = make_trip_slug(parsed.destination, parsed.days)
+        row = {
+            "slug": slug,
+            "user_id": user["sub"],
+            "destination": parsed.destination,
+            "days": parsed.days,
+            "travel_style": parsed.travel_style,
+            "start_date": parsed.start_date.isoformat() if parsed.start_date else None,
+            "airport_entry": parsed.airport_entry,
+            "airport_exit": parsed.airport_exit,
+            "document": document,
+            "places": [],
+        }
+        res = service_client().table("trips").insert(row).execute()
+        saved_slug = res.data[0]["slug"] if res.data else slug
+        yield ("done", {"slug": saved_slug})
+
+    return sse_stream(events())
 
 
 @router.get("/trips", response_model=list[TripSummary])
