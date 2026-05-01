@@ -20,14 +20,22 @@ def _token(user_id: str) -> str:
     )
 
 
+OWNER_ID = "owner-uid"
+
+
 @pytest.fixture
-def auth_headers() -> dict[str, str]:
+def owner_headers() -> dict[str, str]:
+    return {"Authorization": f"Bearer {_token(OWNER_ID)}"}
+
+
+@pytest.fixture
+def stranger_headers() -> dict[str, str]:
     return {"Authorization": f"Bearer {_token(str(uuid.uuid4()))}"}
 
 
-def test_post_hotels_persists_neighborhoods(monkeypatch, auth_headers) -> None:
+def test_post_hotels_persists_neighborhoods(monkeypatch, owner_headers) -> None:
     existing = {
-        "id": "t1", "slug": "kyoto-7d-aaa", "user_id": "u", "destination": "Kyoto, Japan",
+        "id": "t1", "slug": "kyoto-7d-aaa", "user_id": OWNER_ID, "destination": "Kyoto, Japan",
         "days": 7, "travel_style": "veg",
         "start_date": "2026-10-15", "airport_entry": None, "airport_exit": None,
         "document": {"document_markdown": "## x", "places": [], "neighborhoods": []},
@@ -59,7 +67,7 @@ def test_post_hotels_persists_neighborhoods(monkeypatch, auth_headers) -> None:
 
     res = TestClient(app).post(
         "/trips/kyoto-7d-aaa/hotels",
-        headers=auth_headers,
+        headers=owner_headers,
         json={"adults": 2},
     )
 
@@ -68,3 +76,30 @@ def test_post_hotels_persists_neighborhoods(monkeypatch, auth_headers) -> None:
     assert len(body) == 1
     assert body[0]["label"] == "Higashiyama"
     assert body[0]["hotels"][0]["name"] == "Park Hyatt Kyoto"
+
+
+def test_post_hotels_rejects_non_owner(monkeypatch, stranger_headers) -> None:
+    existing = {
+        "id": "t1", "slug": "kyoto-7d-aaa", "user_id": OWNER_ID, "destination": "Kyoto, Japan",
+        "days": 7, "travel_style": "veg",
+        "start_date": "2026-10-15", "airport_entry": None, "airport_exit": None,
+        "document": {"document_markdown": "## x", "places": [], "neighborhoods": []},
+        "places": [],
+        "created_at": "2026-05-01T00:00:00+00:00",
+    }
+    table = MagicMock()
+    chain = MagicMock()
+    table.select.return_value = chain
+    chain.eq.return_value = chain
+    chain.single.return_value = chain
+    chain.execute.return_value = MagicMock(data=existing)
+    client = MagicMock()
+    client.table.return_value = table
+    monkeypatch.setattr("api.routes.hotels.service_client", lambda: client)
+
+    res = TestClient(app).post(
+        "/trips/kyoto-7d-aaa/hotels",
+        headers=stranger_headers,
+        json={"adults": 2},
+    )
+    assert res.status_code == 403

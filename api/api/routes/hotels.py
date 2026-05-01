@@ -22,6 +22,8 @@ def trip_hotels(slug: str, body: HotelsIn, user: CurrentUser) -> list[Neighborho
     if not res.data:
         raise HTTPException(status_code=404, detail="Trip not found")
     row = res.data
+    if row["user_id"] != user["sub"]:
+        raise HTTPException(status_code=403, detail="Not your trip")
 
     start = date.fromisoformat(row["start_date"]) if row.get("start_date") else None
 

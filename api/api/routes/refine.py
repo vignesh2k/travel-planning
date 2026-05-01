@@ -15,6 +15,8 @@ def refine_trip(slug: str, body: RefineIn, user: CurrentUser) -> TripFull:
     if not res.data:
         raise HTTPException(status_code=404, detail="Trip not found")
     row = res.data
+    if row["user_id"] != user["sub"]:
+        raise HTTPException(status_code=403, detail="Not your trip")
 
     new_md = refine_document(row["document"]["document_markdown"], body.instruction)
     new_doc = {**row["document"], "document_markdown": new_md}
