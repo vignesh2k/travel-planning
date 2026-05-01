@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.config import get_settings
+from api.routes import trips as trips_routes
 
 settings = get_settings()
 app = FastAPI(title="Atlas API")
@@ -13,6 +14,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(trips_routes.router)
 
 
 @app.get("/health")
