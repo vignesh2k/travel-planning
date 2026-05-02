@@ -131,13 +131,9 @@ export function Itinerary({
                           : "w-full text-left rounded-[12px] bg-white/40 border border-amber-700/10 px-3 py-2 text-[12px] text-ink-700 leading-snug flex items-start gap-2 cursor-default"
                       }
                     >
-                      {clickable && (
-                        <span
-                          className="mt-1 w-2 h-2 rounded-full shrink-0"
-                          style={{ background: PIN_COLOR[place.category] }}
-                          aria-hidden
-                        />
-                      )}
+                      <span className="text-[14px] leading-none mt-0.5 shrink-0" aria-hidden>
+                        {clickable ? CATEGORY_EMOJI[place.category] : "•"}
+                      </span>
                       <span className="flex-1">{item}</span>
                     </button>
                   </li>
@@ -151,9 +147,9 @@ export function Itinerary({
   );
 }
 
-const PIN_COLOR: Record<Place["category"], string> = {
-  neighbourhood: "#4285f4",
-  restaurant: "#34a853",
-  photography_spot: "#ea4335",
-  logistics: "#9534e6",
+export const CATEGORY_EMOJI: Record<Place["category"], string> = {
+  neighbourhood: "🏛️",
+  restaurant: "🍽️",
+  photography_spot: "📷",
+  logistics: "🧭",
 };

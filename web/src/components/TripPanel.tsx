@@ -60,12 +60,17 @@ export function TripPanel({
         )}
 
         {tab === "Restaurants" && (
-          <ul className="flex flex-col gap-1">
+          <ul className="flex flex-col gap-1.5">
             {restaurants.map((r, i) => (
-              <li key={i} className="frosted rounded-[14px] p-2 text-xs">
-                <span className="font-semibold text-ink-900">{r[0]}</span>
-                {r[1] && <span className="text-ink-500"> · {r[1]}</span>}
-                {r[2] && <div className="text-ink-700 mt-1">{r[2]}</div>}
+              <li key={i} className="frosted rounded-[14px] p-3 text-xs flex items-start gap-2">
+                <span className="text-[14px] leading-none mt-0.5 shrink-0" aria-hidden>🍽️</span>
+                <div className="flex-1">
+                  <div>
+                    <span className="font-semibold text-ink-900">{r[0]}</span>
+                    {r[1] && <span className="text-ink-500"> · {r[1]}</span>}
+                  </div>
+                  {r[2] && <div className="text-ink-700 mt-1 leading-snug">{r[2]}</div>}
+                </div>
               </li>
             ))}
             {restaurants.length === 0 && (
@@ -79,9 +84,12 @@ export function TripPanel({
             {hotelsLoading && <p className="text-xs text-ink-500">Picking neighbourhoods…</p>}
             {neighborhoods.map((n) => (
               <div key={n.label} className="flex flex-col gap-2">
-                <div>
-                  <div className="text-xs font-semibold text-ink-900">{n.label}</div>
-                  <div className="text-[11px] text-ink-500">{n.description}</div>
+                <div className="flex items-start gap-2">
+                  <span className="text-[14px] leading-none mt-0.5 shrink-0" aria-hidden>🏘️</span>
+                  <div>
+                    <div className="text-xs font-semibold text-ink-900">{n.label}</div>
+                    <div className="text-[11px] text-ink-500">{n.description}</div>
+                  </div>
                 </div>
                 {n.hotels.map((h) => (
                   <HotelCard key={h.name} hotel={h} />
@@ -105,13 +113,19 @@ function parseDays(markdown: string): Day[] {
     const title = headerMatch[2].trim();
     const bullets: Day["bullets"] = [];
     for (const time of ["Morning", "Afternoon", "Evening"] as const) {
-      const re = new RegExp(`\\*\\*${time}:\\*\\*([\\s\\S]*?)(?=\\*\\*(?:Morning|Afternoon|Evening):\\*\\*|$)`);
+      // Stop at the next time-of-day marker, the next day heading, the next
+      // top-level section heading, or end of string. Without the `\n## ` and
+      // `\n### Day` stops, the Evening regex on the last day greedily eats
+      // everything that follows (e.g. the `## Logistics` table).
+      const re = new RegExp(
+        `\\*\\*${time}:\\*\\*([\\s\\S]*?)(?=\\*\\*(?:Morning|Afternoon|Evening):\\*\\*|\\n## |\\n### Day \\d+:|$)`,
+      );
       const m = block.match(re);
       if (m) {
         const items = m[1]
           .split("\n")
           .map((l) => l.replace(/^[-*]\s+/, "").trim())
-          .filter(Boolean);
+          .filter((l) => l && !l.startsWith("|") && !l.startsWith("##") && !l.startsWith("###"));
         if (items.length) bullets.push({ time, items });
       }
     }
