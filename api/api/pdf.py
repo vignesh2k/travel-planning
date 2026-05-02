@@ -19,16 +19,19 @@ from fpdf import FPDF, FontFace
 
 from api.models import PdfDay, PdfFoodSpot, PdfPhotoSpot, PdfPlan, PdfScheduleItem
 
-# ── Palette (matches atlas D1 theme) ─────────────────────────────────────────
-INK = (42, 31, 21)
-INK_MUTED = (154, 125, 90)
-AMBER = (201, 122, 58)
-AMBER_LIGHT = (232, 168, 92)
-CARD_BG = (252, 247, 240)
-CARD_BORDER = (220, 205, 180)
-RULE = (220, 205, 180)
-TABLE_ALT = (250, 246, 240)
-TAG_BG = (245, 232, 211)
+# ── Palette — mirrors the Montenegro reference style ────────────────────────
+INK = (26, 26, 26)            # near-black body text
+INK_MUTED = (110, 110, 110)   # secondary text / labels
+ACCENT = (196, 74, 68)        # brick red — accent rules, headers, tag text
+ACCENT_LIGHT = (230, 130, 120)
+CARD_BG = (253, 245, 240)     # very light peach — restaurant cards
+CARD_BORDER = (230, 215, 205)
+CALLOUT_BG = (243, 243, 243)  # cool light grey — heads-up / tips callouts
+CALLOUT_BORDER = (220, 220, 220)
+RULE = (225, 220, 215)
+TABLE_ALT = (249, 247, 244)   # very subtle warm grey for alternating rows
+TAG_BG = (252, 232, 228)      # pale red — tag pill background
+TAG_TEXT = (160, 50, 45)      # darker red — tag pill text
 
 
 def _find_font(candidates: list[str]) -> str | None:
@@ -102,7 +105,7 @@ def generate_pdf(document: str, destination: str) -> bytes:
         line = re.sub(r"\*{1,2}(.*?)\*{1,2}", r"\1", raw).rstrip()
         if line.startswith("## "):
             pdf.ln(3)
-            pdf.set_text_color(*AMBER)
+            pdf.set_text_color(*ACCENT)
             pdf.set_font(bold, "B", 15)
             pdf.cell(0, 8, line[3:], new_x="LMARGIN", new_y="NEXT")
             pdf.set_text_color(*INK)
@@ -129,7 +132,7 @@ def _render_cover(pdf: FPDF, reg: str, bold: str, plan: PdfPlan) -> None:
     # Amber circle glyph
     diam = 28
     glyph_y = pdf.get_y()
-    pdf.set_fill_color(*AMBER)
+    pdf.set_fill_color(*ACCENT)
     pdf.ellipse(cx - diam / 2, glyph_y, diam, diam, "F")
     pdf.set_text_color(255, 255, 255)
     pdf.set_font(bold, "B", 18)
@@ -165,7 +168,7 @@ def _render_cover(pdf: FPDF, reg: str, bold: str, plan: PdfPlan) -> None:
     # Footer brand — keep above the auto-break margin (22mm) so it doesn't
     # trigger an empty page-2 with just the brand mark.
     pdf.set_y(page_h - 38)
-    pdf.set_text_color(*AMBER)
+    pdf.set_text_color(*ACCENT)
     pdf.set_font(bold, "B", 9)
     pdf.set_x(0)
     pdf.cell(pdf.w, 6, "ATLAS", align="C", new_x="LMARGIN", new_y="NEXT")
@@ -222,7 +225,7 @@ def _render_day_header(pdf: FPDF, reg: str, bold: str, day: PdfDay) -> None:
     pdf.cell(0, 10, day.title, new_x="LMARGIN", new_y="NEXT")
 
     # Amber underline
-    pdf.set_draw_color(*AMBER)
+    pdf.set_draw_color(*ACCENT)
     pdf.set_line_width(0.7)
     pdf.line(x0, pdf.get_y() + 1, x0 + 28, pdf.get_y() + 1)
     pdf.ln(3)
@@ -234,138 +237,217 @@ def _render_schedule(
     if not items:
         return
 
-    # Header: TIME | ACTIVITY
-    pdf.set_text_color(*AMBER)
-    pdf.set_font(bold, "B", 8)
     x0 = pdf.l_margin
-    pdf.set_xy(x0, pdf.get_y())
-    pdf.cell(22, 6, "TIME")
+    time_col_w = 24
+    activity_col_w = pdf.epw - time_col_w
+    activity_x = x0 + time_col_w
+    pad_l = 2
+    pad_v = 2.5
+
+    # Header row: red small-caps TIME / ACTIVITY
+    pdf.set_text_color(*ACCENT)
+    pdf.set_font(bold, "B", 8)
+    pdf.set_xy(x0 + pad_l, pdf.get_y())
+    pdf.cell(time_col_w, 6, "TIME")
     pdf.cell(0, 6, "ACTIVITY", new_x="LMARGIN", new_y="NEXT")
-
     pdf.set_draw_color(*RULE)
-    pdf.set_line_width(0.2)
+    pdf.set_line_width(0.3)
     pdf.line(x0, pdf.get_y(), x0 + pdf.epw, pdf.get_y())
-    pdf.ln(1.5)
 
-    pdf.set_font(reg, "", 11)
     for i, item in enumerate(items):
-        # Alternate background tint
-        row_y = pdf.get_y()
-        # Estimate row height — depends on activity wrap. Use multi_cell trick.
+        row_top = pdf.get_y()
+
+        # Pass 1 (dry run) — measure height by running multi_cell with
+        # dry_run=True so nothing is actually drawn.
+        pdf.set_font(reg, "", 11)
+        pdf.set_xy(activity_x + pad_l, row_top + pad_v)
+        pdf.multi_cell(
+            activity_col_w - pad_l * 2,
+            6,
+            item.activity,
+            dry_run=True,
+            output="LINES",
+        )
+        height_after_activity = pdf.get_y()
+        if item.note:
+            pdf.set_font(reg, "", 10)
+            pdf.set_x(activity_x + pad_l)
+            pdf.multi_cell(
+                activity_col_w - pad_l * 2,
+                5,
+                item.note,
+                dry_run=True,
+                output="LINES",
+            )
+            row_bottom = pdf.get_y() + pad_v
+        else:
+            row_bottom = height_after_activity + pad_v
+
+        row_h = row_bottom - row_top
+
+        # If this row would page-break, manually advance so the alt fill
+        # renders on the new page rather than orphaning the backdrop.
+        if row_top + row_h > pdf.h - pdf.b_margin:
+            pdf.add_page()
+            row_top = pdf.get_y()
+
+        # Pass 2 — draw the alt-row backdrop, then the real text on top.
+        if i % 2 == 1:
+            pdf.set_fill_color(*TABLE_ALT)
+            pdf.rect(x0, row_top, pdf.epw, row_h, "F")
+
         pdf.set_text_color(*INK_MUTED)
         pdf.set_font(bold, "B", 10)
-        pdf.set_xy(x0, row_y + 2)
-        pdf.cell(22, 6, item.time)
+        pdf.set_xy(x0 + pad_l, row_top + pad_v)
+        pdf.cell(time_col_w, 6, item.time)
 
         pdf.set_text_color(*INK)
         pdf.set_font(reg, "", 11)
-        pdf.set_xy(x0 + 22, row_y + 2)
-        pdf.multi_cell(pdf.epw - 22, 6, item.activity)
-
+        pdf.set_xy(activity_x + pad_l, row_top + pad_v)
+        pdf.multi_cell(activity_col_w - pad_l * 2, 6, item.activity)
         if item.note:
             pdf.set_text_color(*INK_MUTED)
             pdf.set_font(reg, "", 10)
-            pdf.set_x(x0 + 22)
-            pdf.multi_cell(pdf.epw - 22, 5, item.note)
+            pdf.set_x(activity_x + pad_l)
+            pdf.multi_cell(activity_col_w - pad_l * 2, 5, item.note)
 
-        # Subtle row separator
-        pdf.set_draw_color(*RULE)
-        pdf.set_line_width(0.1)
-        pdf.line(x0, pdf.get_y() + 1, x0 + pdf.epw, pdf.get_y() + 1)
-        pdf.ln(1.5)
+        pdf.set_y(row_top + row_h)
 
 
 def _render_food_card(pdf: FPDF, reg: str, bold: str, food: PdfFoodSpot) -> None:
-    """Sequential-flow card: amber left rule + indented title, tags, notes.
-
-    Doesn't use a fixed-height rect — content flows through multi_cell so
-    auto-page-break can split cleanly between cards rather than mid-card."""
+    """Restaurant card matching the reference: cream bg, red left rule,
+    bold title, red tag badges, body text. Sequential-flow so auto-page-
+    break can split cleanly between cards."""
     x0 = pdf.l_margin
-    inner_x = x0 + 6
-    inner_w = pdf.epw - 6
-
-    pdf.ln(2)
-    y_start = pdf.get_y()
+    pad = 4
+    inner_x = x0 + pad + 4  # +4 for the left rule width
+    inner_w = pdf.epw - pad * 2 - 4
+    card_top = pdf.get_y() + 1
 
     title = f"{food.meal or 'Eat'}  —  {food.name}"
     if food.area:
         title += f", {food.area}"
 
+    # Pre-measure card height with dry-runs so we can fill the cream bg first.
+    pdf.set_xy(inner_x, card_top + pad)
+    pdf.set_font(bold, "B", 12)
+    pdf.multi_cell(inner_w, 6, title, dry_run=True, output="LINES")
+    h_title = pdf.get_y() - (card_top + pad)
+
+    h_tags = 0
+    if food.tags:
+        # Tags occupy a single row of ~5 height.
+        h_tags = 6
+
+    pdf.set_xy(inner_x, card_top + pad + h_title + h_tags + 1)
+    pdf.set_font(reg, "", 10)
+    pdf.multi_cell(inner_w, 5, food.notes, dry_run=True, output="LINES")
+    h_body = pdf.get_y() - (card_top + pad + h_title + h_tags + 1)
+
+    card_h = pad + h_title + h_tags + 1 + h_body + pad
+    if card_top + card_h > pdf.h - pdf.b_margin:
+        pdf.add_page()
+        card_top = pdf.get_y()
+
+    # Cream background + faint border + thicker red left rule
+    pdf.set_fill_color(*CARD_BG)
+    pdf.set_draw_color(*CARD_BORDER)
+    pdf.set_line_width(0.2)
+    pdf.rect(x0, card_top, pdf.epw, card_h, "DF")
+    pdf.set_fill_color(*ACCENT)
+    pdf.rect(x0, card_top, 2.4, card_h, "F")
+
+    # Title
     pdf.set_text_color(*INK)
     pdf.set_font(bold, "B", 12)
-    pdf.set_x(inner_x)
+    pdf.set_xy(inner_x, card_top + pad)
     pdf.multi_cell(inner_w, 6, title)
-    pdf.ln(0.5)
+    cursor_y = pdf.get_y()
 
-    # Tags as inline pills on one row.
+    # Tag pills
     if food.tags:
         pdf.set_x(inner_x)
         tag_x = inner_x
-        tag_y = pdf.get_y()
+        tag_y = cursor_y + 0.5
         for tag in food.tags[:4]:
             pdf.set_font(bold, "B", 8)
-            text_w = pdf.get_string_width(tag) + 5
-            # Wrap to next row if it would overflow.
-            if tag_x + text_w > x0 + pdf.epw:
-                tag_y += 6
+            tw = pdf.get_string_width(tag) + 5
+            if tag_x + tw > x0 + pdf.epw - pad:
+                tag_y += 5.5
                 tag_x = inner_x
             pdf.set_fill_color(*TAG_BG)
-            pdf.set_text_color(165, 95, 37)
-            pdf.rect(tag_x, tag_y, text_w, 4.5, "F")
+            pdf.set_text_color(*TAG_TEXT)
+            pdf.rect(tag_x, tag_y, tw, 4.5, "F")
             pdf.set_xy(tag_x, tag_y)
-            pdf.cell(text_w, 4.5, tag, align="C")
-            tag_x += text_w + 3
-        pdf.set_y(tag_y + 5)
+            pdf.cell(tw, 4.5, tag, align="C")
+            tag_x += tw + 3
+        cursor_y = tag_y + 5
 
-    pdf.ln(1)
+    # Body
     pdf.set_text_color(*INK_MUTED)
     pdf.set_font(reg, "", 10)
-    pdf.set_x(inner_x)
+    pdf.set_xy(inner_x, cursor_y + 0.5)
     pdf.multi_cell(inner_w, 5, food.notes)
 
-    y_end = pdf.get_y()
-
-    # Draw the amber left rule down the full extent of this card. We do this
-    # AFTER the text has been laid out so we know the actual height. If the
-    # text wrapped onto the next page (very unlikely for a card this short
-    # but possible), the rule simply doesn't span the break — acceptable.
-    if y_end > y_start and y_end <= pdf.h - pdf.b_margin:
-        pdf.set_fill_color(*AMBER)
-        pdf.rect(x0, y_start, 1.4, y_end - y_start, "F")
-
-    pdf.ln(2)
+    pdf.set_y(card_top + card_h + 2)
 
 
 def _render_tips_section(pdf: FPDF, reg: str, bold: str, tips: list[str]) -> None:
-    pdf.ln(2)
-    pdf.set_text_color(*AMBER)
-    pdf.set_font(bold, "B", 9)
-    pdf.set_x(pdf.l_margin)
-    pdf.cell(0, 5, "TIPS & LOGISTICS", new_x="LMARGIN", new_y="NEXT")
-    pdf.ln(0.5)
-    pdf.set_draw_color(*RULE)
-    pdf.set_line_width(0.2)
-    pdf.line(pdf.l_margin, pdf.get_y(), pdf.l_margin + pdf.epw, pdf.get_y())
-    pdf.ln(2)
+    """Heads-up callout: light grey bg, red left rule, bold red title,
+    bullet tips below. Mirrors the Montenegro reference 'heads-up' boxes."""
+    x0 = pdf.l_margin
+    pad = 4
+    inner_x = x0 + pad + 4
+    inner_w = pdf.epw - pad * 2 - 4
+    card_top = pdf.get_y() + 2
 
-    indent = 6
+    # Pre-measure
+    title_h = 6
+    pdf.set_xy(inner_x, card_top + pad + title_h + 1)
+    bullet_total_h = 0
+    for tip in tips:
+        pdf.set_font(reg, "", 11)
+        pdf.multi_cell(inner_w - 4, 5.5, tip, dry_run=True, output="LINES")
+        bullet_total_h = pdf.get_y() - (card_top + pad + title_h + 1)
+    card_h = pad + title_h + 1 + bullet_total_h + pad
+
+    if card_top + card_h > pdf.h - pdf.b_margin:
+        pdf.add_page()
+        card_top = pdf.get_y()
+
+    # Background + left rule
+    pdf.set_fill_color(*CALLOUT_BG)
+    pdf.set_draw_color(*CALLOUT_BORDER)
+    pdf.set_line_width(0.2)
+    pdf.rect(x0, card_top, pdf.epw, card_h, "DF")
+    pdf.set_fill_color(*ACCENT)
+    pdf.rect(x0, card_top, 2.4, card_h, "F")
+
+    # Title
+    pdf.set_text_color(*ACCENT)
+    pdf.set_font(bold, "B", 9)
+    pdf.set_xy(inner_x, card_top + pad)
+    pdf.cell(inner_w, title_h, "TIPS & LOGISTICS")
+
+    # Bullet tips
+    pdf.set_y(card_top + pad + title_h + 1)
     for tip in tips:
         pdf.set_font(reg, "", 11)
         pdf.set_text_color(*INK)
-        x0 = pdf.l_margin + indent
-        y0 = pdf.get_y()
-        pdf.set_fill_color(*AMBER)
-        pdf.ellipse(x0, y0 + 2.4, 1.6, 1.6, "F")
-        pdf.set_x(x0 + 4)
-        pdf.multi_cell(pdf.epw - indent - 4, 6, tip)
-        pdf.ln(0.5)
+        y_b = pdf.get_y()
+        pdf.set_fill_color(*ACCENT)
+        pdf.ellipse(inner_x, y_b + 2.2, 1.4, 1.4, "F")
+        pdf.set_x(inner_x + 3)
+        pdf.multi_cell(inner_w - 4, 5.5, tip)
+
+    pdf.set_y(card_top + card_h + 2)
 
 
 def _render_photo_section(
     pdf: FPDF, reg: str, bold: str, spots: list[PdfPhotoSpot]
 ) -> None:
     pdf.ln(2)
-    pdf.set_text_color(*AMBER)
+    pdf.set_text_color(*ACCENT)
     pdf.set_font(bold, "B", 9)
     pdf.set_x(pdf.l_margin)
     pdf.cell(0, 5, "PHOTO SPOTS", new_x="LMARGIN", new_y="NEXT")
@@ -385,7 +467,7 @@ def _render_photo_section(
         pdf.set_xy(x0, y0)
         pdf.multi_cell(pdf.epw, 6, spot.location)
 
-        pdf.set_text_color(*AMBER)
+        pdf.set_text_color(*ACCENT)
         pdf.set_font(bold, "B", 8)
         pdf.set_x(x0)
         pdf.cell(0, 4.5, f"BEST TIME · {spot.best_time.upper()}", new_x="LMARGIN", new_y="NEXT")
