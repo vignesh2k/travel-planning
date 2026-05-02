@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 from api.auth import CurrentUser
 from api.db import service_client
-from api.llm.pdf_plan import stream_pdf_plan
+from api.llm.pdf_plan import PdfSections, stream_pdf_plan
 from api.models import PdfPlan, TripDocument
 from api.pdf import generate_pdf, render_plan_pdf
 from api.sse import sse_stream
@@ -18,7 +18,6 @@ router = APIRouter(tags=["pdf"])
 
 @router.get("/trips/{slug}/pdf")
 def trip_pdf(slug: str, user: CurrentUser) -> Response:
-    """Quick fallback: render the trip's existing markdown without augmentation."""
     res = service_client().table("trips").select("*").eq("slug", slug).single().execute()
     if not res.data:
         raise HTTPException(status_code=404, detail="Trip not found")
@@ -34,18 +33,18 @@ def trip_pdf(slug: str, user: CurrentUser) -> Response:
 
 
 class PdfBuildIn(BaseModel):
-    # Reserved for future flags. Currently unused — the build always produces
-    # the deep per-day plan.
-    sections: list[str] = []
+    food: bool = True
+    photos: bool = True
+    tips: bool = True
 
 
 @router.post("/trips/{slug}/pdf/build")
 def build_pdf(slug: str, body: PdfBuildIn, user: CurrentUser):
-    """Streaming deep-PDF build.
+    """Streaming deep-PDF build with toggleable sections.
 
-    Generates a structured per-day plan (one parallel LLM call per day) and
-    renders it into the print-quality Atlas PDF. Streams stage events for
-    each day, then a final ("done", {pdf_base64, filename}).
+    Schedule is always produced. Food, photos, and tips are conditional —
+    if a flag is False the LLM is told not to generate that section, saving
+    tokens/latency.
     """
     res = service_client().table("trips").select("*").eq("slug", slug).single().execute()
     if not res.data:
@@ -61,6 +60,7 @@ def build_pdf(slug: str, body: PdfBuildIn, user: CurrentUser):
     travel_style = row.get("travel_style", "")
     start_date_iso = row.get("start_date")
     safe_name = destination.replace(" ", "_").replace(",", "")
+    sections = PdfSections(food=body.food, photos=body.photos, tips=body.tips)
 
     def events() -> Iterator[tuple[str, Any]]:
         plan: PdfPlan | None = None
@@ -69,6 +69,7 @@ def build_pdf(slug: str, body: PdfBuildIn, user: CurrentUser):
             total_days=days,
             travel_style=travel_style,
             base_md=base_md,
+            sections=sections,
             start_date_iso=start_date_iso,
         ):
             if ev_type == "stage":

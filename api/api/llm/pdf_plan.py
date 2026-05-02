@@ -1,28 +1,34 @@
 """Generate a structured per-day PDF plan from a trip's existing context.
 
-The PDF is meant to be a deeper, print-focused artefact — not a regurgitation
-of the web view. Each day gets:
-  • A time-blocked schedule (8-12 items, weaving activities/transit/breaks)
-  • 2-4 food spot cards (real names, area, meal type, tags, 1-2 sentence notes)
-  • 2-3 photo spot cards (location, best time, what to shoot)
+The PDF is a deeper, print-focused artefact — not a regurgitation of the
+web view. Sections are user-toggleable: schedule is always produced;
+food spots, photo spots, and per-day tips are conditional.
 
-We dispatch one LLM call per day in parallel, so the modal can show real
-progress per day. With OpenRouter's :online suffix each call augments with
-fresh web search results.
+Each day is one parallel LLM call so the modal can show real progress.
+DeepSeek v4-flash with web search (:online) for richer prose + fresh facts.
 """
 
 import concurrent.futures
 import json
 from collections.abc import Iterator
+from dataclasses import dataclass
 from typing import Any
 
 from api.llm.client import make_client, strip_code_fences
 from api.models import PdfDay, PdfPlan
 
-PDF_PLAN_MODEL = "google/gemini-2.5-flash-lite:online"
+PDF_PLAN_MODEL = "deepseek/deepseek-v4-flash:online"
+
+
+@dataclass
+class PdfSections:
+    food: bool = True
+    photos: bool = True
+    tips: bool = True
+
 
 DAY_SYSTEM = (
-    "You are a travel-guide writer producing a single day of a deep-dive printable "
+    "You are a travel-guide writer producing one day of a deep-dive printable "
     "guide. Output a single JSON object only — no prose, no fences, no preamble."
 )
 
@@ -34,51 +40,92 @@ def _day_user_prompt(
     travel_style: str,
     base_doc_excerpt: str,
     weekday_label: str,
+    sections: PdfSections,
 ) -> str:
+    requested: list[str] = ["schedule"]
+    if sections.food:
+        requested.append("food_spots")
+    if sections.photos:
+        requested.append("photo_spots")
+    if sections.tips:
+        requested.append("tips")
+
+    keys_csv = ", ".join(requested)
+
+    schema_lines = [
+        '"number": ' + str(day_number) + ',',
+        '"title": "Short evocative title for the day",',
+        f'"label": "{weekday_label}",',
+        '"schedule": [',
+        '  {"time": "HH:MM or ~HH:MM", "activity": "Concrete and named", "note": "Optional one-line caveat"},',
+        '  ...',
+        ']' + ("," if len(requested) > 1 else ""),
+    ]
+    if sections.food:
+        schema_lines += [
+            '"food_spots": [',
+            '  {"name": "Real restaurant", "area": "Neighbourhood", "meal": "Breakfast | Lunch | Dinner | Coffee | Snack",',
+            '   "tags": ["Vegan-friendly", "Book ahead"], "notes": "1-2 sentences with rough price (~€NNpp), key dish, vibe."}',
+            "]" + ("," if "photo_spots" in requested or "tips" in requested else ""),
+        ]
+    if sections.photos:
+        schema_lines += [
+            '"photo_spots": [',
+            '  {"location": "Specific named spot", "best_time": "Sunrise/golden hour/specific time", "what": "What to shoot, lens hint"}',
+            "]" + ("," if "tips" in requested else ""),
+        ]
+    if sections.tips:
+        schema_lines += [
+            '"tips": [',
+            '  "Short actionable tip ONLY when something specific warrants it",',
+            "  ...",
+            "]",
+        ]
+
+    schema = "\n  ".join(schema_lines)
+
+    requirements: list[str] = [
+        "- schedule: 8-12 time-stamped items covering morning through night",
+    ]
+    if sections.food:
+        requirements.append(
+            "- food_spots: 2-4 real, named places — ideally one per relevant meal (breakfast, lunch, dinner)"
+        )
+    if sections.photos:
+        requirements.append(
+            "- photo_spots: 2-3 specific named spots with best times"
+        )
+    if sections.tips:
+        requirements.append(
+            "- tips: 1-5 short tips ONLY if specific prep applies for THIS day's schedule "
+            "(e.g. 'Pack a fleece — mountain temps drop to 8°C', 'Cash only at the trailhead', "
+            "'Bring a tripod for blue hour shots'). Return an EMPTY array if nothing special applies — "
+            "do not invent generic travel advice."
+        )
+
     return f"""Trip: {total_days} days in {destination}. Travel style: {travel_style}.
 You are writing the PRINT GUIDE for Day {day_number} only.
 
 The web app already shows a high-level itinerary. The PDF should be deeper:
 specific times, concrete recommendations, named restaurants with one-sentence
-notes, and named photo spots with best times. Be opinionated.
+notes, and (when relevant) named photo spots and prep tips. Be opinionated.
 
 Existing day brief from the web view (for continuity, do NOT copy verbatim):
 
 {base_doc_excerpt}
 
-Return a single JSON object:
+Return a single JSON object with EXACTLY these keys: {keys_csv}.
 
+Schema:
 {{
-  "number": {day_number},
-  "title": "Short evocative title (e.g. 'Higashiyama Temples & Sannenzaka')",
-  "label": "{weekday_label}",
-  "schedule": [
-    {{"time": "HH:MM or ~HH:MM", "activity": "What happens — concrete and named", "note": "Optional one-line caveat or detail"}},
-    ...
-  ],
-  "food_spots": [
-    {{
-      "name": "Real restaurant name",
-      "area": "Neighbourhood",
-      "meal": "Breakfast | Lunch | Dinner | Coffee | Snack",
-      "tags": ["Vegan-friendly", "Book ahead", "Cash only"],
-      "notes": "1-2 sentences. Include rough price (~€NNpp), key dish, vibe."
-    }}
-  ],
-  "photo_spots": [
-    {{"location": "Specific named spot", "best_time": "Sunrise/golden hour/specific time", "what": "What to shoot, lens hint if useful"}}
-  ]
+  {schema}
 }}
 
-REQUIREMENTS:
-- schedule: 8-12 time-stamped items covering morning through night
-- food_spots: 2-4 entries, ideally one each for relevant meals
-- photo_spots: 2-3 entries with specific locations
-- All recommendations must be real, named, current places
-- Times realistic and sequential
-- For tags: only include genuinely true ones. Empty array is fine.
+Requirements:
+{chr(10).join(requirements)}
 
-Output a single JSON object. Nothing else."""
+All recommendations must be real, named, current places. Times realistic
+and sequential. Output a single JSON object. Nothing else."""
 
 
 def _extract_json(raw: str) -> str:
@@ -97,6 +144,7 @@ def _generate_day(
     travel_style: str,
     base_doc_excerpt: str,
     weekday_label: str,
+    sections: PdfSections,
 ) -> dict[str, Any]:
     client = make_client()
     response = client.chat.completions.create(
@@ -113,6 +161,7 @@ def _generate_day(
                     travel_style,
                     base_doc_excerpt,
                     weekday_label,
+                    sections,
                 ),
             },
         ],
@@ -141,14 +190,15 @@ def stream_pdf_plan(
     total_days: int,
     travel_style: str,
     base_md: str,
+    sections: PdfSections,
     start_date_iso: str | None = None,
 ) -> Iterator[tuple[str, Any]]:
     """Stream stage events while generating the per-day PDF plan in parallel.
 
     Yields:
-      ("stage", {"key": "day_N", "label": "Day N of X", "status": "running"|"done"|"error"})
-      ("plan",  PdfPlan)  — once at the end with the assembled plan
-      ("error", message)  — if no days could be generated
+      ("stage", {"key": "day_N", "label": "Day N of X", "status": ...})
+      ("plan",  PdfPlan)
+      ("error", message)
     """
     if total_days < 1:
         yield ("error", "Trip has no days")
@@ -159,7 +209,6 @@ def stream_pdf_plan(
 
     completed: dict[int, dict[str, Any]] = {}
 
-    # Emit pending stages upfront so the modal can render the full list.
     for n in range(1, total_days + 1):
         yield ("stage", {"key": f"day_{n}", "label": f"Crafting Day {n}", "status": "running"})
 
@@ -173,6 +222,7 @@ def stream_pdf_plan(
                 travel_style,
                 excerpts[n - 1],
                 weekday_labels[n - 1],
+                sections,
             ): n
             for n in range(1, total_days + 1)
         }
@@ -208,20 +258,15 @@ def stream_pdf_plan(
 
 
 def _build_weekday_labels(total_days: int, start_date_iso: str | None) -> list[str]:
-    """Build readable per-day labels. With a start date: 'Day 1 · Fri 15 May'.
-    Without: 'Day 1', 'Day 2', ..."""
     if not start_date_iso:
         return [f"Day {n}" for n in range(1, total_days + 1)]
-
     from datetime import date, timedelta
 
     try:
         start = date.fromisoformat(start_date_iso)
     except ValueError:
         return [f"Day {n}" for n in range(1, total_days + 1)]
-
-    out: list[str] = []
-    for i in range(total_days):
-        d = start + timedelta(days=i)
-        out.append(f"Day {i + 1} · {d.strftime('%a %-d %b')}")
-    return out
+    return [
+        f"Day {i + 1} · {(start + timedelta(days=i)).strftime('%a %-d %b')}"
+        for i in range(total_days)
+    ]

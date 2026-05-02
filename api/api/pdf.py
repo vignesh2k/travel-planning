@@ -186,18 +186,22 @@ def _render_day(pdf: FPDF, reg: str, bold: str, day: PdfDay) -> None:
         _render_schedule(pdf, reg, bold, day.schedule)
         pdf.ln(2)
 
-    food_dinner_first = sorted(
-        day.food_spots,
-        key=lambda f: ["Breakfast", "Coffee", "Snack", "Lunch", "Dinner"].index(f.meal)
-        if f.meal in {"Breakfast", "Coffee", "Snack", "Lunch", "Dinner"}
-        else 99,
-    )
-    for food in food_dinner_first:
-        _render_food_card(pdf, reg, bold, food)
-        pdf.ln(2)
+    if day.food_spots:
+        food_ordered = sorted(
+            day.food_spots,
+            key=lambda f: ["Breakfast", "Coffee", "Snack", "Lunch", "Dinner"].index(f.meal)
+            if f.meal in {"Breakfast", "Coffee", "Snack", "Lunch", "Dinner"}
+            else 99,
+        )
+        for food in food_ordered:
+            _render_food_card(pdf, reg, bold, food)
+            pdf.ln(2)
 
     if day.photo_spots:
         _render_photo_section(pdf, reg, bold, day.photo_spots)
+
+    if day.tips:
+        _render_tips_section(pdf, reg, bold, day.tips)
 
 
 def _render_day_header(pdf: FPDF, reg: str, bold: str, day: PdfDay) -> None:
@@ -330,6 +334,31 @@ def _render_food_card(pdf: FPDF, reg: str, bold: str, food: PdfFoodSpot) -> None
         pdf.rect(x0, y_start, 1.4, y_end - y_start, "F")
 
     pdf.ln(2)
+
+
+def _render_tips_section(pdf: FPDF, reg: str, bold: str, tips: list[str]) -> None:
+    pdf.ln(2)
+    pdf.set_text_color(*AMBER)
+    pdf.set_font(bold, "B", 9)
+    pdf.set_x(pdf.l_margin)
+    pdf.cell(0, 5, "TIPS & LOGISTICS", new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(0.5)
+    pdf.set_draw_color(*RULE)
+    pdf.set_line_width(0.2)
+    pdf.line(pdf.l_margin, pdf.get_y(), pdf.l_margin + pdf.epw, pdf.get_y())
+    pdf.ln(2)
+
+    indent = 6
+    for tip in tips:
+        pdf.set_font(reg, "", 11)
+        pdf.set_text_color(*INK)
+        x0 = pdf.l_margin + indent
+        y0 = pdf.get_y()
+        pdf.set_fill_color(*AMBER)
+        pdf.ellipse(x0, y0 + 2.4, 1.6, 1.6, "F")
+        pdf.set_x(x0 + 4)
+        pdf.multi_cell(pdf.epw - indent - 4, 6, tip)
+        pdf.ln(0.5)
 
 
 def _render_photo_section(

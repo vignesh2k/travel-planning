@@ -121,6 +121,7 @@ class PdfDay(BaseModel):
     schedule: list[PdfScheduleItem]
     food_spots: list[PdfFoodSpot] = []
     photo_spots: list[PdfPhotoSpot] = []
+    tips: list[str] = []
 
 
 class PdfPlan(BaseModel):
