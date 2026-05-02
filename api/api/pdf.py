@@ -294,33 +294,33 @@ def _render_schedule(
     for i, item in enumerate(items):
         row_top = pdf.get_y()
 
-        # Pass 1 (dry run) — measure height by running multi_cell with
-        # dry_run=True so nothing is actually drawn.
+        # Pass 1 (dry run) — measure height. fpdf2's dry_run does NOT
+        # advance the cursor; we have to count returned lines and
+        # multiply by line height ourselves.
         pdf.set_font(reg, "", 11)
-        pdf.set_xy(activity_x + pad_l, row_top + pad_v)
-        pdf.multi_cell(
+        pdf.set_x(activity_x + pad_l)
+        activity_lines = pdf.multi_cell(
             activity_col_w - pad_l * 2,
             6,
             item.activity,
             dry_run=True,
             output="LINES",
         )
-        height_after_activity = pdf.get_y()
+        h_activity = max(1, len(activity_lines)) * 6
+
+        h_note = 0
         if item.note:
             pdf.set_font(reg, "", 10)
-            pdf.set_x(activity_x + pad_l)
-            pdf.multi_cell(
+            note_lines = pdf.multi_cell(
                 activity_col_w - pad_l * 2,
                 5,
                 item.note,
                 dry_run=True,
                 output="LINES",
             )
-            row_bottom = pdf.get_y() + pad_v
-        else:
-            row_bottom = height_after_activity + pad_v
+            h_note = max(1, len(note_lines)) * 5
 
-        row_h = row_bottom - row_top
+        row_h = pad_v + h_activity + h_note + pad_v
 
         # If this row would page-break, manually advance so the alt fill
         # renders on the new page rather than orphaning the backdrop.
@@ -367,21 +367,19 @@ def _render_food_card(pdf: FPDF, reg: str, bold: str, food: PdfFoodSpot) -> None
     if food.area:
         title += f", {food.area}"
 
-    # Pre-measure card height with dry-runs so we can fill the cream bg first.
-    pdf.set_xy(inner_x, card_top + pad)
+    # Pre-measure card height — dry_run doesn't move the cursor, so count
+    # returned lines and multiply by line height.
+    pdf.set_x(inner_x)
     pdf.set_font(bold, "B", 12)
-    pdf.multi_cell(inner_w, 6, title, dry_run=True, output="LINES")
-    h_title = pdf.get_y() - (card_top + pad)
+    title_lines = pdf.multi_cell(inner_w, 6, title, dry_run=True, output="LINES")
+    h_title = max(1, len(title_lines)) * 6
 
-    h_tags = 0
-    if food.tags:
-        # Tags occupy a single row of ~5 height.
-        h_tags = 6
+    h_tags = 6 if food.tags else 0  # one row of pills ~ 5mm + 1mm
 
-    pdf.set_xy(inner_x, card_top + pad + h_title + h_tags + 1)
+    pdf.set_x(inner_x)
     pdf.set_font(reg, "", 10)
-    pdf.multi_cell(inner_w, 5, food.notes, dry_run=True, output="LINES")
-    h_body = pdf.get_y() - (card_top + pad + h_title + h_tags + 1)
+    body_lines = pdf.multi_cell(inner_w, 5, food.notes, dry_run=True, output="LINES")
+    h_body = max(1, len(body_lines)) * 5
 
     card_h = pad + h_title + h_tags + 1 + h_body + pad
     if card_top + card_h > pdf.h - pdf.b_margin:
@@ -440,14 +438,15 @@ def _render_tips_section(pdf: FPDF, reg: str, bold: str, tips: list[str]) -> Non
     inner_w = pdf.epw - pad * 2 - 4
     card_top = pdf.get_y() + 2
 
-    # Pre-measure
+    # Pre-measure — count returned lines per tip and sum.
     title_h = 6
-    pdf.set_xy(inner_x, card_top + pad + title_h + 1)
     bullet_total_h = 0
+    pdf.set_font(reg, "", 11)
     for tip in tips:
-        pdf.set_font(reg, "", 11)
-        pdf.multi_cell(inner_w - 4, 5.5, tip, dry_run=True, output="LINES")
-        bullet_total_h = pdf.get_y() - (card_top + pad + title_h + 1)
+        tip_lines = pdf.multi_cell(
+            inner_w - 4, 5.5, tip, dry_run=True, output="LINES",
+        )
+        bullet_total_h += max(1, len(tip_lines)) * 5.5
     card_h = pad + title_h + 1 + bullet_total_h + pad
 
     if card_top + card_h > pdf.h - pdf.b_margin:
