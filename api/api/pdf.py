@@ -103,9 +103,12 @@ def render_plan_pdf(plan: PdfPlan) -> bytes:
         reg, bold = "Helvetica", "Helvetica"
 
     if FONT_SYMBOLS:
+        # Register the symbol font under BOTH styles so the fallback works
+        # when the active body style is bold (e.g. food-card titles, photo
+        # spot section headers). Symbola itself only ships regular but we
+        # alias it as bold here — better a regular emoji glyph than no glyph.
         pdf.add_font("symbols", style="", fname=FONT_SYMBOLS)
-        # fpdf2 falls back to this font for any glyph the primary lacks,
-        # so we can drop ☕ / 🍽 / 📷 / 💡 etc into normal strings.
+        pdf.add_font("symbols", style="B", fname=FONT_SYMBOLS)
         pdf.set_fallback_fonts(["symbols"])
 
     pdf.add_page()
@@ -172,21 +175,21 @@ def _render_cover(pdf: FPDF, reg: str, bold: str, plan: PdfPlan) -> None:
     pdf.set_fill_color(*ACCENT)
     pdf.ellipse(cx - diam / 2, glyph_y, diam, diam, "F")
     pdf.set_text_color(255, 255, 255)
-    pdf.set_font(bold, "B", 18)
+    pdf.set_font(bold, "B", 16)
     pdf.set_xy(cx - 10, glyph_y + 6)
     pdf.cell(20, 16, "*", align="C")
     pdf.set_y(glyph_y + diam + 14)
 
     # Destination
     pdf.set_text_color(*INK)
-    pdf.set_font(bold, "B", 32)
+    pdf.set_font(bold, "B", 28)
     pdf.set_x(0)
     pdf.cell(pdf.w, 14, plan.destination, align="C", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(3)
 
     # Subtitle
     pdf.set_text_color(*INK_MUTED)
-    pdf.set_font(reg, "", 12)
+    pdf.set_font(reg, "", 11)
     pdf.set_x(0)
     pdf.cell(pdf.w, 7, plan.subtitle, align="C", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(20)
@@ -262,8 +265,8 @@ def _render_day_header(pdf: FPDF, reg: str, bold: str, day: PdfDay) -> None:
     # to multi_cell wrap if even the smallest size overflows.
     pdf.set_text_color(*INK)
     title = day.title
-    chosen_size = 20
-    for size in (20, 18, 16, 14):
+    chosen_size = 17
+    for size in (17, 15, 13, 12):
         pdf.set_font(bold, "B", size)
         if pdf.get_string_width(title) <= pdf.epw:
             chosen_size = size
@@ -271,7 +274,7 @@ def _render_day_header(pdf: FPDF, reg: str, bold: str, day: PdfDay) -> None:
         chosen_size = size
     pdf.set_font(bold, "B", chosen_size)
     pdf.set_x(x0)
-    line_h = chosen_size * 0.5  # rough vertical advance per line
+    line_h = chosen_size * 0.5
     pdf.multi_cell(pdf.epw, line_h, title, new_x="LMARGIN", new_y="NEXT")
 
     # Red underline beneath
@@ -310,28 +313,28 @@ def _render_schedule(
         # Pass 1 (dry run) — measure height. fpdf2's dry_run does NOT
         # advance the cursor; we have to count returned lines and
         # multiply by line height ourselves.
-        pdf.set_font(reg, "", 11)
+        pdf.set_font(reg, "", 10)
         pdf.set_x(activity_x + pad_l)
         activity_lines = pdf.multi_cell(
             activity_col_w - pad_l * 2,
-            6,
+            5.5,
             item.activity,
             dry_run=True,
             output="LINES",
         )
-        h_activity = max(1, len(activity_lines)) * 6
+        h_activity = max(1, len(activity_lines)) * 5.5
 
         h_note = 0
         if item.note:
-            pdf.set_font(reg, "", 10)
+            pdf.set_font(reg, "", 9)
             note_lines = pdf.multi_cell(
                 activity_col_w - pad_l * 2,
-                5,
+                4.5,
                 item.note,
                 dry_run=True,
                 output="LINES",
             )
-            h_note = max(1, len(note_lines)) * 5
+            h_note = max(1, len(note_lines)) * 4.5
 
         row_h = pad_v + h_activity + h_note + pad_v
 
@@ -352,14 +355,14 @@ def _render_schedule(
         pdf.cell(time_col_w, 6, item.time)
 
         pdf.set_text_color(*INK)
-        pdf.set_font(reg, "", 11)
+        pdf.set_font(reg, "", 10)
         pdf.set_xy(activity_x + pad_l, row_top + pad_v)
-        pdf.multi_cell(activity_col_w - pad_l * 2, 6, item.activity)
+        pdf.multi_cell(activity_col_w - pad_l * 2, 5.5, item.activity)
         if item.note:
             pdf.set_text_color(*INK_MUTED)
-            pdf.set_font(reg, "", 10)
+            pdf.set_font(reg, "", 9)
             pdf.set_x(activity_x + pad_l)
-            pdf.multi_cell(activity_col_w - pad_l * 2, 5, item.note)
+            pdf.multi_cell(activity_col_w - pad_l * 2, 4.5, item.note)
 
         pdf.set_y(row_top + row_h)
 
@@ -383,16 +386,16 @@ def _render_food_card(pdf: FPDF, reg: str, bold: str, food: PdfFoodSpot) -> None
     # Pre-measure card height — dry_run doesn't move the cursor, so count
     # returned lines and multiply by line height.
     pdf.set_x(inner_x)
-    pdf.set_font(bold, "B", 12)
-    title_lines = pdf.multi_cell(inner_w, 6, title, dry_run=True, output="LINES")
-    h_title = max(1, len(title_lines)) * 6
+    pdf.set_font(bold, "B", 11)
+    title_lines = pdf.multi_cell(inner_w, 5.5, title, dry_run=True, output="LINES")
+    h_title = max(1, len(title_lines)) * 5.5
 
-    h_tags = 6 if food.tags else 0  # one row of pills ~ 5mm + 1mm
+    h_tags = 5.5 if food.tags else 0
 
     pdf.set_x(inner_x)
-    pdf.set_font(reg, "", 10)
-    body_lines = pdf.multi_cell(inner_w, 5, food.notes, dry_run=True, output="LINES")
-    h_body = max(1, len(body_lines)) * 5
+    pdf.set_font(reg, "", 9)
+    body_lines = pdf.multi_cell(inner_w, 4.5, food.notes, dry_run=True, output="LINES")
+    h_body = max(1, len(body_lines)) * 4.5
 
     card_h = pad + h_title + h_tags + 1 + h_body + pad
     if card_top + card_h > pdf.h - pdf.b_margin:
@@ -409,9 +412,9 @@ def _render_food_card(pdf: FPDF, reg: str, bold: str, food: PdfFoodSpot) -> None
 
     # Title
     pdf.set_text_color(*INK)
-    pdf.set_font(bold, "B", 12)
+    pdf.set_font(bold, "B", 11)
     pdf.set_xy(inner_x, card_top + pad)
-    pdf.multi_cell(inner_w, 6, title)
+    pdf.multi_cell(inner_w, 5.5, title)
     cursor_y = pdf.get_y()
 
     # Tag pills
@@ -420,24 +423,24 @@ def _render_food_card(pdf: FPDF, reg: str, bold: str, food: PdfFoodSpot) -> None
         tag_x = inner_x
         tag_y = cursor_y + 0.5
         for tag in food.tags[:4]:
-            pdf.set_font(bold, "B", 8)
+            pdf.set_font(bold, "B", 7.5)
             tw = pdf.get_string_width(tag) + 5
             if tag_x + tw > x0 + pdf.epw - pad:
-                tag_y += 5.5
+                tag_y += 5
                 tag_x = inner_x
             pdf.set_fill_color(*TAG_BG)
             pdf.set_text_color(*TAG_TEXT)
-            pdf.rect(tag_x, tag_y, tw, 4.5, "F")
+            pdf.rect(tag_x, tag_y, tw, 4.2, "F")
             pdf.set_xy(tag_x, tag_y)
-            pdf.cell(tw, 4.5, tag, align="C")
+            pdf.cell(tw, 4.2, tag, align="C")
             tag_x += tw + 3
-        cursor_y = tag_y + 5
+        cursor_y = tag_y + 4.7
 
     # Body
     pdf.set_text_color(*INK_MUTED)
-    pdf.set_font(reg, "", 10)
+    pdf.set_font(reg, "", 9)
     pdf.set_xy(inner_x, cursor_y + 0.5)
-    pdf.multi_cell(inner_w, 5, food.notes)
+    pdf.multi_cell(inner_w, 4.5, food.notes)
 
     pdf.set_y(card_top + card_h + 2)
 
@@ -452,14 +455,14 @@ def _render_tips_section(pdf: FPDF, reg: str, bold: str, tips: list[str]) -> Non
     card_top = pdf.get_y() + 2
 
     # Pre-measure — count returned lines per tip and sum.
-    title_h = 6
+    title_h = 5
     bullet_total_h = 0
-    pdf.set_font(reg, "", 11)
+    pdf.set_font(reg, "", 10)
     for tip in tips:
         tip_lines = pdf.multi_cell(
-            inner_w - 4, 5.5, tip, dry_run=True, output="LINES",
+            inner_w - 4, 5, tip, dry_run=True, output="LINES",
         )
-        bullet_total_h += max(1, len(tip_lines)) * 5.5
+        bullet_total_h += max(1, len(tip_lines)) * 5
     card_h = pad + title_h + 1 + bullet_total_h + pad
 
     if card_top + card_h > pdf.h - pdf.b_margin:
@@ -484,13 +487,13 @@ def _render_tips_section(pdf: FPDF, reg: str, bold: str, tips: list[str]) -> Non
     # Bullet tips
     pdf.set_y(card_top + pad + title_h + 1)
     for tip in tips:
-        pdf.set_font(reg, "", 11)
+        pdf.set_font(reg, "", 10)
         pdf.set_text_color(*INK)
         y_b = pdf.get_y()
         pdf.set_fill_color(*ACCENT)
-        pdf.ellipse(inner_x, y_b + 2.2, 1.4, 1.4, "F")
+        pdf.ellipse(inner_x, y_b + 1.9, 1.3, 1.3, "F")
         pdf.set_x(inner_x + 3)
-        pdf.multi_cell(inner_w - 4, 5.5, tip)
+        pdf.multi_cell(inner_w - 4, 5, tip)
 
     pdf.set_y(card_top + card_h + 2)
 
@@ -516,17 +519,17 @@ def _render_photo_section(
         y0 = pdf.get_y()
 
         pdf.set_text_color(*INK)
-        pdf.set_font(bold, "B", 11)
+        pdf.set_font(bold, "B", 10)
         pdf.set_xy(x0, y0)
-        pdf.multi_cell(pdf.epw, 6, spot.location)
+        pdf.multi_cell(pdf.epw, 5.5, spot.location)
 
         pdf.set_text_color(*ACCENT)
-        pdf.set_font(bold, "B", 8)
+        pdf.set_font(bold, "B", 7.5)
         pdf.set_x(x0)
-        pdf.cell(0, 4.5, f"BEST TIME · {spot.best_time.upper()}", new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(0, 4.2, f"BEST TIME · {spot.best_time.upper()}", new_x="LMARGIN", new_y="NEXT")
 
         pdf.set_text_color(*INK_MUTED)
-        pdf.set_font(reg, "", 10)
+        pdf.set_font(reg, "", 9)
         pdf.set_x(x0)
-        pdf.multi_cell(pdf.epw, 5, spot.what)
+        pdf.multi_cell(pdf.epw, 4.5, spot.what)
         pdf.ln(2)
