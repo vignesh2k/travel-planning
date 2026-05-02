@@ -6,9 +6,9 @@ import Link from "next/link";
 import { BrandMark } from "@/components/BrandMark";
 import { Map } from "@/components/Map";
 import { MobileSheet } from "@/components/MobileSheet";
+import { PdfExportMenu } from "@/components/PdfExportMenu";
 import { RefineInput } from "@/components/RefineInput";
 import { TripPanel } from "@/components/TripPanel";
-import { getBrowserToken } from "@/lib/auth.browser";
 import type { Place, TripFull } from "@/lib/types";
 
 function useIsMobile(): boolean | null {
@@ -27,7 +27,6 @@ export function TripView({ trip: initial }: { trip: TripFull }) {
   const [trip, setTrip] = useState(initial);
   const isMobile = useIsMobile();
   const [shareCopied, setShareCopied] = useState(false);
-  const [pdfPending, setPdfPending] = useState(false);
   const [focusPlaces, setFocusPlaces] = useState<Place[] | null>(null);
   const [refinePrefill, setRefinePrefill] = useState<string | undefined>(undefined);
   const [refinePrefillKey, setRefinePrefillKey] = useState(0);
@@ -44,29 +43,6 @@ export function TripView({ trip: initial }: { trip: TripFull }) {
       window.setTimeout(() => setShareCopied(false), 1500);
     } catch (e) {
       console.error("clipboard write failed", e);
-    }
-  }
-
-  async function exportPdf() {
-    if (pdfPending) return;
-    setPdfPending(true);
-    try {
-      const token = await getBrowserToken();
-      if (!token) return;
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE}/trips/${trip.slug}/pdf`,
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      if (!res.ok) return;
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${trip.destination.replace(/[ ,]+/g, "_")}_travel_guide.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } finally {
-      setPdfPending(false);
     }
   }
 
@@ -90,13 +66,7 @@ export function TripView({ trip: initial }: { trip: TripFull }) {
           >
             {shareCopied ? "Copied ✓" : "Share"}
           </button>
-          <button
-            onClick={exportPdf}
-            disabled={pdfPending}
-            className="frosted rounded-[10px] px-3 py-1 text-xs hover:bg-white/85 disabled:opacity-60"
-          >
-            {pdfPending ? "Preparing…" : "Export PDF"}
-          </button>
+          <PdfExportMenu slug={trip.slug} destination={trip.destination} />
         </div>
       </header>
 
