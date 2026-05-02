@@ -70,18 +70,11 @@ export function Map({
         el.style.boxShadow = "0 2px 4px rgba(0,0,0,0.2)";
         el.style.cursor = "pointer";
         el.style.transition = "transform 120ms ease, box-shadow 120ms ease";
-        el.addEventListener("mouseenter", () => {
-          el.style.transform = "scale(1.35)";
-          el.style.boxShadow = "0 3px 8px rgba(0,0,0,0.3)";
-        });
-        el.addEventListener("mouseleave", () => {
-          el.style.transform = "scale(1)";
-          el.style.boxShadow = "0 2px 4px rgba(0,0,0,0.2)";
-        });
 
         const popup = new maplibregl.Popup({
           offset: 14,
           closeButton: false,
+          closeOnClick: false,
           className: "atlas-popup",
         }).setHTML(
           `<div style="font-family:Inter,system-ui,sans-serif;max-width:240px">
@@ -93,8 +86,32 @@ export function Map({
 
         const marker = new maplibregl.Marker({ element: el })
           .setLngLat([p.lng, p.lat])
-          .setPopup(popup)
           .addTo(map);
+
+        // Show popup on hover (not click). Closing on mouseleave with a tiny
+        // delay so a quick mouseout-to-popup doesn't flicker.
+        let closeTimer: number | undefined;
+        const open = () => {
+          if (closeTimer) {
+            window.clearTimeout(closeTimer);
+            closeTimer = undefined;
+          }
+          el.style.transform = "scale(1.35)";
+          el.style.boxShadow = "0 3px 8px rgba(0,0,0,0.3)";
+          if (!popup.isOpen()) {
+            popup.setLngLat([p.lng, p.lat]).addTo(map);
+          }
+        };
+        const scheduleClose = () => {
+          closeTimer = window.setTimeout(() => {
+            el.style.transform = "scale(1)";
+            el.style.boxShadow = "0 2px 4px rgba(0,0,0,0.2)";
+            popup.remove();
+          }, 120);
+        };
+        el.addEventListener("mouseenter", open);
+        el.addEventListener("mouseleave", scheduleClose);
+
         markersRef.current.push({ marker, place: p });
       }
 
@@ -125,8 +142,9 @@ export function Map({
 
       if (geocoded.length === 1) {
         map.flyTo({ center: [geocoded[0].lng, geocoded[0].lat], zoom: 15, duration: 700 });
-        const m = markersRef.current.find((mm) => mm.place.name === geocoded[0].name);
-        m?.marker.togglePopup();
+        // Don't auto-open the popup here — popups are hover-driven, and
+        // auto-opening on a fly-to caused them to flicker off-screen as
+        // the camera repositioned.
         return;
       }
 
