@@ -182,3 +182,15 @@ def get_trip(slug: str, user: CurrentUser) -> TripFull:
     inserted_data = {**row}
     doc_dict = inserted_data.pop("document")
     return TripFull(**inserted_data, document=TripDocument(**doc_dict))
+
+
+@router.delete("/trips/{slug}")
+def delete_trip(slug: str, user: CurrentUser) -> dict[str, bool]:
+    db = service_client()
+    res = db.table("trips").select("user_id").eq("slug", slug).single().execute()
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    if res.data["user_id"] != user["sub"]:
+        raise HTTPException(status_code=403, detail="Not your trip")
+    db.table("trips").delete().eq("slug", slug).execute()
+    return {"ok": True}

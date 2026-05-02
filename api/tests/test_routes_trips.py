@@ -192,3 +192,57 @@ def test_post_trips_stream_emits_events(monkeypatch, auth_headers) -> None:
     assert "event: place" in body
     assert "event: done" in body
     assert "kyoto-7d-zzz" in body
+
+
+OWNER_ID = "owner-uid"
+
+
+@pytest.fixture
+def owner_headers() -> dict[str, str]:
+    return {"Authorization": f"Bearer {_token(OWNER_ID)}"}
+
+
+def _mock_supabase_select_then_delete(row: dict) -> MagicMock:
+    table = MagicMock()
+    chain = MagicMock()
+    table.select.return_value = chain
+    chain.eq.return_value = chain
+    chain.single.return_value = chain
+    chain.execute.return_value = MagicMock(data=row)
+    table.delete.return_value.eq.return_value.execute.return_value = MagicMock(data=[row])
+    client = MagicMock()
+    client.table.return_value = table
+    return client
+
+
+def test_delete_trip_owner_succeeds(monkeypatch, owner_headers) -> None:
+    monkeypatch.setattr(
+        "api.routes.trips.service_client",
+        lambda: _mock_supabase_select_then_delete({"user_id": OWNER_ID}),
+    )
+    res = TestClient(app).delete("/trips/kyoto-7d-aaa", headers=owner_headers)
+    assert res.status_code == 200
+    assert res.json() == {"ok": True}
+
+
+def test_delete_trip_non_owner_403(monkeypatch, auth_headers) -> None:
+    monkeypatch.setattr(
+        "api.routes.trips.service_client",
+        lambda: _mock_supabase_select_then_delete({"user_id": OWNER_ID}),
+    )
+    res = TestClient(app).delete("/trips/kyoto-7d-aaa", headers=auth_headers)
+    assert res.status_code == 403
+
+
+def test_delete_trip_missing_404(monkeypatch, auth_headers) -> None:
+    table = MagicMock()
+    chain = MagicMock()
+    table.select.return_value = chain
+    chain.eq.return_value = chain
+    chain.single.return_value = chain
+    chain.execute.return_value = MagicMock(data=None)
+    client = MagicMock()
+    client.table.return_value = table
+    monkeypatch.setattr("api.routes.trips.service_client", lambda: client)
+    res = TestClient(app).delete("/trips/missing-slug", headers=auth_headers)
+    assert res.status_code == 404

@@ -50,3 +50,8 @@ export async function postBrief(brief: TripBriefIn, token: string): Promise<Trip
   if (!res.ok) throw new Error(`postBrief ${res.status}`);
   return res.json();
 }
+
+export async function deleteTrip(slug: string, token: string): Promise<void> {
+  const res = await authedFetch(`/trips/${slug}`, { method: "DELETE" }, token);
+  if (!res.ok) throw new Error(`deleteTrip ${res.status}`);
+}
