@@ -6,65 +6,72 @@ from api.llm.client import make_client, strip_code_fences
 
 RESEARCH_MODEL = "google/gemini-2.5-flash-lite"
 
+MAX_TOKENS = 6000
 
 SYSTEM_PROMPT = (
-    "You are an expert travel researcher. You provide specific, actionable recommendations "
-    "with real place names. For vegetarian restaurants, focus on dedicated vegetarian/vegan "
-    "spots or places with outstanding vegetarian menus. Always respond with valid JSON only — "
-    "no markdown fences, no extra text."
+    "You are an expert travel guide writer. Be specific with real place names. "
+    "For restaurants prefer dedicated vegetarian/vegan spots or places with great "
+    "vegetarian menus. Output valid JSON only — no markdown fences, no preamble."
 )
 
 
 def _user_prompt(destination: str, trip_length: int, travel_style: str) -> str:
-    return f"""Create a comprehensive travel research document for a trip to {destination}.
+    return f"""Build a travel guide for {trip_length} days in {destination}.
+Style: {travel_style}.
 
-Trip details:
-- Duration: {trip_length} days
-- Travel style / preferences: {travel_style}
+Return JSON with exactly two keys.
 
-Return a single JSON object with exactly two keys:
+1. "document" — Markdown with EXACTLY these two sections, in this order:
 
-1. "document" — a detailed Markdown string with these sections:
-   ## Overview
-   ## Where to Base Yourself
-   Recommend the smartest accommodation strategy for this trip length: one central base, two bases, or a moving itinerary. Explain why — consider transport links, proximity to key areas, and cost of moving. Keep it to 2–3 sentences with a clear recommendation.
-   ## Neighbourhoods  (3–5 key neighbourhoods, prose descriptions)
-   ## Vegetarian Restaurants — markdown table with columns: Restaurant | Area | Must-Try / Why Visit
-   ## Photography Spots — markdown table with columns: Location | Best Time | What to Photograph
-   ## {trip_length}-Day Itinerary
-   Structure the days to reflect the basing strategy above (e.g. group days by base location if moving).
-   For EVERY day use exactly this structure — no variations:
-   ### Day N: Title
-   **Morning:**
-   - bullet
-   - bullet
-   **Afternoon:**
-   - bullet
-   - bullet
-   **Evening:**
-   - bullet
-   - bullet
-   ## Logistics — markdown table with columns: Category | Details
+## Vegetarian Restaurants
+A markdown table with columns: Restaurant | Area | Must-Try.
+4 to 7 rows. Real, named, vegetarian-friendly places.
 
-2. "places" — an array of objects for every named location in the document:
-   - "name": geocodable string, e.g. "Shinjuku Gyoen, Tokyo, Japan"
+## {trip_length}-Day Itinerary
+For each of the {trip_length} days, EXACTLY this structure:
+
+### Day N: <short title naming the area or theme>
+**Morning:**
+- <activity, ideally with a real place name>
+- <activity>
+**Afternoon:**
+- <activity>
+- <activity>
+**Evening:**
+- <activity>
+- <activity>
+
+2. "places" — array of at most 12 objects covering the most important named
+   locations across the document. Each object:
+   - "name": geocodable string e.g. "Kiyomizu-dera, Kyoto, Japan"
    - "category": one of "neighbourhood" | "restaurant" | "photography_spot" | "logistics"
-   - "description": one sentence about this place
+   - "description": one short sentence
 
-Return ONLY the JSON object."""
+Output a single JSON object only. No prose around it. No code fences."""
+
+
+def _extract_json(raw: str) -> str:
+    """Strip code fences, then bound to first `{` … last `}` to tolerate
+    occasional preamble or trailing whitespace from the model."""
+    raw = strip_code_fences(raw)
+    start = raw.find("{")
+    end = raw.rfind("}")
+    if start != -1 and end > start:
+        return raw[start : end + 1]
+    return raw
 
 
 def get_travel_research(destination: str, trip_length: int, travel_style: str) -> dict:
     client = make_client()
     response = client.chat.completions.create(
         model=RESEARCH_MODEL,
-        max_tokens=12000,
+        max_tokens=MAX_TOKENS,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": _user_prompt(destination, trip_length, travel_style)},
         ],
     )
-    raw = strip_code_fences(response.choices[0].message.content)
+    raw = _extract_json(response.choices[0].message.content)
     return json.loads(raw)
 
 
@@ -76,13 +83,12 @@ def stream_travel_research(
     """Stream the research call. Yields:
       - ("progress", {"chars": int})  every ~250 chars of accumulated output
       - ("result",   parsed_dict)     once at the end with the full parsed JSON
-
-    If the response is malformed JSON, yields ("error", message) instead.
+      - ("error",    message)         if the response can't be parsed as JSON
     """
     client = make_client()
     stream = client.chat.completions.create(
         model=RESEARCH_MODEL,
-        max_tokens=12000,
+        max_tokens=MAX_TOKENS,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": _user_prompt(destination, trip_length, travel_style)},
@@ -107,10 +113,10 @@ def stream_travel_research(
             yield ("progress", {"chars": len(accumulated)})
             last_progress_at = len(accumulated)
 
-    raw = strip_code_fences(accumulated)
+    raw = _extract_json(accumulated)
     try:
         parsed = json.loads(raw)
     except json.JSONDecodeError as e:
-        yield ("error", f"Could not parse research response: {e}")
+        yield ("error", f"Could not parse research response: {e}; len={len(accumulated)}")
         return
     yield ("result", parsed)
