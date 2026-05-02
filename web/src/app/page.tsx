@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { BrandMark } from "@/components/BrandMark";
 import { ChatInputClient } from "@/components/ChatInputClient";
 import { TripsList } from "@/components/TripsList";
+import { UserMenu } from "@/components/UserMenu";
 import { listTrips } from "@/lib/api";
 import { getServerToken } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -19,9 +20,7 @@ export default async function Home() {
     <main className="min-h-screen flex flex-col">
       <header className="px-6 py-4 flex items-center justify-between">
         <BrandMark />
-        <div className="text-xs text-ink-500">
-          {user.email}
-        </div>
+        <UserMenu email={user.email ?? ""} />
       </header>
 
       <section className="flex-1 flex flex-col items-center justify-center gap-6 px-6 pb-12 anim-fade-in">
