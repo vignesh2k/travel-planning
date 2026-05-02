@@ -4,9 +4,11 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# DejaVu fonts for fpdf2 (matches Linux paths in api/api/pdf.py)
+# DejaVu = primary body font. Symbola = fallback for glyphs DejaVu lacks
+# (☕ 🍽 📷 ☀ 🌙 etc — used as section/card icons in api/api/pdf.py).
 RUN apt-get update && apt-get install -y --no-install-recommends \
     fonts-dejavu-core \
+    fonts-symbola \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

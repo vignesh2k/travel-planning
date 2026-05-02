@@ -12,10 +12,16 @@ A small fallback `generate_pdf(markdown, destination)` remains for any caller
 that still hands us markdown — it just renders the plain document.
 """
 
+import logging
 import os
 import re
 
 from fpdf import FPDF, FontFace
+
+# fpdf2 logs a warning every time the primary font lacks a glyph, even when
+# a fallback font supplies it. The fallback DOES render — the warnings are
+# pure noise in our case. Quiet them.
+logging.getLogger("fpdf").setLevel(logging.ERROR)
 
 from api.models import PdfDay, PdfFoodSpot, PdfPhotoSpot, PdfPlan, PdfScheduleItem
 
@@ -55,6 +61,31 @@ FONT_BOLD = _find_font([
     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
     "/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf",
 ])
+# Symbol/emoji fallback. Used for ☕ 🍽 📷 ☀ 🌙 etc — anything outside
+# the BMP-Latin range that DejaVu/Arial don't include.
+FONT_SYMBOLS = _find_font([
+    # macOS
+    "/Library/Fonts/Symbola.ttf",
+    "/System/Library/Fonts/Apple Symbols.ttf",
+    "/Library/Fonts/Apple Symbols.ttf",
+    # Linux (apt: fonts-symbola)
+    "/usr/share/fonts/truetype/ancient-scripts/Symbola_hint.ttf",
+    "/usr/share/fonts/truetype/symbola/Symbola.ttf",
+    "/usr/share/fonts/symbola/Symbola.ttf",
+    "/usr/share/fonts/TTF/Symbola.ttf",
+])
+
+# Emoji prefixes used across renderers. Falls back to plain typography
+# when no symbol font is available (FONT_SYMBOLS is None).
+MEAL_EMOJI = {
+    "Breakfast": "☕",
+    "Coffee": "☕",
+    "Snack": "🥐",
+    "Lunch": "🍽",
+    "Dinner": "🍽",
+}
+PHOTO_EMOJI = "📷"
+TIPS_EMOJI = "💡"
 
 # ── Public API ───────────────────────────────────────────────────────────────
 
@@ -70,6 +101,12 @@ def render_plan_pdf(plan: PdfPlan) -> bytes:
         reg, bold = "body", "body"
     else:
         reg, bold = "Helvetica", "Helvetica"
+
+    if FONT_SYMBOLS:
+        pdf.add_font("symbols", style="", fname=FONT_SYMBOLS)
+        # fpdf2 falls back to this font for any glyph the primary lacks,
+        # so we can drop ☕ / 🍽 / 📷 / 💡 etc into normal strings.
+        pdf.set_fallback_fonts(["symbols"])
 
     pdf.add_page()
     _render_cover(pdf, reg, bold, plan)
@@ -238,11 +275,11 @@ def _render_schedule(
         return
 
     x0 = pdf.l_margin
-    time_col_w = 24
+    time_col_w = 28  # wider to fit ranges like "08:30 - 10:30"
     activity_col_w = pdf.epw - time_col_w
     activity_x = x0 + time_col_w
-    pad_l = 2
-    pad_v = 2.5
+    pad_l = 3
+    pad_v = 3.2  # more vertical breathing room per row
 
     # Header row: red small-caps TIME / ACTIVITY
     pdf.set_text_color(*ACCENT)
@@ -324,7 +361,9 @@ def _render_food_card(pdf: FPDF, reg: str, bold: str, food: PdfFoodSpot) -> None
     inner_w = pdf.epw - pad * 2 - 4
     card_top = pdf.get_y() + 1
 
-    title = f"{food.meal or 'Eat'}  —  {food.name}"
+    emoji = MEAL_EMOJI.get(food.meal or "", "🍽") if FONT_SYMBOLS else ""
+    prefix = f"{emoji}  " if emoji else ""
+    title = f"{prefix}{food.meal or 'Eat'}  —  {food.name}"
     if food.area:
         title += f", {food.area}"
 
@@ -427,7 +466,8 @@ def _render_tips_section(pdf: FPDF, reg: str, bold: str, tips: list[str]) -> Non
     pdf.set_text_color(*ACCENT)
     pdf.set_font(bold, "B", 9)
     pdf.set_xy(inner_x, card_top + pad)
-    pdf.cell(inner_w, title_h, "TIPS & LOGISTICS")
+    label = f"{TIPS_EMOJI}  TIPS & LOGISTICS" if FONT_SYMBOLS else "TIPS & LOGISTICS"
+    pdf.cell(inner_w, title_h, label)
 
     # Bullet tips
     pdf.set_y(card_top + pad + title_h + 1)
@@ -450,7 +490,8 @@ def _render_photo_section(
     pdf.set_text_color(*ACCENT)
     pdf.set_font(bold, "B", 9)
     pdf.set_x(pdf.l_margin)
-    pdf.cell(0, 5, "PHOTO SPOTS", new_x="LMARGIN", new_y="NEXT")
+    label = f"{PHOTO_EMOJI}  PHOTO SPOTS" if FONT_SYMBOLS else "PHOTO SPOTS"
+    pdf.cell(0, 5, label, new_x="LMARGIN", new_y="NEXT")
     pdf.ln(0.5)
 
     pdf.set_draw_color(*RULE)
