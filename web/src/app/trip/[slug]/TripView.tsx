@@ -9,7 +9,7 @@ import { MobileSheet } from "@/components/MobileSheet";
 import { RefineInput } from "@/components/RefineInput";
 import { TripPanel } from "@/components/TripPanel";
 import { getBrowserToken } from "@/lib/auth.browser";
-import type { TripFull } from "@/lib/types";
+import type { Place, TripFull } from "@/lib/types";
 
 function useIsMobile(): boolean | null {
   const [isMobile, setIsMobile] = useState<boolean | null>(null);
@@ -28,6 +28,14 @@ export function TripView({ trip: initial }: { trip: TripFull }) {
   const isMobile = useIsMobile();
   const [shareCopied, setShareCopied] = useState(false);
   const [pdfPending, setPdfPending] = useState(false);
+  const [focusPlaces, setFocusPlaces] = useState<Place[] | null>(null);
+  const [refinePrefill, setRefinePrefill] = useState<string | undefined>(undefined);
+  const [refinePrefillKey, setRefinePrefillKey] = useState(0);
+
+  function pushRefinePrefill(text: string) {
+    setRefinePrefill(text);
+    setRefinePrefillKey((n) => n + 1);
+  }
 
   async function copyShareLink() {
     try {
@@ -65,7 +73,7 @@ export function TripView({ trip: initial }: { trip: TripFull }) {
   return (
     <main className="relative h-dvh w-screen overflow-hidden">
       <div className="absolute inset-0 anim-fade-in">
-        <Map places={trip.document.places} />
+        <Map places={trip.document.places} focusPlaces={focusPlaces} />
       </div>
 
       <header className="absolute top-0 inset-x-0 px-6 py-3 flex items-center justify-between backdrop-blur-md bg-cream-50/40 z-10 anim-slide-up">
@@ -95,10 +103,19 @@ export function TripView({ trip: initial }: { trip: TripFull }) {
       {isMobile === false && (
         <aside className="absolute left-4 top-16 bottom-4 w-[330px] frosted-strong rounded-[18px] overflow-hidden flex flex-col z-10 anim-slide-left">
           <div className="flex-1 overflow-hidden">
-            <TripPanel trip={trip} />
+            <TripPanel
+              trip={trip}
+              onFocusPlaces={setFocusPlaces}
+              onRefinePrefill={pushRefinePrefill}
+            />
           </div>
           <div className="border-t border-amber-700/10 p-3">
-            <RefineInput slug={trip.slug} onUpdated={setTrip} />
+            <RefineInput
+              slug={trip.slug}
+              onUpdated={setTrip}
+              prefill={refinePrefill}
+              prefillKey={refinePrefillKey}
+            />
           </div>
         </aside>
       )}
@@ -107,10 +124,19 @@ export function TripView({ trip: initial }: { trip: TripFull }) {
         <MobileSheet>
           <div className="h-full flex flex-col">
             <div className="flex-1 overflow-hidden">
-              <TripPanel trip={trip} />
+              <TripPanel
+                trip={trip}
+                onFocusPlaces={setFocusPlaces}
+                onRefinePrefill={pushRefinePrefill}
+              />
             </div>
             <div className="border-t border-amber-700/10 p-3">
-              <RefineInput slug={trip.slug} onUpdated={setTrip} />
+              <RefineInput
+                slug={trip.slug}
+                onUpdated={setTrip}
+                prefill={refinePrefill}
+                prefillKey={refinePrefillKey}
+              />
             </div>
           </div>
         </MobileSheet>

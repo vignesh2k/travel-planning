@@ -4,13 +4,22 @@ import { useState } from "react";
 
 import { fetchHotels } from "@/lib/api";
 import { getBrowserToken } from "@/lib/auth.browser";
-import type { Neighborhood, TripFull } from "@/lib/types";
+import type { Neighborhood, Place, TripFull } from "@/lib/types";
 
-import { DayCard, type Day } from "./DayCard";
+import { type Day } from "./DayCard";
 import { HotelCard } from "./HotelCard";
+import { Itinerary } from "./Itinerary";
 import { TripPanelTabs, type Tab } from "./TripPanelTabs";
 
-export function TripPanel({ trip }: { trip: TripFull }) {
+export function TripPanel({
+  trip,
+  onFocusPlaces,
+  onRefinePrefill,
+}: {
+  trip: TripFull;
+  onFocusPlaces: (places: Place[] | null) => void;
+  onRefinePrefill: (text: string) => void;
+}) {
   const [tab, setTab] = useState<Tab>("Itinerary");
   const days = parseDays(trip.document.document_markdown);
   const restaurants = parseTable(trip.document.document_markdown, /## Vegetarian Restaurants/i);
@@ -37,11 +46,18 @@ export function TripPanel({ trip }: { trip: TripFull }) {
         onChange={(t) => {
           setTab(t);
           if (t === "Where to stay") loadHotels();
+          if (t !== "Itinerary") onFocusPlaces(null);
         }}
       />
       <div className="flex-1 p-3 overflow-auto flex flex-col gap-2">
-        {tab === "Itinerary" &&
-          days.map((d) => <DayCard key={d.number} day={d} isCurrent={d.number === 1} />)}
+        {tab === "Itinerary" && (
+          <Itinerary
+            days={days}
+            places={trip.document.places}
+            onFocusPlaces={onFocusPlaces}
+            onRefinePrefill={onRefinePrefill}
+          />
+        )}
 
         {tab === "Restaurants" && (
           <ul className="flex flex-col gap-1">
@@ -115,5 +131,5 @@ function parseTable(markdown: string, headerRe: RegExp): string[][] {
     const cells = t.replace(/^\||\|$/g, "").split("|").map((c) => c.trim());
     if (cells.length >= 2) rows.push(cells);
   }
-  return rows.slice(1); // drop header row
+  return rows.slice(1);
 }
