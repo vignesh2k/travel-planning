@@ -1,7 +1,7 @@
 from datetime import date, datetime
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 CategoryLiteral = Literal["neighbourhood", "restaurant", "photography_spot", "logistics"]
 
@@ -49,6 +49,25 @@ class TripDocument(BaseModel):
     document_markdown: str
     places: list[Place]
     neighborhoods: list[Neighborhood] = []
+
+    @field_validator("document_markdown", mode="before")
+    @classmethod
+    def _coerce_dict_to_markdown(cls, v: Any) -> Any:
+        """LLMs sometimes return the document as a dict keyed by section header
+        instead of a single markdown string. Flatten that shape — and tolerate
+        already-persisted rows that hit this bug before."""
+        if isinstance(v, dict):
+            parts: list[str] = []
+            for header, body in v.items():
+                if not isinstance(header, str) or not isinstance(body, str):
+                    continue
+                stripped = header.lstrip()
+                if stripped.startswith("##"):
+                    parts.append(f"{header}\n\n{body}")
+                else:
+                    parts.append(f"## {header}\n\n{body}")
+            return "\n\n".join(parts)
+        return v
 
 
 class TripSummary(BaseModel):

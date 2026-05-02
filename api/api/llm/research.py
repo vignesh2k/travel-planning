@@ -21,7 +21,9 @@ Style: {travel_style}.
 
 Return JSON with exactly two keys.
 
-1. "document" — Markdown with EXACTLY these two sections, in this order:
+1. "document" — a SINGLE STRING of Markdown text (NOT a JSON object,
+   NOT a nested object keyed by section). Inside that one string,
+   include EXACTLY these two sections, in this order:
 
 ## Vegetarian Restaurants
 A markdown table with columns: Restaurant | Area | Must-Try.
