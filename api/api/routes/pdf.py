@@ -3,6 +3,7 @@ from fastapi.responses import Response
 
 from api.auth import CurrentUser
 from api.db import service_client
+from api.models import TripDocument
 from api.pdf import generate_pdf
 
 router = APIRouter(tags=["pdf"])
@@ -15,7 +16,10 @@ def trip_pdf(slug: str, user: CurrentUser) -> Response:
         raise HTTPException(status_code=404, detail="Trip not found")
     row = res.data
 
-    pdf_bytes = generate_pdf(row["document"]["document_markdown"], row["destination"])
+    # Route the raw jsonb through TripDocument so the field validator coerces
+    # any dict-shaped document_markdown back into a proper string.
+    doc = TripDocument(**row["document"])
+    pdf_bytes = generate_pdf(doc.document_markdown, row["destination"])
     safe_name = row["destination"].replace(" ", "_").replace(",", "")
     return Response(
         content=pdf_bytes,
