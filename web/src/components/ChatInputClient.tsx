@@ -5,12 +5,14 @@ import { useState } from "react";
 
 import { ChatInput } from "./ChatInput";
 import { StreamingOverlay } from "./StreamingOverlay";
+import { SuggestionChips } from "./SuggestionChips";
 import { getBrowserToken } from "@/lib/auth.browser";
 import { streamTrip } from "@/lib/streamingTrip";
 import type { Place } from "@/lib/types";
 
 export function ChatInputClient() {
   const router = useRouter();
+  const [text, setText] = useState("");
   const [pending, setPending] = useState(false);
   const [status, setStatus] = useState("");
   const [places, setPlaces] = useState<Place[]>([]);
@@ -18,6 +20,8 @@ export function ChatInputClient() {
   return (
     <>
       <ChatInput
+        text={text}
+        setText={setText}
         pending={pending}
         onSubmit={async (brief) => {
           setPending(true);
@@ -50,6 +54,7 @@ export function ChatInputClient() {
           }
         }}
       />
+      <SuggestionChips onPick={setText} />
       {pending && <StreamingOverlay status={status} places={places} />}
     </>
   );

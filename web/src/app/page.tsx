@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 
 import { BrandMark } from "@/components/BrandMark";
 import { ChatInputClient } from "@/components/ChatInputClient";
-import { SuggestionChipsClient } from "@/components/SuggestionChipsClient";
 import { TripsList } from "@/components/TripsList";
 import { listTrips } from "@/lib/api";
 import { getServerToken } from "@/lib/auth";
@@ -25,7 +24,7 @@ export default async function Home() {
         </div>
       </header>
 
-      <section className="flex-1 flex flex-col items-center justify-center gap-6 px-6 pb-12">
+      <section className="flex-1 flex flex-col items-center justify-center gap-6 px-6 pb-12 anim-fade-in">
         <h1 className="font-display text-4xl md:text-5xl font-semibold tracking-tight text-ink-900 text-center">
           Where to next?
         </h1>
@@ -33,7 +32,6 @@ export default async function Home() {
           Tell me about your trip in plain English — destination, days, what you love.
         </p>
         <ChatInputClient />
-        <SuggestionChipsClient />
         <TripsList trips={trips} />
       </section>
     </main>

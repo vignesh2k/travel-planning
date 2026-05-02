@@ -1,17 +1,18 @@
 "use client";
 
-import { useState } from "react";
-
 import type { TripBriefIn } from "@/lib/types";
 
 export function ChatInput({
+  text,
+  setText,
   onSubmit,
   pending,
 }: {
+  text: string;
+  setText: (s: string) => void;
   onSubmit: (brief: TripBriefIn) => void;
   pending: boolean;
 }) {
-  const [text, setText] = useState("");
   return (
     <form
       onSubmit={(e) => {
@@ -19,7 +20,7 @@ export function ChatInput({
         if (!text.trim() || pending) return;
         onSubmit({ text: text.trim() });
       }}
-      className="frosted-strong rounded-[18px] p-4 w-full max-w-xl"
+      className="frosted-strong rounded-[18px] p-4 w-full max-w-xl transition-shadow hover:shadow-lg"
     >
       <textarea
         value={text}
@@ -37,7 +38,7 @@ export function ChatInput({
         <button
           type="submit"
           disabled={!text.trim() || pending}
-          className="w-8 h-8 rounded-[10px] bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-md disabled:opacity-40"
+          className="w-8 h-8 rounded-[10px] bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-md disabled:opacity-40 hover:shadow-lg"
         >
           {pending ? "…" : "↑"}
         </button>

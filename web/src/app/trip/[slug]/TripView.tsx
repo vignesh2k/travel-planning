@@ -26,14 +26,49 @@ function useIsMobile(): boolean | null {
 export function TripView({ trip: initial }: { trip: TripFull }) {
   const [trip, setTrip] = useState(initial);
   const isMobile = useIsMobile();
+  const [shareCopied, setShareCopied] = useState(false);
+  const [pdfPending, setPdfPending] = useState(false);
+
+  async function copyShareLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setShareCopied(true);
+      window.setTimeout(() => setShareCopied(false), 1500);
+    } catch (e) {
+      console.error("clipboard write failed", e);
+    }
+  }
+
+  async function exportPdf() {
+    if (pdfPending) return;
+    setPdfPending(true);
+    try {
+      const token = await getBrowserToken();
+      if (!token) return;
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE}/trips/${trip.slug}/pdf`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${trip.destination.replace(/[ ,]+/g, "_")}_travel_guide.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setPdfPending(false);
+    }
+  }
 
   return (
     <main className="relative h-dvh w-screen overflow-hidden">
-      <div className="absolute inset-0">
+      <div className="absolute inset-0 anim-fade-in">
         <Map places={trip.document.places} />
       </div>
 
-      <header className="absolute top-0 inset-x-0 px-6 py-3 flex items-center justify-between backdrop-blur-md bg-cream-50/40 z-10">
+      <header className="absolute top-0 inset-x-0 px-6 py-3 flex items-center justify-between backdrop-blur-md bg-cream-50/40 z-10 anim-slide-up">
         <Link href="/" className="contents">
           <BrandMark />
         </Link>
@@ -42,37 +77,23 @@ export function TripView({ trip: initial }: { trip: TripFull }) {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => navigator.clipboard.writeText(window.location.href)}
-            className="frosted rounded-[10px] px-3 py-1 text-xs"
+            onClick={copyShareLink}
+            className="frosted rounded-[10px] px-3 py-1 text-xs hover:bg-white/85"
           >
-            Share
+            {shareCopied ? "Copied ✓" : "Share"}
           </button>
           <button
-            onClick={async () => {
-              const token = await getBrowserToken();
-              if (!token) return;
-              const res = await fetch(
-                `${process.env.NEXT_PUBLIC_API_BASE}/trips/${trip.slug}/pdf`,
-                { headers: { Authorization: `Bearer ${token}` } },
-              );
-              if (!res.ok) return;
-              const blob = await res.blob();
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement("a");
-              a.href = url;
-              a.download = `${trip.destination.replace(/[ ,]+/g, "_")}_travel_guide.pdf`;
-              a.click();
-              URL.revokeObjectURL(url);
-            }}
-            className="frosted rounded-[10px] px-3 py-1 text-xs"
+            onClick={exportPdf}
+            disabled={pdfPending}
+            className="frosted rounded-[10px] px-3 py-1 text-xs hover:bg-white/85 disabled:opacity-60"
           >
-            Export PDF
+            {pdfPending ? "Preparing…" : "Export PDF"}
           </button>
         </div>
       </header>
 
       {isMobile === false && (
-        <aside className="absolute left-4 top-16 bottom-4 w-[330px] frosted-strong rounded-[18px] overflow-hidden flex flex-col z-10">
+        <aside className="absolute left-4 top-16 bottom-4 w-[330px] frosted-strong rounded-[18px] overflow-hidden flex flex-col z-10 anim-slide-left">
           <div className="flex-1 overflow-hidden">
             <TripPanel trip={trip} />
           </div>
