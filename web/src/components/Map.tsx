@@ -88,26 +88,41 @@ export function Map({
           .setLngLat([p.lng, p.lat])
           .addTo(map);
 
-        // Show popup on hover (not click). Closing on mouseleave with a tiny
-        // delay so a quick mouseout-to-popup doesn't flicker.
+        // Show popup on hover (not click). The hover region spans BOTH the
+        // marker and the popup card itself — entering the popup cancels the
+        // close timer so the user can move their cursor onto the card to
+        // read it without it disappearing.
         let closeTimer: number | undefined;
-        const open = () => {
+        const cancelClose = () => {
           if (closeTimer) {
             window.clearTimeout(closeTimer);
             closeTimer = undefined;
           }
-          el.style.transform = "scale(1.35)";
-          el.style.boxShadow = "0 3px 8px rgba(0,0,0,0.3)";
-          if (!popup.isOpen()) {
-            popup.setLngLat([p.lng, p.lat]).addTo(map);
-          }
         };
         const scheduleClose = () => {
+          cancelClose();
           closeTimer = window.setTimeout(() => {
             el.style.transform = "scale(1)";
             el.style.boxShadow = "0 2px 4px rgba(0,0,0,0.2)";
             popup.remove();
-          }, 120);
+          }, 220);
+        };
+        const open = () => {
+          cancelClose();
+          el.style.transform = "scale(1.35)";
+          el.style.boxShadow = "0 3px 8px rgba(0,0,0,0.3)";
+          if (!popup.isOpen()) {
+            popup.setLngLat([p.lng, p.lat]).addTo(map);
+            // Attach hover handlers to the popup DOM once it's mounted so
+            // moving the cursor onto the card keeps it open.
+            queueMicrotask(() => {
+              const pEl = popup.getElement();
+              if (!pEl) return;
+              pEl.style.pointerEvents = "auto";
+              pEl.addEventListener("mouseenter", cancelClose);
+              pEl.addEventListener("mouseleave", scheduleClose);
+            });
+          }
         };
         el.addEventListener("mouseenter", open);
         el.addEventListener("mouseleave", scheduleClose);
