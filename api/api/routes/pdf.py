@@ -4,13 +4,13 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from api.auth import CurrentUser
 from api.db import service_client
-from api.llm.augment import SECTIONS, augment_section
-from api.models import TripDocument
-from api.pdf import generate_pdf
+from api.llm.pdf_plan import stream_pdf_plan
+from api.models import PdfPlan, TripDocument
+from api.pdf import generate_pdf, render_plan_pdf
 from api.sse import sse_stream
 
 router = APIRouter(tags=["pdf"])
@@ -18,7 +18,7 @@ router = APIRouter(tags=["pdf"])
 
 @router.get("/trips/{slug}/pdf")
 def trip_pdf(slug: str, user: CurrentUser) -> Response:
-    """Quick-export: just the base document, no augmentation."""
+    """Quick fallback: render the trip's existing markdown without augmentation."""
     res = service_client().table("trips").select("*").eq("slug", slug).single().execute()
     if not res.data:
         raise HTTPException(status_code=404, detail="Trip not found")
@@ -34,19 +34,18 @@ def trip_pdf(slug: str, user: CurrentUser) -> Response:
 
 
 class PdfBuildIn(BaseModel):
-    sections: list[str] = Field(default_factory=list)
+    # Reserved for future flags. Currently unused — the build always produces
+    # the deep per-day plan.
+    sections: list[str] = []
 
 
 @router.post("/trips/{slug}/pdf/build")
 def build_pdf(slug: str, body: PdfBuildIn, user: CurrentUser):
-    """Streaming PDF build with optional augmented sections.
+    """Streaming deep-PDF build.
 
-    Yields SSE events:
-      - stage: {key, label, status: "running" | "done" | "error", message?}
-        — emitted twice per section (running, then done/error) and once for
-        the final compile step
-      - done: {pdf_base64, filename}
-        — base64-encoded PDF bytes the frontend decodes and saves
+    Generates a structured per-day plan (one parallel LLM call per day) and
+    renders it into the print-quality Atlas PDF. Streams stage events for
+    each day, then a final ("done", {pdf_base64, filename}).
     """
     res = service_client().table("trips").select("*").eq("slug", slug).single().execute()
     if not res.data:
@@ -59,31 +58,33 @@ def build_pdf(slug: str, body: PdfBuildIn, user: CurrentUser):
     base_md = doc.document_markdown
     destination = row["destination"]
     days = row["days"]
+    travel_style = row.get("travel_style", "")
+    start_date_iso = row.get("start_date")
     safe_name = destination.replace(" ", "_").replace(",", "")
 
     def events() -> Iterator[tuple[str, Any]]:
-        augmented_parts: list[str] = []
-        for key in body.sections:
-            spec = SECTIONS.get(key)
-            if spec is None:
-                continue
-            yield ("stage", {"key": key, "label": spec["label"], "status": "running"})
-            try:
-                section_md = augment_section(key, base_md, destination, days)
-                if section_md:
-                    augmented_parts.append(section_md)
-                yield ("stage", {"key": key, "label": spec["label"], "status": "done"})
-            except Exception as e:
-                yield (
-                    "stage",
-                    {"key": key, "label": spec["label"], "status": "error", "message": str(e)},
-                )
+        plan: PdfPlan | None = None
+        for ev_type, payload in stream_pdf_plan(
+            destination=destination,
+            total_days=days,
+            travel_style=travel_style,
+            base_md=base_md,
+            start_date_iso=start_date_iso,
+        ):
+            if ev_type == "stage":
+                yield ("stage", payload)
+            elif ev_type == "plan":
+                plan = payload
+            elif ev_type == "error":
+                yield ("stage", {"key": "error", "label": "Error", "status": "error", "message": payload})
+                return
+
+        if plan is None:
+            yield ("stage", {"key": "error", "label": "No plan", "status": "error"})
+            return
 
         yield ("stage", {"key": "compile", "label": "Compiling PDF", "status": "running"})
-        full_md = base_md
-        if augmented_parts:
-            full_md = base_md + "\n\n" + "\n\n".join(augmented_parts)
-        pdf_bytes = generate_pdf(full_md, destination)
+        pdf_bytes = render_plan_pdf(plan)
         b64 = base64.b64encode(pdf_bytes).decode("ascii")
         yield ("stage", {"key": "compile", "label": "Compiling PDF", "status": "done"})
         yield ("done", {"pdf_base64": b64, "filename": f"{safe_name}_travel_guide.pdf"})

@@ -89,3 +89,42 @@ class TripFull(TripSummary):
 
 class RefineIn(BaseModel):
     instruction: str = Field(..., min_length=3, max_length=500)
+
+
+# ── PDF deep-dive plan models ───────────────────────────────────────────────
+
+
+class PdfScheduleItem(BaseModel):
+    time: str
+    activity: str
+    note: str | None = None
+
+
+class PdfFoodSpot(BaseModel):
+    name: str
+    area: str | None = None
+    meal: str | None = None  # "Breakfast" | "Lunch" | "Dinner" | "Coffee" | "Snack"
+    tags: list[str] = []
+    notes: str
+
+
+class PdfPhotoSpot(BaseModel):
+    location: str
+    best_time: str
+    what: str
+
+
+class PdfDay(BaseModel):
+    number: int
+    title: str
+    label: str  # e.g. "Day 1 · Fri 15 May" or just "Day 1"
+    schedule: list[PdfScheduleItem]
+    food_spots: list[PdfFoodSpot] = []
+    photo_spots: list[PdfPhotoSpot] = []
+
+
+class PdfPlan(BaseModel):
+    destination: str
+    subtitle: str
+    route: list[str] = []
+    days: list[PdfDay]

@@ -66,7 +66,7 @@ export function TripView({ trip: initial }: { trip: TripFull }) {
           >
             {shareCopied ? "Copied ✓" : "Share"}
           </button>
-          <PdfExportMenu slug={trip.slug} destination={trip.destination} />
+          <PdfExportMenu slug={trip.slug} destination={trip.destination} days={trip.days} />
         </div>
       </header>
 
