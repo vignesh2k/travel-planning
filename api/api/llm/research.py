@@ -4,7 +4,7 @@ from typing import Any
 
 from api.llm.client import make_client, strip_code_fences
 
-RESEARCH_MODEL = "google/gemini-2.5-flash-lite"
+RESEARCH_MODEL = "google/gemini-2.5-flash-lite:online"
 
 MAX_TOKENS = 6000
 
