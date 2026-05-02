@@ -71,8 +71,10 @@ def render_plan_pdf(plan: PdfPlan) -> bytes:
     pdf.add_page()
     _render_cover(pdf, reg, bold, plan)
 
-    for day in plan.days:
-        pdf.add_page()
+    pdf.add_page()
+    for i, day in enumerate(plan.days):
+        if i > 0:
+            pdf.ln(8)
         _render_day(pdf, reg, bold, day)
 
     return bytes(pdf.output())
@@ -160,8 +162,9 @@ def _render_cover(pdf: FPDF, reg: str, bold: str, plan: PdfPlan) -> None:
         pdf.multi_cell(pdf.epw, 6, f"Route:  {route}", align="C")
         pdf.ln(4)
 
-    # Footer brand
-    pdf.set_y(page_h - 22)
+    # Footer brand — keep above the auto-break margin (22mm) so it doesn't
+    # trigger an empty page-2 with just the brand mark.
+    pdf.set_y(page_h - 38)
     pdf.set_text_color(*AMBER)
     pdf.set_font(bold, "B", 9)
     pdf.set_x(0)
@@ -269,57 +272,64 @@ def _render_schedule(
 
 
 def _render_food_card(pdf: FPDF, reg: str, bold: str, food: PdfFoodSpot) -> None:
-    """A small card: emoji + meal-type — name, area, tags, notes."""
+    """Sequential-flow card: amber left rule + indented title, tags, notes.
+
+    Doesn't use a fixed-height rect — content flows through multi_cell so
+    auto-page-break can split cleanly between cards rather than mid-card."""
     x0 = pdf.l_margin
-    y0 = pdf.get_y() + 2
-
-    title_left = f"{food.meal or 'Eat'}  —  {food.name}"
-    if food.area:
-        title_left += f", {food.area}"
-
-    # Card background — light cream with amber left rule
-    # Estimate card height: title (6) + tags (5) + notes (~12) ≈ 24
-    notes_lines = 1 + len(food.notes) // 90
-    card_h = 18 + 5 * notes_lines
-
-    pdf.set_fill_color(*CARD_BG)
-    pdf.set_draw_color(*CARD_BORDER)
-    pdf.set_line_width(0.2)
-    pdf.rect(x0, y0, pdf.epw, card_h, "DF")
-    # Amber left accent
-    pdf.set_fill_color(*AMBER)
-    pdf.rect(x0, y0, 1.6, card_h, "F")
-
     inner_x = x0 + 6
-    inner_w = pdf.epw - 8
+    inner_w = pdf.epw - 6
 
-    # Title
+    pdf.ln(2)
+    y_start = pdf.get_y()
+
+    title = f"{food.meal or 'Eat'}  —  {food.name}"
+    if food.area:
+        title += f", {food.area}"
+
     pdf.set_text_color(*INK)
     pdf.set_font(bold, "B", 12)
-    pdf.set_xy(inner_x, y0 + 3)
-    pdf.cell(inner_w, 6, title_left)
+    pdf.set_x(inner_x)
+    pdf.multi_cell(inner_w, 6, title)
+    pdf.ln(0.5)
 
-    # Tags row
-    pdf.set_xy(inner_x, y0 + 9)
-    tag_x = inner_x
-    for tag in food.tags[:3]:
-        pdf.set_font(bold, "B", 8)
-        text_w = pdf.get_string_width(tag) + 5
-        pdf.set_fill_color(*TAG_BG)
-        pdf.set_text_color(165, 95, 37)
-        pdf.rect(tag_x, y0 + 9.5, text_w, 4.5, "F")
-        pdf.set_xy(tag_x, y0 + 9.5)
-        pdf.cell(text_w, 4.5, tag, align="C")
-        tag_x += text_w + 3
+    # Tags as inline pills on one row.
+    if food.tags:
+        pdf.set_x(inner_x)
+        tag_x = inner_x
+        tag_y = pdf.get_y()
+        for tag in food.tags[:4]:
+            pdf.set_font(bold, "B", 8)
+            text_w = pdf.get_string_width(tag) + 5
+            # Wrap to next row if it would overflow.
+            if tag_x + text_w > x0 + pdf.epw:
+                tag_y += 6
+                tag_x = inner_x
+            pdf.set_fill_color(*TAG_BG)
+            pdf.set_text_color(165, 95, 37)
+            pdf.rect(tag_x, tag_y, text_w, 4.5, "F")
+            pdf.set_xy(tag_x, tag_y)
+            pdf.cell(text_w, 4.5, tag, align="C")
+            tag_x += text_w + 3
+        pdf.set_y(tag_y + 5)
 
-    # Notes
+    pdf.ln(1)
     pdf.set_text_color(*INK_MUTED)
     pdf.set_font(reg, "", 10)
-    pdf.set_xy(inner_x, y0 + 14.5)
+    pdf.set_x(inner_x)
     pdf.multi_cell(inner_w, 5, food.notes)
 
-    # Move cursor below card
-    pdf.set_y(y0 + card_h + 1)
+    y_end = pdf.get_y()
+
+    # Draw the amber left rule down the full extent of this card. We do this
+    # AFTER the text has been laid out so we know the actual height. If the
+    # text wrapped onto the next page (very unlikely for a card this short
+    # but possible), the rule simply doesn't span the break — acceptable.
+    if y_end > y_start and y_end <= pdf.h - pdf.b_margin:
+        pdf.set_fill_color(*AMBER)
+        pdf.rect(x0, y_start, 1.4, y_end - y_start, "F")
+
+    pdf.ln(2)
 
 
 def _render_photo_section(
