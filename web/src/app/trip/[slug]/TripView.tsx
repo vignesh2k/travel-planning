@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
 import { BrandMark } from "@/components/BrandMark";
@@ -11,8 +11,21 @@ import { TripPanel } from "@/components/TripPanel";
 import { getBrowserToken } from "@/lib/auth.browser";
 import type { TripFull } from "@/lib/types";
 
+function useIsMobile(): boolean | null {
+  const [isMobile, setIsMobile] = useState<boolean | null>(null);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  return isMobile;
+}
+
 export function TripView({ trip: initial }: { trip: TripFull }) {
   const [trip, setTrip] = useState(initial);
+  const isMobile = useIsMobile();
 
   return (
     <main className="relative h-dvh w-screen overflow-hidden">
@@ -58,16 +71,18 @@ export function TripView({ trip: initial }: { trip: TripFull }) {
         </div>
       </header>
 
-      <aside className="hidden md:flex absolute left-4 top-16 bottom-4 w-[330px] frosted-strong rounded-[18px] overflow-hidden flex-col z-10">
-        <div className="flex-1 overflow-hidden">
-          <TripPanel trip={trip} />
-        </div>
-        <div className="border-t border-amber-700/10 p-3">
-          <RefineInput slug={trip.slug} onUpdated={setTrip} />
-        </div>
-      </aside>
+      {isMobile === false && (
+        <aside className="absolute left-4 top-16 bottom-4 w-[330px] frosted-strong rounded-[18px] overflow-hidden flex flex-col z-10">
+          <div className="flex-1 overflow-hidden">
+            <TripPanel trip={trip} />
+          </div>
+          <div className="border-t border-amber-700/10 p-3">
+            <RefineInput slug={trip.slug} onUpdated={setTrip} />
+          </div>
+        </aside>
+      )}
 
-      <div className="md:hidden">
+      {isMobile === true && (
         <MobileSheet>
           <div className="h-full flex flex-col">
             <div className="flex-1 overflow-hidden">
@@ -78,7 +93,7 @@ export function TripView({ trip: initial }: { trip: TripFull }) {
             </div>
           </div>
         </MobileSheet>
-      </div>
+      )}
     </main>
   );
 }
