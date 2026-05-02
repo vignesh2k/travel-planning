@@ -1,4 +1,6 @@
 import json
+from collections.abc import Iterator
+from typing import Any
 
 from api.llm.client import make_client, strip_code_fences
 
@@ -64,3 +66,51 @@ def get_travel_research(destination: str, trip_length: int, travel_style: str) -
     )
     raw = strip_code_fences(response.choices[0].message.content)
     return json.loads(raw)
+
+
+def stream_travel_research(
+    destination: str,
+    trip_length: int,
+    travel_style: str,
+) -> Iterator[tuple[str, Any]]:
+    """Stream the research call. Yields:
+      - ("progress", {"chars": int})  every ~250 chars of accumulated output
+      - ("result",   parsed_dict)     once at the end with the full parsed JSON
+
+    If the response is malformed JSON, yields ("error", message) instead.
+    """
+    client = make_client()
+    stream = client.chat.completions.create(
+        model=RESEARCH_MODEL,
+        max_tokens=12000,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": _user_prompt(destination, trip_length, travel_style)},
+        ],
+        stream=True,
+    )
+
+    accumulated = ""
+    last_progress_at = 0
+    PROGRESS_EVERY = 250
+
+    for chunk in stream:
+        choices = getattr(chunk, "choices", None)
+        if not choices:
+            continue
+        delta = getattr(choices[0], "delta", None)
+        content = getattr(delta, "content", None) if delta else None
+        if not content:
+            continue
+        accumulated += content
+        if len(accumulated) - last_progress_at >= PROGRESS_EVERY:
+            yield ("progress", {"chars": len(accumulated)})
+            last_progress_at = len(accumulated)
+
+    raw = strip_code_fences(accumulated)
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as e:
+        yield ("error", f"Could not parse research response: {e}")
+        return
+    yield ("result", parsed)

@@ -15,6 +15,7 @@ export function ChatInputClient() {
   const [text, setText] = useState("");
   const [pending, setPending] = useState(false);
   const [status, setStatus] = useState("");
+  const [chars, setChars] = useState(0);
   const [places, setPlaces] = useState<Place[]>([]);
 
   return (
@@ -26,6 +27,7 @@ export function ChatInputClient() {
         onSubmit={async (brief) => {
           setPending(true);
           setStatus("Sending your brief…");
+          setChars(0);
           setPlaces([]);
           try {
             const token = await getBrowserToken();
@@ -39,6 +41,7 @@ export function ChatInputClient() {
               brief,
               {
                 onStatus: setStatus,
+                onProgress: setChars,
                 onPlace: (p) => setPlaces((prev) => [...prev, p]),
                 onDone: (slug) => router.push(`/trip/${slug}`),
                 onError: (e) => {
@@ -55,7 +58,7 @@ export function ChatInputClient() {
         }}
       />
       <SuggestionChips onPick={setText} />
-      {pending && <StreamingOverlay status={status} places={places} />}
+      {pending && <StreamingOverlay status={status} chars={chars} places={places} />}
     </>
   );
 }

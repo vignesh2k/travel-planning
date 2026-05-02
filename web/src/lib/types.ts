@@ -51,5 +51,6 @@ export interface TripBriefIn {
 
 export type TripStreamEvent =
   | { type: "status"; message: string }
+  | { type: "progress"; chars: number }
   | { type: "place"; place: Place }
   | { type: "done"; slug: string };

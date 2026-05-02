@@ -152,13 +152,14 @@ def test_post_trips_stream_emits_events(monkeypatch, auth_headers) -> None:
             start_date=None, airport_entry=None, airport_exit=None,
         ),
     )
-    monkeypatch.setattr(
-        "api.routes.trips.get_travel_research",
-        lambda d, l, s: {
+    def fake_stream_research(d, l, s):
+        yield ("progress", {"chars": 250})
+        yield ("progress", {"chars": 500})
+        yield ("result", {
             "document": "## x",
             "places": [{"name": "Gion", "category": "neighbourhood", "description": "x"}],
-        },
-    )
+        })
+    monkeypatch.setattr("api.routes.trips.stream_travel_research", fake_stream_research)
     monkeypatch.setattr("api.routes.trips.geocode_place", lambda n: (35.0, 135.7))
 
     inserted = {
@@ -187,6 +188,7 @@ def test_post_trips_stream_emits_events(monkeypatch, auth_headers) -> None:
         body = res.read().decode()
 
     assert "event: status" in body
+    assert "event: progress" in body
     assert "event: place" in body
     assert "event: done" in body
     assert "kyoto-7d-zzz" in body

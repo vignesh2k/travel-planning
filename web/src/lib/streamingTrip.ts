@@ -2,6 +2,7 @@ import type { Place, TripStreamEvent } from "./types";
 
 export interface StreamCallbacks {
   onStatus: (msg: string) => void;
+  onProgress: (chars: number) => void;
   onPlace: (place: Place) => void;
   onDone: (slug: string) => void;
   onError: (err: Error) => void;
@@ -39,6 +40,7 @@ export async function streamTrip(
       const ev = parseSseChunk(chunk);
       if (!ev) continue;
       if (ev.type === "status") cb.onStatus(ev.message);
+      else if (ev.type === "progress") cb.onProgress(ev.chars);
       else if (ev.type === "place") cb.onPlace(ev.place);
       else if (ev.type === "done") cb.onDone(ev.slug);
     }
@@ -56,6 +58,7 @@ function parseSseChunk(chunk: string): TripStreamEvent | null {
   try {
     const parsed = JSON.parse(data);
     if (event === "status") return { type: "status", message: parsed };
+    if (event === "progress") return { type: "progress", chars: parsed.chars };
     if (event === "place") return { type: "place", place: parsed };
     if (event === "done") return { type: "done", slug: parsed.slug };
   } catch {

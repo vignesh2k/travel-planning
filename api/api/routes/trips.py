@@ -6,7 +6,7 @@ from api.auth import CurrentUser
 from api.db import service_client
 from api.geocode import geocode_place
 from api.llm.parse_brief import parse_brief
-from api.llm.research import get_travel_research
+from api.llm.research import get_travel_research, stream_travel_research
 from api.models import Place, TripBriefIn, TripDocument, TripFull, TripSummary
 from api.slug import make_trip_slug
 from api.sse import sse_stream
@@ -69,7 +69,20 @@ def create_trip_stream(brief: TripBriefIn, user: CurrentUser):
         parsed = parse_brief(brief)
 
         yield ("status", f"Researching {parsed.destination} for {parsed.days} days…")
-        research = get_travel_research(parsed.destination, parsed.days, parsed.travel_style)
+        research: dict[str, Any] | None = None
+        for ev_type, payload in stream_travel_research(
+            parsed.destination, parsed.days, parsed.travel_style
+        ):
+            if ev_type == "progress":
+                yield ("progress", payload)
+            elif ev_type == "result":
+                research = payload
+            elif ev_type == "error":
+                yield ("status", f"Research error: {payload}")
+                return
+        if research is None:
+            yield ("status", "Research failed: no response")
+            return
 
         yield ("status", "Mapping places…")
         raw_places = research.get("places", [])
