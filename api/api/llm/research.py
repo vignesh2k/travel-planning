@@ -34,14 +34,21 @@ For each of the {trip_length} days, EXACTLY this structure:
 
 ### Day N: <short title naming the area or theme>
 **Morning:**
-- <activity, ideally with a real place name>
-- <activity>
+- <activity with a real, named place — start with the place name when possible>
+- <activity, ideally including a coffee/breakfast spot>
+- <activity, transit note, or local tip>
 **Afternoon:**
-- <activity>
-- <activity>
+- <activity with a real place name>
+- <activity, ideally a lunch recommendation with restaurant name>
+- <activity or scenic detour>
 **Evening:**
-- <activity>
-- <activity>
+- <activity, sunset spot, or viewpoint>
+- <dinner recommendation with restaurant name>
+- <optional nightlife or local experience>
+
+Each bullet should be specific and actionable — not vague ("walk around")
+but concrete ("Walk Sannenzaka and Ninenzaka, the preserved cobblestone
+streets behind Kiyomizu-dera").
 
 2. "places" — array of at most 12 objects covering the most important named
    locations across the document. Each object:

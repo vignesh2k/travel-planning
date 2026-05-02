@@ -20,11 +20,17 @@ SECTIONS: dict[str, SectionSpec] = {
     "deep_itinerary": {
         "label": "Researching deeper itinerary",
         "prompt": (
-            "Produce a `## Day-by-Day Notes` section. For each day in the existing "
-            "itinerary write a 3-5 sentence paragraph that adds context: why these "
-            "stops in this order, transit between them, opening hours where it "
-            "matters, and one local tip. Use a `### Day N: <title>` heading for "
-            "each day. Markdown only — no JSON, no code fences, no preamble."
+            "Produce a `## Day-by-Day Notes` section. For each day in the "
+            "existing itinerary, output:\n\n"
+            "### Day N: <title>\n"
+            "A 3-5 sentence paragraph explaining the logic of the day — why "
+            "these stops in this order, what's special about each, transit "
+            "tips between them, and any opening-hours or booking caveats.\n\n"
+            "Then a short bullet list of 3-5 concrete tips for that day "
+            "(weather, what to bring, time-of-day notes, local etiquette, "
+            "where to find a coffee, etc.)\n\n"
+            "Use this exact structure for EVERY day. Markdown only — no JSON, "
+            "no code fences, no preamble."
         ),
     },
     "photography": {

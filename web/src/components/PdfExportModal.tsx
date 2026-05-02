@@ -118,7 +118,7 @@ export function PdfExportModal({
 
   return (
     <div
-      className="fixed inset-0 z-40 flex items-center justify-center bg-ink-900/30 backdrop-blur-sm anim-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/55 backdrop-blur-md anim-fade-in"
       onClick={done || error ? onClose : undefined}
     >
       <div
