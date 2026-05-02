@@ -245,23 +245,36 @@ def _render_day(pdf: FPDF, reg: str, bold: str, day: PdfDay) -> None:
 
 
 def _render_day_header(pdf: FPDF, reg: str, bold: str, day: PdfDay) -> None:
-    """`Day 1 · Fri 15 May  —  Title` styled like Montenegro."""
+    """`Day 1 · Fri 15 May` (small grey) above bold title with red underline.
+
+    Title uses multi_cell so long titles wrap to the next line instead of
+    being clipped at the right margin. Font auto-shrinks for very long
+    titles to keep the header to one or two lines max."""
     x0 = pdf.l_margin
-    y0 = pdf.get_y()
 
     # Small grey "Day 1 · Fri 15 May"
     pdf.set_text_color(*INK_MUTED)
     pdf.set_font(reg, "", 11)
-    pdf.set_xy(x0, y0)
+    pdf.set_x(x0)
     pdf.cell(0, 6, day.label, new_x="LMARGIN", new_y="NEXT")
 
-    # Big amber title
+    # Title — pick a font size that fits the available width, falling back
+    # to multi_cell wrap if even the smallest size overflows.
     pdf.set_text_color(*INK)
-    pdf.set_font(bold, "B", 20)
+    title = day.title
+    chosen_size = 20
+    for size in (20, 18, 16, 14):
+        pdf.set_font(bold, "B", size)
+        if pdf.get_string_width(title) <= pdf.epw:
+            chosen_size = size
+            break
+        chosen_size = size
+    pdf.set_font(bold, "B", chosen_size)
     pdf.set_x(x0)
-    pdf.cell(0, 10, day.title, new_x="LMARGIN", new_y="NEXT")
+    line_h = chosen_size * 0.5  # rough vertical advance per line
+    pdf.multi_cell(pdf.epw, line_h, title, new_x="LMARGIN", new_y="NEXT")
 
-    # Amber underline
+    # Red underline beneath
     pdf.set_draw_color(*ACCENT)
     pdf.set_line_width(0.7)
     pdf.line(x0, pdf.get_y() + 1, x0 + 28, pdf.get_y() + 1)
