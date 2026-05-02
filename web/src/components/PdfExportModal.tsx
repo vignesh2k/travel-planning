@@ -122,13 +122,13 @@ export function PdfExportModal({
       onClick={done || error ? onClose : undefined}
     >
       <div
-        className="frosted-strong rounded-[18px] p-5 w-[380px] max-w-[90vw] flex flex-col gap-3 anim-pop"
+        className="frosted-strong rounded-[18px] w-[380px] max-w-[90vw] max-h-[85vh] flex flex-col anim-pop overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="text-base font-semibold text-ink-900">
+        <div className="px-5 pt-5 pb-2 text-base font-semibold text-ink-900 shrink-0">
           {error ? "Build failed" : done ? "Done — downloading" : "Building your PDF…"}
         </div>
-        <ul className="flex flex-col gap-2 mt-1">
+        <ul className="flex flex-col gap-2 px-5 py-2 overflow-y-auto min-h-0 flex-1">
           {stages.map((s) => (
             <li key={s.key} className="flex items-center gap-2.5 text-sm">
               <StageIcon status={s.status} />
@@ -138,14 +138,16 @@ export function PdfExportModal({
             </li>
           ))}
         </ul>
-        {error && <div className="text-rose-500 text-xs mt-1">{error}</div>}
+        {error && <div className="px-5 text-rose-500 text-xs">{error}</div>}
         {(done || error) && (
-          <button
-            onClick={onClose}
-            className="mt-2 rounded-[10px] bg-amber-600 text-white text-sm py-2 hover:bg-amber-700"
-          >
-            Close
-          </button>
+          <div className="px-5 pb-5 pt-2 shrink-0">
+            <button
+              onClick={onClose}
+              className="w-full rounded-[10px] bg-amber-600 text-white text-sm py-2 hover:bg-amber-700"
+            >
+              Close
+            </button>
+          </div>
         )}
       </div>
     </div>
