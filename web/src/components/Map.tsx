@@ -98,29 +98,31 @@ export function Map({
       const scheduleClose = () => {
         cancelClose();
         closeTimerRef.current = window.setTimeout(() => {
-          // Reset all marker scales.
+          // Reset the inner-dot scale on every marker. Importantly we
+          // touch the inner dot, NEVER the marker root (which holds
+          // maplibre's `translate(...)` for positioning).
           for (const m of markersRef.current) {
-            m.marker.getElement().style.transform = "scale(1)";
-            m.marker.getElement().style.boxShadow = "0 2px 4px rgba(0,0,0,0.2)";
+            const dot = m.marker.getElement().firstElementChild as HTMLElement | null;
+            if (dot) {
+              dot.style.transform = "scale(1)";
+              dot.style.boxShadow = "0 2px 4px rgba(0,0,0,0.2)";
+            }
           }
           popup.remove();
         }, 250);
       };
 
-      // Once-per-mount hookup of popup DOM hover handlers. The popup
-      // element is recreated on each .addTo(), so we re-attach handlers
-      // each time we open it (see openFor below).
-      const showFor = (p: Place & { lat: number; lng: number }, el: HTMLElement) => {
+      const showFor = (p: Place & { lat: number; lng: number }, dot: HTMLElement) => {
         cancelClose();
-        // Reset all other markers, scale this one up.
         for (const m of markersRef.current) {
-          const mEl = m.marker.getElement();
-          if (mEl === el) {
-            mEl.style.transform = "scale(1.4)";
-            mEl.style.boxShadow = "0 4px 10px rgba(0,0,0,0.35)";
+          const otherDot = m.marker.getElement().firstElementChild as HTMLElement | null;
+          if (!otherDot) continue;
+          if (otherDot === dot) {
+            otherDot.style.transform = "scale(1.4)";
+            otherDot.style.boxShadow = "0 4px 10px rgba(0,0,0,0.35)";
           } else {
-            mEl.style.transform = "scale(1)";
-            mEl.style.boxShadow = "0 2px 4px rgba(0,0,0,0.2)";
+            otherDot.style.transform = "scale(1)";
+            otherDot.style.boxShadow = "0 2px 4px rgba(0,0,0,0.2)";
           }
         }
         popup
@@ -134,34 +136,40 @@ export function Map({
           )
           .addTo(map);
 
-        // Attach hover handlers to the popup root so cursor on the card
-        // keeps it open. Re-attach each open since maplibre rebuilds the
-        // popup DOM internally after setHTML.
         requestAnimationFrame(() => {
           const popupEl = popup.getElement();
           if (!popupEl) return;
           popupEl.style.pointerEvents = "auto";
-          // Idempotent: replace any existing handlers by storing on the el.
           popupEl.onmouseenter = cancelClose;
           popupEl.onmouseleave = scheduleClose;
         });
       };
 
       for (const p of geocoded) {
-        const el = document.createElement("div");
-        el.style.width = "14px";
-        el.style.height = "14px";
-        el.style.borderRadius = "50%";
-        el.style.background = CATEGORY_COLOR[p.category];
-        el.style.border = "2px solid #fff";
-        el.style.boxShadow = "0 2px 4px rgba(0,0,0,0.2)";
-        el.style.cursor = "pointer";
-        el.style.transition = "transform 120ms ease, box-shadow 120ms ease";
+        // The marker ROOT must remain "pristine" — maplibre rewrites its
+        // transform to position it. We render the visual dot as a CHILD
+        // and animate scale on the child instead.
+        const root = document.createElement("div");
+        root.style.width = "14px";
+        root.style.height = "14px";
+        root.style.cursor = "pointer";
 
-        el.addEventListener("mouseenter", () => showFor(p, el));
-        el.addEventListener("mouseleave", scheduleClose);
+        const dot = document.createElement("div");
+        dot.style.width = "100%";
+        dot.style.height = "100%";
+        dot.style.borderRadius = "50%";
+        dot.style.background = CATEGORY_COLOR[p.category];
+        dot.style.border = "2px solid #fff";
+        dot.style.boxSizing = "border-box";
+        dot.style.boxShadow = "0 2px 4px rgba(0,0,0,0.2)";
+        dot.style.transition = "transform 120ms ease, box-shadow 120ms ease";
+        dot.style.transformOrigin = "center";
+        root.appendChild(dot);
 
-        const marker = new maplibregl.Marker({ element: el })
+        root.addEventListener("mouseenter", () => showFor(p, dot));
+        root.addEventListener("mouseleave", scheduleClose);
+
+        const marker = new maplibregl.Marker({ element: root })
           .setLngLat([p.lng, p.lat])
           .addTo(map);
         markersRef.current.push({ marker, place: p });
