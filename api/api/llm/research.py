@@ -2,7 +2,7 @@ import json
 
 from api.llm.client import make_client, strip_code_fences
 
-RESEARCH_MODEL = "minimax/minimax-m2.5"
+RESEARCH_MODEL = "deepseek/deepseek-v4-flash"
 
 
 SYSTEM_PROMPT = (

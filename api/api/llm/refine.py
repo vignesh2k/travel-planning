@@ -1,6 +1,6 @@
 from api.llm.client import make_client
 
-REFINE_MODEL = "deepseek/deepseek-v3.2"
+REFINE_MODEL = "deepseek/deepseek-v4-flash"
 
 
 def refine_document(document: str, instruction: str) -> str:

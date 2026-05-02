@@ -3,7 +3,7 @@ import json
 from api.llm.client import make_client, strip_code_fences
 from api.models import ParsedBrief, TripBriefIn
 
-PARSE_MODEL = "google/gemini-2.5-flash-lite"
+PARSE_MODEL = "deepseek/deepseek-v4-flash"
 
 SYSTEM_PROMPT = (
     "You extract structured trip details from a free-form brief. "
