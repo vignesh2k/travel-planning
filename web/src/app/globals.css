@@ -73,6 +73,25 @@ button:active:not(:disabled) {
 .anim-slide-up   { animation: slide-up 280ms cubic-bezier(0.2, 0.7, 0.3, 1) both; }
 .anim-pop        { animation: pop-in 220ms cubic-bezier(0.2, 0.7, 0.3, 1) both; }
 
+/* Map pin hover popup. Force pointer-events on root so mouseenter/leave
+   fire reliably, and put it above the side panel so it can't be clipped. */
+.atlas-popup,
+.atlas-popup .maplibregl-popup-content {
+  pointer-events: auto !important;
+}
+.atlas-popup {
+  z-index: 25;
+}
+.atlas-popup .maplibregl-popup-content {
+  border-radius: 12px;
+  padding: 10px 12px;
+  box-shadow: 0 8px 24px rgba(140, 80, 30, 0.18);
+  border: 0.5px solid rgba(168, 95, 37, 0.12);
+}
+.atlas-popup .maplibregl-popup-tip {
+  border-top-color: white;
+}
+
 @layer components {
   .frosted {
     background-color: color-mix(in srgb, white 65%, transparent);
