@@ -10,6 +10,7 @@ DeepSeek v4-flash with web search (:online) for richer prose + fresh facts.
 
 import concurrent.futures
 import json
+import time
 from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Any
@@ -137,7 +138,7 @@ def _extract_json(raw: str) -> str:
     return raw
 
 
-def _generate_day(
+def _generate_day_once(
     destination: str,
     day_number: int,
     total_days: int,
@@ -168,6 +169,41 @@ def _generate_day(
     )
     raw = _extract_json(response.choices[0].message.content)
     return json.loads(raw)
+
+
+def _generate_day(
+    destination: str,
+    day_number: int,
+    total_days: int,
+    travel_style: str,
+    base_doc_excerpt: str,
+    weekday_label: str,
+    sections: PdfSections,
+    max_attempts: int = 3,
+) -> dict[str, Any]:
+    """Retry the day-generation LLM call on transient failures.
+
+    Common reasons a single attempt fails: OpenRouter rate-limit/timeout,
+    malformed JSON from the model, occasional connection blip. With three
+    attempts and a short backoff, the per-day failure rate drops sharply.
+    """
+    last_error: Exception | None = None
+    for attempt in range(max_attempts):
+        try:
+            return _generate_day_once(
+                destination,
+                day_number,
+                total_days,
+                travel_style,
+                base_doc_excerpt,
+                weekday_label,
+                sections,
+            )
+        except Exception as e:
+            last_error = e
+            if attempt < max_attempts - 1:
+                time.sleep(0.6 * (attempt + 1))  # 0.6s, 1.2s
+    raise last_error if last_error else RuntimeError("day generation failed")
 
 
 def _excerpt_day(base_md: str, day_number: int) -> str:
@@ -233,6 +269,9 @@ def stream_pdf_plan(
                 completed[n] = day_data
                 yield ("stage", {"key": f"day_{n}", "label": f"Crafting Day {n}", "status": "done"})
             except Exception as e:
+                # Even after retries this day failed. Stub it so the PDF still
+                # renders every day in order — better than a missing-day gap.
+                completed[n] = _stub_day(n, weekday_labels[n - 1], str(e))
                 yield (
                     "stage",
                     {
@@ -255,6 +294,26 @@ def stream_pdf_plan(
         days=[PdfDay(**d) for d in days_sorted],
     )
     yield ("plan", plan)
+
+
+def _stub_day(day_number: int, weekday_label: str, err: str) -> dict[str, Any]:
+    """Minimal placeholder day used when all retries fail. Keeps the PDF
+    contiguous and tells the user this day needs regeneration."""
+    return {
+        "number": day_number,
+        "title": f"Day {day_number} — generation failed",
+        "label": weekday_label,
+        "schedule": [
+            {
+                "time": "—",
+                "activity": "We couldn't generate this day. Refine the trip and re-export to retry.",
+                "note": err[:200] if err else None,
+            }
+        ],
+        "food_spots": [],
+        "photo_spots": [],
+        "tips": [],
+    }
 
 
 def _build_weekday_labels(total_days: int, start_date_iso: str | None) -> list[str]:
