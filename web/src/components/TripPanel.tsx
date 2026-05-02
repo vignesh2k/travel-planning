@@ -54,41 +54,11 @@ export function TripPanel({
           <Itinerary
             days={days}
             places={trip.document.places}
+            restaurants={restaurants}
+            destination={trip.destination}
             onFocusPlaces={onFocusPlaces}
             onRefinePrefill={onRefinePrefill}
           />
-        )}
-
-        {tab === "Restaurants" && (
-          <ul className="flex flex-col gap-1.5">
-            {restaurants.map((r, i) => {
-              const query = [r[0], r[1], trip.destination].filter(Boolean).join(" ");
-              const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
-              return (
-                <li key={i}>
-                  <a
-                    href={mapsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="frosted rounded-[14px] p-3 text-xs flex items-start gap-2 hover:bg-white/95 hover:border-amber-600/30 hover:shadow-sm"
-                  >
-                    <span className="text-[14px] leading-none mt-0.5 shrink-0" aria-hidden>🍽️</span>
-                    <div className="flex-1 min-w-0">
-                      <div>
-                        <span className="font-semibold text-ink-900">{r[0]}</span>
-                        {r[1] && <span className="text-ink-500"> · {r[1]}</span>}
-                      </div>
-                      {r[2] && <div className="text-ink-700 mt-1 leading-snug">{r[2]}</div>}
-                      <div className="text-[11px] text-amber-700 mt-1.5">Reviews on Google Maps →</div>
-                    </div>
-                  </a>
-                </li>
-              );
-            })}
-            {restaurants.length === 0 && (
-              <p className="text-xs text-ink-500">No restaurants parsed.</p>
-            )}
-          </ul>
         )}
 
         {tab === "Where to stay" && (

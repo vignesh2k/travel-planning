@@ -41,14 +41,61 @@ function placesForDay(day: Day, places: Place[]): Place[] {
   return out;
 }
 
+/** Pick restaurants likely to be relevant to a given day, by checking whether
+ *  the restaurant name or area appears in the day's title or bullets. */
+function restaurantsForDay(
+  day: Day,
+  restaurants: string[][],
+  allDays: Day[],
+): string[][] {
+  const dayText = (
+    day.title + " " + day.bullets.flatMap((b) => b.items).join(" ")
+  ).toLowerCase();
+
+  const matched: string[][] = [];
+  const unmatchedAnywhere: string[][] = [];
+
+  for (const r of restaurants) {
+    const name = (r[0] ?? "").toLowerCase().trim();
+    const area = (r[1] ?? "").toLowerCase().trim();
+
+    const matchesThisDay =
+      (name.length >= 4 && dayText.includes(name)) ||
+      (area.length >= 3 && dayText.includes(area));
+
+    if (matchesThisDay) {
+      matched.push(r);
+      continue;
+    }
+
+    // Determine if this restaurant matches ANY day. If not, it's a "general"
+    // recommendation — surface it on every day as a fallback.
+    const anyDayText = allDays
+      .map((d) => d.title + " " + d.bullets.flatMap((b) => b.items).join(" "))
+      .join(" ")
+      .toLowerCase();
+    const matchesSomeDay =
+      (name.length >= 4 && anyDayText.includes(name)) ||
+      (area.length >= 3 && anyDayText.includes(area));
+
+    if (!matchesSomeDay) unmatchedAnywhere.push(r);
+  }
+
+  return [...matched, ...unmatchedAnywhere];
+}
+
 export function Itinerary({
   days,
   places,
+  restaurants,
+  destination,
   onFocusPlaces,
   onRefinePrefill,
 }: {
   days: Day[];
   places: Place[];
+  restaurants: string[][];
+  destination: string;
   onFocusPlaces: (places: Place[] | null) => void;
   onRefinePrefill: (text: string) => void;
 }) {
@@ -62,6 +109,11 @@ export function Itinerary({
     onFocusPlaces(dayPlaces.length > 0 ? dayPlaces : null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active?.number]);
+
+  const dayRestaurants = useMemo(
+    () => (active ? restaurantsForDay(active, restaurants, days) : []),
+    [active, restaurants, days],
+  );
 
   if (!active) {
     return <p className="text-xs text-ink-500 p-2">No itinerary yet.</p>;
@@ -142,6 +194,42 @@ export function Itinerary({
             </ul>
           </section>
         ))}
+
+        {/* Per-day restaurants */}
+        {dayRestaurants.length > 0 && (
+          <section className="flex flex-col gap-1.5 anim-fade-in">
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-sage-500">
+              <span aria-hidden>🍽️</span>
+              Eat near here
+            </div>
+            <ul className="flex flex-col gap-1.5">
+              {dayRestaurants.map((r, i) => {
+                const query = [r[0], r[1], destination].filter(Boolean).join(" ");
+                const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+                return (
+                  <li key={i}>
+                    <a
+                      href={mapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-[12px] bg-white/70 border border-amber-700/10 px-3 py-2 text-[12px] leading-snug hover:bg-white/95 hover:border-amber-600/30 hover:shadow-sm flex items-start gap-2"
+                    >
+                      <span className="text-[14px] leading-none mt-0.5 shrink-0" aria-hidden>🍽️</span>
+                      <div className="flex-1 min-w-0">
+                        <div>
+                          <span className="font-semibold text-ink-900">{r[0]}</span>
+                          {r[1] && <span className="text-ink-500"> · {r[1]}</span>}
+                        </div>
+                        {r[2] && <div className="text-ink-700 mt-0.5">{r[2]}</div>}
+                        <div className="text-[10px] text-amber-700 mt-1">Reviews on Google Maps →</div>
+                      </div>
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        )}
       </div>
     </div>
   );
