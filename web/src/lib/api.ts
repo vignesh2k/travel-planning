@@ -68,6 +68,11 @@ export async function deleteTrip(slug: string, token: string): Promise<void> {
   if (!res.ok) throw new Error(`deleteTrip ${res.status}`);
 }
 
+export async function saveTrip(slug: string, token: string): Promise<void> {
+  const res = await authedFetch(`/trips/${slug}/save`, { method: "POST" }, token);
+  if (!res.ok) throw new Error(`saveTrip ${res.status}`);
+}
+
 export async function getProfile(token: string): Promise<UserProfile | null> {
   const res = await authedFetch("/me/profile", { method: "GET" }, token);
   if (!res.ok) throw new Error(`getProfile ${res.status}`);

@@ -124,6 +124,7 @@ class TripFull(TripSummary):
     airport_exit: str | None
     document: TripDocument
     share_token: str | None = None
+    is_saved: bool = False
 
 
 class TripPatch(BaseModel):

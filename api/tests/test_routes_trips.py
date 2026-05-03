@@ -543,3 +543,67 @@ def test_patch_trip_404_when_missing(monkeypatch) -> None:
 def test_patch_trip_requires_auth() -> None:
     res = TestClient(app).patch("/trips/x", json={"start_date": "2026-05-15"})
     assert res.status_code == 401
+
+
+# ── POST /trips/:slug/save ──────────────────────────────────────────────────
+
+
+def _mock_save_chain(initial: dict | None) -> tuple[MagicMock, MagicMock]:
+    """Returns (client, update_call) where update_call is the mock for
+    .table().update({...}).eq().execute() so tests can assert on it."""
+    table = MagicMock()
+    select_chain = MagicMock()
+    table.select.return_value = select_chain
+    select_chain.eq.return_value = select_chain
+    select_chain.single.return_value = select_chain
+    select_chain.execute.return_value = MagicMock(data=initial)
+
+    update_call = table.update
+    update_call.return_value.eq.return_value.execute.return_value = MagicMock(data=[{"ok": True}])
+
+    client = MagicMock()
+    client.table.return_value = table
+    return client, update_call
+
+
+def test_save_trip_promotes_draft(monkeypatch) -> None:
+    OWNER = "save-owner"
+    client, update_call = _mock_save_chain({"user_id": OWNER, "is_saved": False})
+    monkeypatch.setattr("api.routes.trips.service_client", lambda: client)
+
+    headers = {"Authorization": f"Bearer {_token(OWNER)}"}
+    res = TestClient(app).post("/trips/kyoto-7d-aaa/save", headers=headers)
+
+    assert res.status_code == 200
+    assert res.json() == {"ok": True}
+    update_call.assert_called_once_with({"is_saved": True})
+
+
+def test_save_trip_idempotent_on_already_saved(monkeypatch) -> None:
+    OWNER = "save-owner"
+    client, update_call = _mock_save_chain({"user_id": OWNER, "is_saved": True})
+    monkeypatch.setattr("api.routes.trips.service_client", lambda: client)
+
+    headers = {"Authorization": f"Bearer {_token(OWNER)}"}
+    res = TestClient(app).post("/trips/kyoto-7d-aaa/save", headers=headers)
+
+    assert res.status_code == 200
+    update_call.assert_not_called()
+
+
+def test_save_trip_403_when_not_owner(monkeypatch) -> None:
+    client, _ = _mock_save_chain({"user_id": "alice", "is_saved": False})
+    monkeypatch.setattr("api.routes.trips.service_client", lambda: client)
+
+    headers = {"Authorization": f"Bearer {_token('bob')}"}
+    res = TestClient(app).post("/trips/kyoto-7d-aaa/save", headers=headers)
+    assert res.status_code == 403
+
+
+def test_save_trip_404_when_missing(monkeypatch) -> None:
+    client, _ = _mock_save_chain(None)
+    monkeypatch.setattr("api.routes.trips.service_client", lambda: client)
+
+    headers = {"Authorization": f"Bearer {_token('anyone')}"}
+    res = TestClient(app).post("/trips/missing/save", headers=headers)
+    assert res.status_code == 404

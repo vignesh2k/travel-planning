@@ -43,6 +43,7 @@ export interface TripFull extends TripSummary {
   airport_exit: string | null;
   document: TripDocument;
   share_token: string | null;
+  is_saved: boolean;
 }
 
 export interface TripBriefIn {

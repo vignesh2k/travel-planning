@@ -7,6 +7,7 @@ import { BrandMark } from "@/components/BrandMark";
 import { Map } from "@/components/Map";
 import { MobileSheet } from "@/components/MobileSheet";
 import { PdfExportMenu } from "@/components/PdfExportMenu";
+import { SaveTripButton } from "@/components/SaveTripButton";
 import { ShareMenu } from "@/components/ShareMenu";
 import { TripDateEdit } from "@/components/TripDateEdit";
 import { RefineInput } from "@/components/RefineInput";
@@ -62,6 +63,7 @@ export function TripView({
         </div>
         <div className="flex gap-2 items-center">
           <ShareMenu slug={trip.slug} initialToken={trip.share_token} />
+          <SaveTripButton slug={trip.slug} initialSaved={trip.is_saved} />
           <PdfExportMenu slug={trip.slug} destination={trip.destination} days={trip.days} />
         </div>
       </header>

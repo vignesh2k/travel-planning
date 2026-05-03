@@ -52,6 +52,22 @@ def _centroid(places: list[dict]) -> tuple[float | None, float | None]:
     return (avg_lat, avg_lng)
 
 
+def _purge_drafts_for(user_id: str) -> None:
+    """Drafts (is_saved=false) accumulate when the user generates trips
+    they don't keep. Sweep them on each new generation so the table only
+    ever holds one draft per user plus their saved trips. Drafts that
+    have a share_token are spared — killing them would 404 a public URL
+    the user has already handed out."""
+    try:
+        service_client().table("trips").delete().eq(
+            "user_id", user_id,
+        ).eq("is_saved", False).is_("share_token", "null").execute()
+    except Exception as e:
+        # Sweep is best-effort. A failure here must not block the
+        # actual generation.
+        print(f"[trips._purge_drafts_for] sweep failed: {e}")
+
+
 def _persist_budget(trip_id: str, estimate: BudgetEstimateRaw) -> None:
     """Best-effort write of a fresh budget row alongside a new trip."""
     fx = get_gbp_rate(estimate.currency)
@@ -79,6 +95,7 @@ def _persist_budget(trip_id: str, estimate: BudgetEstimateRaw) -> None:
 
 @router.post("/trips", response_model=TripFull)
 def create_trip(brief: TripBriefIn, user: CurrentUser) -> TripFull:
+    _purge_drafts_for(user["sub"])
     parsed = parse_brief(brief)
     combined_style = _combine_style(user["sub"], parsed.travel_style)
 
@@ -142,6 +159,10 @@ def create_trip(brief: TripBriefIn, user: CurrentUser) -> TripFull:
 
 @router.post("/trips/stream")
 def create_trip_stream(brief: TripBriefIn, user: CurrentUser):
+    # Sweep before the SSE stream opens so the deletion latency doesn't
+    # interleave with the first status event.
+    _purge_drafts_for(user["sub"])
+
     def events():
         # Try a fast regex extraction. If it succeeds, we can start research
         # immediately while parse_brief runs in parallel — saves ~3-5s of
@@ -295,10 +316,13 @@ def create_trip_stream(brief: TripBriefIn, user: CurrentUser):
 
 @router.get("/trips", response_model=list[TripSummary])
 def list_trips(user: CurrentUser) -> list[TripSummary]:
+    # Logbook only shows saved trips. Drafts (the user's most recent
+    # generation, if they didn't click Save) are owned but invisible.
     res = (
         service_client().table("trips")
         .select("id, slug, destination, days, start_date, centroid_lat, centroid_lng, created_at")
         .eq("user_id", user["sub"])
+        .eq("is_saved", True)
         .order("created_at", desc=True)
         .limit(50)
         .execute()
@@ -334,6 +358,21 @@ def delete_trip(slug: str, user: CurrentUser) -> dict[str, bool]:
     if res.data["user_id"] != user["sub"]:
         raise HTTPException(status_code=403, detail="Not your trip")
     db.table("trips").delete().eq("slug", slug).execute()
+    return {"ok": True}
+
+
+@router.post("/trips/{slug}/save")
+def save_trip(slug: str, user: CurrentUser) -> dict[str, bool]:
+    """Promote a draft to the Logbook. Idempotent — clicking Save twice
+    is fine."""
+    db = service_client()
+    res = db.table("trips").select("user_id, is_saved").eq("slug", slug).single().execute()
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    if res.data["user_id"] != user["sub"]:
+        raise HTTPException(status_code=403, detail="Not your trip")
+    if not res.data.get("is_saved"):
+        db.table("trips").update({"is_saved": True}).eq("slug", slug).execute()
     return {"ok": True}
 
 
