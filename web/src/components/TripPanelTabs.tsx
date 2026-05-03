@@ -1,6 +1,6 @@
 "use client";
 
-const TABS = ["Itinerary", "Where to stay"] as const;
+const TABS = ["Itinerary", "Where to stay", "Budget"] as const;
 export type Tab = (typeof TABS)[number];
 
 export function TripPanelTabs({

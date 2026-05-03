@@ -9,7 +9,7 @@ import { MobileSheet } from "@/components/MobileSheet";
 import { PdfExportMenu } from "@/components/PdfExportMenu";
 import { RefineInput } from "@/components/RefineInput";
 import { TripPanel } from "@/components/TripPanel";
-import type { Place, TripFull } from "@/lib/types";
+import type { Budget, Place, TripFull } from "@/lib/types";
 
 function useIsMobile(): boolean | null {
   const [isMobile, setIsMobile] = useState<boolean | null>(null);
@@ -23,7 +23,13 @@ function useIsMobile(): boolean | null {
   return isMobile;
 }
 
-export function TripView({ trip: initial }: { trip: TripFull }) {
+export function TripView({
+  trip: initial,
+  budget,
+}: {
+  trip: TripFull;
+  budget: Budget | null;
+}) {
   const [trip, setTrip] = useState(initial);
   const isMobile = useIsMobile();
   const [shareCopied, setShareCopied] = useState(false);
@@ -75,6 +81,7 @@ export function TripView({ trip: initial }: { trip: TripFull }) {
           <div className="flex-1 overflow-hidden">
             <TripPanel
               trip={trip}
+              budget={budget}
               onFocusPlaces={setFocusPlaces}
               onRefinePrefill={pushRefinePrefill}
             />
@@ -96,6 +103,7 @@ export function TripView({ trip: initial }: { trip: TripFull }) {
             <div className="flex-1 overflow-hidden">
               <TripPanel
                 trip={trip}
+                budget={budget}
                 onFocusPlaces={setFocusPlaces}
                 onRefinePrefill={pushRefinePrefill}
               />

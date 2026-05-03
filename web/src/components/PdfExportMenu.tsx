@@ -18,6 +18,7 @@ const SECTION_OPTIONS = [
   { key: "food", label: "Food spots" },
   { key: "photos", label: "Photo spots" },
   { key: "tips", label: "Tips & logistics" },
+  { key: "costs", label: "Estimated costs" },
 ] as const;
 
 type SectionKey = (typeof SECTION_OPTIONS)[number]["key"];
@@ -37,6 +38,7 @@ export function PdfExportMenu({
     food: true,
     photos: false,
     tips: true,
+    costs: true,
   });
   const [stages, setStages] = useState<Stage[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +64,9 @@ export function PdfExportMenu({
         label: `Crafting Day ${i + 1}`,
         status: "pending" as StageStatus,
       })),
+      ...(picked.costs
+        ? [{ key: "costs", label: "Estimating costs", status: "pending" as StageStatus }]
+        : []),
       { key: "compile", label: "Compiling PDF", status: "pending" as StageStatus },
     ];
     setStages(initial);

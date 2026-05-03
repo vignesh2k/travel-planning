@@ -4,8 +4,9 @@ import { useState } from "react";
 
 import { fetchHotels } from "@/lib/api";
 import { getBrowserToken } from "@/lib/auth.browser";
-import type { Neighborhood, Place, TripFull } from "@/lib/types";
+import type { Budget, Neighborhood, Place, TripFull } from "@/lib/types";
 
+import { BudgetTab } from "./BudgetTab";
 import { type Day } from "./DayCard";
 import { HotelCard } from "./HotelCard";
 import { Itinerary } from "./Itinerary";
@@ -13,10 +14,12 @@ import { TripPanelTabs, type Tab } from "./TripPanelTabs";
 
 export function TripPanel({
   trip,
+  budget,
   onFocusPlaces,
   onRefinePrefill,
 }: {
   trip: TripFull;
+  budget: Budget | null;
   onFocusPlaces: (places: Place[] | null) => void;
   onRefinePrefill: (text: string) => void;
 }) {
@@ -56,9 +59,23 @@ export function TripPanel({
             places={trip.document.places}
             restaurants={restaurants}
             destination={trip.destination}
+            budget={budget}
             onFocusPlaces={onFocusPlaces}
             onRefinePrefill={onRefinePrefill}
+            onOpenBudgetDay={(n) => {
+              setTab("Budget");
+              // After tab swap, scroll the matching row into view.
+              setTimeout(() => {
+                document
+                  .getElementById(`budget-day-${n}`)
+                  ?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }, 50);
+            }}
           />
+        )}
+
+        {tab === "Budget" && (
+          <BudgetTab slug={trip.slug} initial={budget} />
         )}
 
         {tab === "Where to stay" && (

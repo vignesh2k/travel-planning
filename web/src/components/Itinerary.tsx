@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import type { Place } from "@/lib/types";
+import { combined } from "@/lib/currency";
+import type { Budget, Place } from "@/lib/types";
 import type { Day } from "./DayCard";
 
 const TIME_META: Record<Day["bullets"][number]["time"], { icon: string; tint: string }> = {
@@ -89,15 +90,19 @@ export function Itinerary({
   places,
   restaurants,
   destination,
+  budget,
   onFocusPlaces,
   onRefinePrefill,
+  onOpenBudgetDay,
 }: {
   days: Day[];
   places: Place[];
   restaurants: string[][];
   destination: string;
+  budget: Budget | null;
   onFocusPlaces: (places: Place[] | null) => void;
   onRefinePrefill: (text: string) => void;
+  onOpenBudgetDay: (dayNumber: number) => void;
 }) {
   const [activeNum, setActiveNum] = useState<number>(days[0]?.number ?? 1);
   const active = useMemo(() => days.find((d) => d.number === activeNum) ?? days[0], [days, activeNum]);
@@ -151,13 +156,31 @@ export function Itinerary({
             {active.title}
           </div>
         </div>
-        <button
-          onClick={() => onRefinePrefill(`Refine Day ${active.number}: `)}
-          className="text-[10px] text-ink-500 hover:text-amber-600 px-2 py-1 rounded-md"
-          title="Open the refine input prefilled for this day"
-        >
-          ✨ Refine
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          {(() => {
+            const bd = budget?.days.find((d) => d.number === active.number);
+            if (!bd || !budget) return null;
+            const total = (bd.override ?? bd.estimated)
+              + bd.items.reduce((s, it) => s + it.amount, 0);
+            return (
+              <button
+                type="button"
+                onClick={() => onOpenBudgetDay(active.number)}
+                className="text-[11px] rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 hover:bg-amber-200"
+                title="Open in Budget"
+              >
+                {combined(total, budget.currency, budget.gbp_rate)}
+              </button>
+            );
+          })()}
+          <button
+            onClick={() => onRefinePrefill(`Refine Day ${active.number}: `)}
+            className="text-[10px] text-ink-500 hover:text-amber-600 px-2 py-1 rounded-md"
+            title="Open the refine input prefilled for this day"
+          >
+            ✨ Refine
+          </button>
+        </div>
       </div>
 
       {/* Time-of-day sections */}

@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 
-import { getTrip } from "@/lib/api";
+import { getBudget, getTrip } from "@/lib/api";
 import { getServerToken } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -26,5 +26,7 @@ export default async function TripPage({
     notFound();
   }
 
-  return <TripView trip={trip} />;
+  const budget = await getBudget(slug, token).catch(() => null);
+
+  return <TripView trip={trip} budget={budget} />;
 }
