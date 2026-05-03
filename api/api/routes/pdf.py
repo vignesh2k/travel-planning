@@ -25,6 +25,8 @@ def trip_pdf(slug: str, user: CurrentUser) -> Response:
     if not res.data:
         raise HTTPException(status_code=404, detail="Trip not found")
     row = res.data
+    if row["user_id"] != user["sub"]:
+        raise HTTPException(status_code=403, detail="Not your trip")
     doc = TripDocument(**row["document"])
     pdf_bytes = generate_pdf(doc.document_markdown, row["destination"])
     safe_name = row["destination"].replace(" ", "_").replace(",", "")

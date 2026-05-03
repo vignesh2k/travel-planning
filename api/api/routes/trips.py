@@ -222,35 +222,47 @@ def create_trip_stream(brief: TripBriefIn, user: CurrentUser):
             if p.get("category") in GEOCODE_PRIORITY else len(GEOCODE_PRIORITY),
         )
         capped = raw_places[:GEOCODE_CAP]
-        # Parallel geocode. Yield "place" events in input order as each
-        # future completes — fast trips populate the map almost
-        # instantly instead of stepping place-by-place at ~150ms each.
-        geocoded: list[dict[str, Any]] = []
+        # Parallel geocode. Yield "place" events as each future completes
+        # (fast trips populate the map almost instantly), but persist the
+        # final array in INPUT order so it matches the sync path and so
+        # the document.places ordering is deterministic across re-fetches.
+        ordered: list[Place | None] = [None] * len(capped)
         if capped:
             with concurrent.futures.ThreadPoolExecutor(
                 max_workers=min(len(capped), 8),
             ) as geox:
-                future_to_p = {
-                    geox.submit(geocode_place, p["name"]): p for p in capped
+                future_to_idx = {
+                    geox.submit(geocode_place, p["name"]): i
+                    for i, p in enumerate(capped)
                 }
-                for fut in concurrent.futures.as_completed(future_to_p):
-                    p = future_to_p[fut]
+                for fut in concurrent.futures.as_completed(future_to_idx):
+                    i = future_to_idx[fut]
+                    p = capped[i]
                     try:
                         lat, lng = fut.result()
                     except Exception:
                         lat, lng = None, None
-                    place = {**p, "lat": lat, "lng": lng}
-                    geocoded.append(place)
-                    yield ("place", place)
+                    # Validate through the Place model so unknown LLM
+                    # categories ("hiking", "nature") get coerced to
+                    # "logistics" at write time, not just at read time.
+                    place = Place(
+                        name=p["name"],
+                        category=p.get("category", "logistics"),
+                        description=p.get("description", ""),
+                        lat=lat, lng=lng,
+                    )
+                    ordered[i] = place
+                    yield ("place", place.model_dump(mode="json"))
+        geocoded_places = [p for p in ordered if p is not None]
 
-        document = {
-            "document_markdown": research["document"],
-            "places": geocoded,
-            "neighborhoods": [],
-        }
+        document = TripDocument(
+            document_markdown=research["document"],
+            places=geocoded_places,
+            neighborhoods=[],
+        ).model_dump(mode="json")
 
         slug = make_trip_slug(parsed.destination, parsed.days)
-        cent_lat, cent_lng = _centroid(geocoded)
+        cent_lat, cent_lng = _centroid([p.model_dump() for p in geocoded_places])
         row = {
             "slug": slug,
             "user_id": user["sub"],
@@ -304,6 +316,10 @@ def get_trip(slug: str, user: CurrentUser) -> TripFull:
     if not res.data:
         raise HTTPException(status_code=404, detail="Trip not found")
     row = res.data
+    if row["user_id"] != user["sub"]:
+        # Without this check any signed-in user could read any trip by
+        # guessing or harvesting slugs. Public read is via /public/trips/:token.
+        raise HTTPException(status_code=403, detail="Not your trip")
     inserted_data = {**row}
     doc_dict = inserted_data.pop("document")
     return TripFull(**inserted_data, document=TripDocument(**doc_dict))

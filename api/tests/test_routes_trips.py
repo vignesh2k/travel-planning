@@ -128,9 +128,10 @@ def test_list_trips_returns_summaries(monkeypatch, auth_headers) -> None:
     assert body[0]["slug"] == "kyoto-7d-aaa"
 
 
-def test_get_trip_by_slug_returns_full_trip(monkeypatch, auth_headers) -> None:
+def test_get_trip_by_slug_returns_full_trip(monkeypatch) -> None:
+    OWNER = "owner-123"
     row = {
-        "id": "t1", "slug": "kyoto-7d-aaa", "user_id": "u", "destination": "Kyoto",
+        "id": "t1", "slug": "kyoto-7d-aaa", "user_id": OWNER, "destination": "Kyoto",
         "days": 7, "travel_style": "veg",
         "start_date": None, "airport_entry": None, "airport_exit": None,
         "document": {"document_markdown": "x", "places": [], "neighborhoods": []},
@@ -139,9 +140,28 @@ def test_get_trip_by_slug_returns_full_trip(monkeypatch, auth_headers) -> None:
     }
     monkeypatch.setattr("api.routes.trips.service_client", lambda: _mock_supabase_select([row]))
 
-    res = TestClient(app).get("/trips/kyoto-7d-aaa", headers=auth_headers)
+    headers = {"Authorization": f"Bearer {_token(OWNER)}"}
+    res = TestClient(app).get("/trips/kyoto-7d-aaa", headers=headers)
     assert res.status_code == 200
     assert res.json()["slug"] == "kyoto-7d-aaa"
+
+
+def test_get_trip_403_when_not_owner(monkeypatch) -> None:
+    """Owner-only — without this check any signed-in user could read
+    any trip by slug."""
+    row = {
+        "id": "t1", "slug": "kyoto-7d-aaa", "user_id": "alice", "destination": "Kyoto",
+        "days": 7, "travel_style": "veg",
+        "start_date": None, "airport_entry": None, "airport_exit": None,
+        "document": {"document_markdown": "x", "places": [], "neighborhoods": []},
+        "places": [],
+        "created_at": "2026-05-01T00:00:00+00:00",
+    }
+    monkeypatch.setattr("api.routes.trips.service_client", lambda: _mock_supabase_select([row]))
+
+    headers = {"Authorization": f"Bearer {_token('bob')}"}
+    res = TestClient(app).get("/trips/kyoto-7d-aaa", headers=headers)
+    assert res.status_code == 403
 
 
 def test_post_trips_stream_emits_events(monkeypatch, auth_headers) -> None:
