@@ -111,6 +111,7 @@ class TripSummary(BaseModel):
     slug: str
     destination: str
     days: int
+    start_date: date | None = None
     created_at: datetime
 
 
@@ -121,6 +122,11 @@ class TripFull(TripSummary):
     airport_exit: str | None
     document: TripDocument
     share_token: str | None = None
+
+
+class TripPatch(BaseModel):
+    """Partial-update fields for an existing trip. v1 supports start_date only."""
+    start_date: date | None = None
 
 
 class RefineIn(BaseModel):

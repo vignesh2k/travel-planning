@@ -414,3 +414,112 @@ def test_post_trips_stream_succeeds_when_budget_fails(monkeypatch, auth_headers)
 
     assert "event: done" in body
     assert "kyoto-2d-y" in body
+
+
+# ── PATCH /trips/:slug ──────────────────────────────────────────────────────
+
+
+_OWNER_ID_PATCH = "owner-uid-patch"
+
+
+def _patch_trip_row(start_date: str | None = None) -> dict:
+    return {
+        "id": "tp1",
+        "slug": "kyoto-7d-patch",
+        "user_id": _OWNER_ID_PATCH,
+        "destination": "Kyoto",
+        "days": 7,
+        "travel_style": "x",
+        "start_date": start_date,
+        "airport_entry": None,
+        "airport_exit": None,
+        "document": {"document_markdown": "x", "places": [], "neighborhoods": []},
+        "places": [],
+        "share_token": None,
+        "created_at": "2026-05-01T00:00:00+00:00",
+    }
+
+
+def _patch_owner_headers() -> dict[str, str]:
+    return {"Authorization": f"Bearer {_token(_OWNER_ID_PATCH)}"}
+
+
+def _mock_get_then_update(initial: dict | None, updated: dict | None) -> MagicMock:
+    select_chain = MagicMock()
+    select_chain.select.return_value = select_chain
+    select_chain.eq.return_value = select_chain
+    select_chain.single.return_value = select_chain
+    select_chain.execute.return_value = MagicMock(data=initial)
+
+    update_chain = MagicMock()
+    update_chain.eq.return_value = update_chain
+    update_chain.execute.return_value = MagicMock(data=[updated] if updated else [])
+    select_chain.update.return_value = update_chain
+
+    client = MagicMock()
+    client.table.return_value = select_chain
+    return client
+
+
+def test_patch_trip_sets_start_date(monkeypatch) -> None:
+    initial = _patch_trip_row(start_date=None)
+    updated = _patch_trip_row(start_date="2026-05-15")
+    monkeypatch.setattr(
+        "api.routes.trips.service_client",
+        lambda: _mock_get_then_update(initial, updated),
+    )
+    res = TestClient(app).patch(
+        "/trips/kyoto-7d-patch",
+        headers=_patch_owner_headers(),
+        json={"start_date": "2026-05-15"},
+    )
+    assert res.status_code == 200, res.text
+    assert res.json()["start_date"] == "2026-05-15"
+
+
+def test_patch_trip_clears_start_date(monkeypatch) -> None:
+    initial = _patch_trip_row(start_date="2026-05-15")
+    updated = _patch_trip_row(start_date=None)
+    monkeypatch.setattr(
+        "api.routes.trips.service_client",
+        lambda: _mock_get_then_update(initial, updated),
+    )
+    res = TestClient(app).patch(
+        "/trips/kyoto-7d-patch",
+        headers=_patch_owner_headers(),
+        json={"start_date": None},
+    )
+    assert res.status_code == 200, res.text
+    assert res.json()["start_date"] is None
+
+
+def test_patch_trip_403_when_not_owner(monkeypatch) -> None:
+    initial = {**_patch_trip_row(), "user_id": "someone-else"}
+    monkeypatch.setattr(
+        "api.routes.trips.service_client",
+        lambda: _mock_get_then_update(initial, initial),
+    )
+    res = TestClient(app).patch(
+        "/trips/kyoto-7d-patch",
+        headers=_patch_owner_headers(),
+        json={"start_date": "2026-05-15"},
+    )
+    assert res.status_code == 403
+
+
+def test_patch_trip_404_when_missing(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "api.routes.trips.service_client",
+        lambda: _mock_get_then_update(None, None),
+    )
+    res = TestClient(app).patch(
+        "/trips/missing",
+        headers=_patch_owner_headers(),
+        json={"start_date": "2026-05-15"},
+    )
+    assert res.status_code == 404
+
+
+def test_patch_trip_requires_auth() -> None:
+    res = TestClient(app).patch("/trips/x", json={"start_date": "2026-05-15"})
+    assert res.status_code == 401

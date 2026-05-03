@@ -18,6 +18,7 @@ from api.models import (
     TripBriefIn,
     TripDocument,
     TripFull,
+    TripPatch,
     TripSummary,
 )
 from api.routes.profile import fetch_profile_for
@@ -238,7 +239,7 @@ def create_trip_stream(brief: TripBriefIn, user: CurrentUser):
 def list_trips(user: CurrentUser) -> list[TripSummary]:
     res = (
         service_client().table("trips")
-        .select("id, slug, destination, days, created_at")
+        .select("id, slug, destination, days, start_date, created_at")
         .eq("user_id", user["sub"])
         .order("created_at", desc=True)
         .limit(50)
@@ -272,3 +273,25 @@ def delete_trip(slug: str, user: CurrentUser) -> dict[str, bool]:
         raise HTTPException(status_code=403, detail="Not your trip")
     db.table("trips").delete().eq("slug", slug).execute()
     return {"ok": True}
+
+
+@router.patch("/trips/{slug}", response_model=TripFull)
+def patch_trip(slug: str, body: TripPatch, user: CurrentUser) -> TripFull:
+    db = service_client()
+    res = db.table("trips").select("*").eq("slug", slug).single().execute()
+    if not res or not res.data:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    if res.data["user_id"] != user["sub"]:
+        raise HTTPException(status_code=403, detail="Not your trip")
+
+    update = {
+        "start_date": body.start_date.isoformat() if body.start_date else None,
+    }
+    upd = db.table("trips").update(update).eq("slug", slug).execute()
+    if not upd.data:
+        raise HTTPException(status_code=500, detail="update returned no row")
+
+    row = upd.data[0]
+    inserted_data = {**row}
+    doc_dict = inserted_data.pop("document")
+    return TripFull(**inserted_data, document=TripDocument(**doc_dict))
