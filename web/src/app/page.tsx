@@ -46,12 +46,16 @@ export default async function Home() {
       {/* Top nav */}
       <AtlasNav email={user.email ?? ""} />
 
-      {/* Centered hero — flex centering is reliable across breakpoints. */}
+      {/* Centered hero — flex centering is reliable across breakpoints.
+          pointer-events-none on the wrapper so its empty area doesn't
+          steal clicks from the Logbook (which is absolute-positioned
+          beneath this 100vh-tall element). The section re-enables
+          events for the input + chips. */}
       <div
-        className="relative z-10 min-h-screen flex items-center justify-center px-6"
+        className="relative z-10 min-h-screen flex items-center justify-center px-6 pointer-events-none"
         style={{ paddingBottom: hasLogbook ? 180 : 80 }}
       >
-        <section className="w-full max-w-[700px] text-center">
+        <section className="w-full max-w-[700px] text-center pointer-events-auto">
           <div
             className="atlas-rise atlas-rise-1"
             style={{

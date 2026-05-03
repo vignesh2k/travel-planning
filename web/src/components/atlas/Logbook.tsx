@@ -33,6 +33,7 @@ export function Logbook({ trips: initial }: { trips: TripSummary[] }) {
   const [trips, setTrips] = useState(initial);
   const [confirming, setConfirming] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
 
   if (trips.length === 0) return null;
 
@@ -51,11 +52,13 @@ export function Logbook({ trips: initial }: { trips: TripSummary[] }) {
     }
   }
 
-  const visible = trips.slice(0, 4);
+  const collapsedCount = 4;
+  const visible = expanded ? trips : trips.slice(0, collapsedCount);
+  const canExpand = trips.length > collapsedCount;
 
   return (
     <div
-      className="absolute pointer-events-auto"
+      className="absolute pointer-events-auto z-30 transition-[max-height] duration-300 ease-out overflow-hidden"
       style={{
         left: 32,
         right: 32,
@@ -66,6 +69,7 @@ export function Logbook({ trips: initial }: { trips: TripSummary[] }) {
         border: "1px solid rgba(31,26,20,0.06)",
         borderRadius: 12,
         padding: "14px 22px",
+        maxHeight: expanded ? 1200 : 180,
       }}
     >
       <div className="flex justify-between items-center" style={{ marginBottom: 10 }}>
@@ -80,7 +84,11 @@ export function Logbook({ trips: initial }: { trips: TripSummary[] }) {
         >
           Logbook · last entries
         </div>
-        <span
+        <button
+          type="button"
+          onClick={() => canExpand && setExpanded((v) => !v)}
+          disabled={!canExpand}
+          className="inline-flex items-center gap-1.5 hover:opacity-80 disabled:opacity-100 disabled:cursor-default transition-opacity"
           style={{
             fontSize: 11.5,
             color: "var(--color-terracotta-500)",
@@ -88,12 +96,26 @@ export function Logbook({ trips: initial }: { trips: TripSummary[] }) {
             letterSpacing: "0.08em",
             textTransform: "uppercase",
           }}
+          aria-expanded={expanded}
+          aria-label={
+            canExpand
+              ? expanded
+                ? "Collapse logbook"
+                : `Show all ${trips.length} entries`
+              : `${trips.length} entries`
+          }
         >
-          {trips.length} {trips.length === 1 ? "entry" : "entries"}
-        </span>
+          <span>{trips.length} {trips.length === 1 ? "entry" : "entries"}</span>
+          {canExpand && (
+            <Chevron
+              direction={expanded ? "down" : "up"}
+              className="text-[var(--color-terracotta-500)]"
+            />
+          )}
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-[18px]">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-[18px] gap-y-3">
         {visible.map((t) => {
           const { place, country } = splitDestination(t.destination);
           const month = formatMonth(t.start_date, "—");
@@ -212,5 +234,33 @@ export function Logbook({ trips: initial }: { trips: TripSummary[] }) {
         })}
       </div>
     </div>
+  );
+}
+
+function Chevron({
+  direction, className,
+}: {
+  direction: "up" | "down";
+  className?: string;
+}) {
+  return (
+    <svg
+      width="10"
+      height="10"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={className}
+      style={{
+        transform: direction === "up" ? "rotate(180deg)" : "none",
+        transition: "transform 220ms ease-out",
+      }}
+    >
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
   );
 }
