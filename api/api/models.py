@@ -124,11 +124,26 @@ class PdfDay(BaseModel):
     tips: list[str] = []
 
 
+class PdfCostCategory(BaseModel):
+    name: Literal["Lodging", "Food", "Activities", "Transport"]
+    amount: int = Field(..., ge=0)
+    gbp_amount: int = Field(..., ge=0)
+
+
+class PdfCosts(BaseModel):
+    currency: str
+    gbp_rate: float
+    categories: list[PdfCostCategory]
+    total_local: int = Field(..., ge=0)
+    total_gbp: int = Field(..., ge=0)
+
+
 class PdfPlan(BaseModel):
     destination: str
     subtitle: str
     route: list[str] = []
     days: list[PdfDay]
+    costs: PdfCosts | None = None
 
 
 class UserProfileIn(BaseModel):
@@ -142,3 +157,42 @@ class UserProfileIn(BaseModel):
 
 class UserProfile(UserProfileIn):
     updated_at: datetime
+
+
+# ── Budget ──────────────────────────────────────────────────────────────────
+
+
+class BudgetItem(BaseModel):
+    name: str = Field(..., min_length=1, max_length=80)
+    amount: int = Field(..., ge=0)
+
+
+class BudgetDayIn(BaseModel):
+    override: int | None = Field(None, ge=0)
+    items: list[BudgetItem] = Field(default_factory=list, max_length=20)
+
+
+class BudgetDay(BudgetDayIn):
+    number: int
+    title: str
+    estimated: int
+
+
+class Budget(BaseModel):
+    trip_id: str
+    currency: str
+    gbp_rate: float
+    gbp_rate_date: date
+    days: list[BudgetDay]
+    updated_at: datetime
+
+
+class BudgetEstimateDay(BaseModel):
+    number: int
+    estimated: int = Field(..., ge=0)
+
+
+class BudgetEstimateRaw(BaseModel):
+    """Wire format from the LLM. Validated, then converted to BudgetDay rows."""
+    currency: str
+    days: list[BudgetEstimateDay]

@@ -73,3 +73,62 @@ def test_user_profile_in_accepts_all_fields():
     )
     assert p.budget == "mid"
     assert p.interests == ["food", "photography"]
+
+
+# ── Budget ──────────────────────────────────────────────────────────────────
+
+
+def test_budget_item_rejects_negative_amount():
+    import pytest
+    from pydantic import ValidationError
+
+    from api.models import BudgetItem
+
+    with pytest.raises(ValidationError):
+        BudgetItem(name="Spa", amount=-5)
+
+
+def test_budget_item_rejects_empty_name():
+    import pytest
+    from pydantic import ValidationError
+
+    from api.models import BudgetItem
+
+    with pytest.raises(ValidationError):
+        BudgetItem(name="", amount=10)
+
+
+def test_budget_day_in_caps_items_at_20():
+    import pytest
+    from pydantic import ValidationError
+
+    from api.models import BudgetDayIn, BudgetItem
+
+    too_many = [BudgetItem(name=f"x{i}", amount=1) for i in range(21)]
+    with pytest.raises(ValidationError):
+        BudgetDayIn(items=too_many)
+
+
+def test_budget_day_in_accepts_null_override():
+    from api.models import BudgetDayIn
+
+    d = BudgetDayIn(override=None, items=[])
+    assert d.override is None
+    assert d.items == []
+
+
+def test_pdf_costs_categories_are_typed():
+    import pytest
+    from pydantic import ValidationError
+
+    from api.models import PdfCostCategory
+
+    with pytest.raises(ValidationError):
+        PdfCostCategory(name="Souvenirs", amount=100, gbp_amount=1)
+
+
+def test_pdf_plan_accepts_optional_costs():
+    from api.models import PdfPlan
+
+    p = PdfPlan(destination="Kyoto", subtitle="x", days=[])
+    assert p.costs is None
