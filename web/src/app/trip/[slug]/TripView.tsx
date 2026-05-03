@@ -8,6 +8,7 @@ import { Map } from "@/components/Map";
 import { MobileSheet } from "@/components/MobileSheet";
 import { PdfExportMenu } from "@/components/PdfExportMenu";
 import { ShareMenu } from "@/components/ShareMenu";
+import { TripDateEdit } from "@/components/TripDateEdit";
 import { RefineInput } from "@/components/RefineInput";
 import { TripPanel } from "@/components/TripPanel";
 import type { Budget, Place, TripFull } from "@/lib/types";
@@ -52,8 +53,10 @@ export function TripView({
         <Link href="/" className="contents">
           <BrandMark />
         </Link>
-        <div className="text-sm text-ink-700 font-medium">
-          {trip.destination} · {trip.days} days
+        <div className="text-sm text-ink-700 font-medium flex items-center gap-2">
+          <span>{trip.destination} · {trip.days} days</span>
+          <span className="text-ink-300">·</span>
+          <TripDateEdit slug={trip.slug} initial={trip.start_date} />
         </div>
         <div className="flex gap-2 items-center">
           <ShareMenu slug={trip.slug} initialToken={trip.share_token} />

@@ -139,3 +139,17 @@ export async function getPublicTrip(token: string): Promise<PublicTrip | null> {
   if (!res.ok) throw new Error(`getPublicTrip ${res.status}`);
   return res.json();
 }
+
+export async function patchTrip(
+  slug: string,
+  body: { start_date: string | null },
+  token: string,
+): Promise<TripFull> {
+  const res = await authedFetch(
+    `/trips/${slug}`,
+    { method: "PATCH", body: JSON.stringify(body) },
+    token,
+  );
+  if (!res.ok) throw new Error(`patchTrip ${res.status}`);
+  return res.json();
+}

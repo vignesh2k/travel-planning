@@ -31,12 +31,12 @@ export interface TripSummary {
   slug: string;
   destination: string;
   days: number;
+  start_date: string | null;
   created_at: string;
 }
 
 export interface TripFull extends TripSummary {
   travel_style: string;
-  start_date: string | null;
   airport_entry: string | null;
   airport_exit: string | null;
   document: TripDocument;
