@@ -7,7 +7,7 @@ import json
 from api.llm.client import make_client, strip_code_fences
 from api.models import PdfCostCategory, PdfCosts
 
-_MODEL = "google/gemini-2.5-flash-lite"
+_MODEL = "deepseek/deepseek-v4-flash"
 
 _PROMPT = """You estimate trip costs by category for a printable travel guide.
 
