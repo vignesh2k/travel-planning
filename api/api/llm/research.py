@@ -4,7 +4,7 @@ from typing import Any
 
 from api.llm.client import make_client, strip_code_fences
 
-RESEARCH_MODEL = "deepseek/deepseek-v4-flash:online"
+RESEARCH_MODEL = "google/gemini-3.1-flash-lite:online"
 
 MAX_TOKENS = 6000
 

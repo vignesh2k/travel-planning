@@ -1,6 +1,6 @@
 from api.llm.client import make_client
 
-REFINE_MODEL = "deepseek/deepseek-v4-flash"
+REFINE_MODEL = "google/gemini-3.1-flash-lite"
 
 
 def refine_document(document: str, instruction: str) -> str:

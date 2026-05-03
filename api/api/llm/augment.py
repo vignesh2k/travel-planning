@@ -8,7 +8,7 @@ from typing import TypedDict
 
 from api.llm.client import make_client, strip_code_fences
 
-AUGMENT_MODEL = "deepseek/deepseek-v4-flash:online"
+AUGMENT_MODEL = "google/gemini-3.1-flash-lite:online"
 
 
 class SectionSpec(TypedDict):

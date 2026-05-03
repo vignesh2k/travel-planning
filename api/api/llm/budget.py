@@ -10,7 +10,7 @@ import json
 from api.llm.client import make_client, strip_code_fences
 from api.models import BudgetEstimateRaw
 
-_MODEL = "deepseek/deepseek-v4-flash"
+_MODEL = "google/gemini-3.1-flash-lite"
 
 _PROMPT = """You estimate per-day travel budgets.
 

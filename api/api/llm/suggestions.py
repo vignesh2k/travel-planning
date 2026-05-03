@@ -2,7 +2,7 @@ import json
 
 from api.llm.client import make_client, strip_code_fences
 
-SUGGESTION_MODEL = "deepseek/deepseek-v4-flash"
+SUGGESTION_MODEL = "google/gemini-3.1-flash-lite"
 
 
 def get_suggestions(destination: str) -> list[str]:

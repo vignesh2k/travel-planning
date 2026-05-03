@@ -5,7 +5,7 @@ from urllib.parse import urlencode
 from api.llm.client import make_client, strip_code_fences
 from api.models import Hotel, Neighborhood
 
-HOTEL_MODEL = "deepseek/deepseek-v4-flash"
+HOTEL_MODEL = "google/gemini-3.1-flash-lite"
 
 BOOKING_AID = "304142"  # generic Booking.com search affiliate id; safe to omit later
 
