@@ -129,3 +129,16 @@ class PdfPlan(BaseModel):
     subtitle: str
     route: list[str] = []
     days: list[PdfDay]
+
+
+class UserProfileIn(BaseModel):
+    """Per-user travel preferences. All fields optional."""
+    diet: str | None = None
+    budget: Literal["cheap", "mid", "premium"] | None = None
+    pace: Literal["relaxed", "balanced", "packed"] | None = None
+    interests: list[str] = Field(default_factory=list)
+    notes: str | None = None
+
+
+class UserProfile(UserProfileIn):
+    updated_at: datetime

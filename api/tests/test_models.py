@@ -37,3 +37,39 @@ def test_document_markdown_coerces_dict_without_h2_prefix():
     # Non-h2 keys get the `## ` prefix added.
     assert "## Vegetarian Restaurants" in doc.document_markdown
     assert "## Itinerary" in doc.document_markdown
+
+
+# ── User profile ────────────────────────────────────────────────────────────
+
+
+def test_user_profile_in_accepts_partial():
+    from api.models import UserProfileIn
+
+    p = UserProfileIn(diet="vegetarian")
+    assert p.diet == "vegetarian"
+    assert p.budget is None
+    assert p.interests == []
+
+
+def test_user_profile_in_rejects_invalid_budget():
+    import pytest
+    from pydantic import ValidationError
+
+    from api.models import UserProfileIn
+
+    with pytest.raises(ValidationError):
+        UserProfileIn(budget="luxury")
+
+
+def test_user_profile_in_accepts_all_fields():
+    from api.models import UserProfileIn
+
+    p = UserProfileIn(
+        diet="pescatarian",
+        budget="mid",
+        pace="balanced",
+        interests=["food", "photography"],
+        notes="Knee injury",
+    )
+    assert p.budget == "mid"
+    assert p.interests == ["food", "photography"]
