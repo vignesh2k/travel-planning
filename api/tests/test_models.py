@@ -132,3 +132,12 @@ def test_pdf_plan_accepts_optional_costs():
 
     p = PdfPlan(destination="Kyoto", subtitle="x", days=[])
     assert p.costs is None
+
+
+def test_parsed_brief_coerces_null_travel_style_to_empty():
+    """The LLM returns null for travel_style on terse briefs like
+    "5 days in Lisbon". Don't crash the trip stream."""
+    from api.models import ParsedBrief
+
+    p = ParsedBrief(destination="Lisbon", days=5, travel_style=None)
+    assert p.travel_style == ""

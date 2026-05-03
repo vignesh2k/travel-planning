@@ -26,10 +26,18 @@ class ParsedBrief(BaseModel):
     """Output of the brief-parser LLM."""
     destination: str
     days: int = Field(..., ge=1, le=60)
-    travel_style: str
+    travel_style: str = ""
     start_date: date | None = None
     airport_entry: str | None = None
     airport_exit: str | None = None
+
+    @field_validator("travel_style", mode="before")
+    @classmethod
+    def _none_to_empty(cls, v: Any) -> str:
+        # The LLM returns null when the brief doesn't mention style at all
+        # (common since the profile feature shrank briefs to "5 days in Lisbon").
+        # Treat None as empty so the profile addendum carries the trip.
+        return "" if v is None else v
 
 
 class Hotel(BaseModel):
