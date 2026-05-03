@@ -4,6 +4,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef } from "react";
 import maplibregl from "maplibre-gl";
 
+import { fetchRoute } from "@/lib/osrm";
 import type { Place } from "@/lib/types";
 
 const CATEGORY_COLOR: Record<Place["category"], string> = {
@@ -243,7 +244,9 @@ export function Map({
     const map = mapRef.current;
     if (!map) return;
 
-    const apply = () => {
+    const ac = new AbortController();
+
+    const apply = async () => {
       const source = map.getSource("atlas-route") as
         | maplibregl.GeoJSONSource
         | undefined;
@@ -263,7 +266,9 @@ export function Map({
         return;
       }
 
-      source.setData({
+      // Optimistic: render straight-line geometry immediately so the
+      // user sees SOMETHING while OSRM is in flight.
+      const straight: GeoJSON.FeatureCollection = {
         type: "FeatureCollection",
         features: [
           {
@@ -275,14 +280,14 @@ export function Map({
             },
           },
         ],
-      });
+      };
+      source.setData(straight);
 
-      // Start/end pill labels above the first and last stops. We use
-      // marker.offset (NOT a CSS transform on the root) because MapLibre
-      // owns the root's transform for positioning — see web/AGENTS.md.
+      // Start/end pill labels above the first and last stops. marker.offset
+      // (NOT a CSS transform on the root) — see web/AGENTS.md.
       const ends: { point: typeof points[0]; label: string; bg: string }[] = [
-        { point: points[0], label: "Start", bg: "#16a34a" },                     // green-600
-        { point: points[points.length - 1], label: "End", bg: "#b45309" },       // amber-700
+        { point: points[0], label: "Start", bg: "#16a34a" },               // green-600
+        { point: points[points.length - 1], label: "End", bg: "#b45309" }, // amber-700
       ];
       for (const { point, label, bg } of ends) {
         const el = document.createElement("div");
@@ -297,10 +302,31 @@ export function Map({
           .addTo(map);
         routeLabelsRef.current.push(marker);
       }
+
+      // Upgrade: ask OSRM for a road-following polyline. If it succeeds
+      // and the user hasn't switched days in the meantime, swap the
+      // source to the real route geometry.
+      const route = await fetchRoute(points, "foot", ac.signal);
+      if (ac.signal.aborted) return;
+      if (!route) return; // OSRM down or returned no route — keep straight.
+      const stillCurrent = map.getSource("atlas-route") as
+        | maplibregl.GeoJSONSource
+        | undefined;
+      if (!stillCurrent) return;
+      stillCurrent.setData({
+        type: "FeatureCollection",
+        features: [
+          { type: "Feature", properties: {}, geometry: route.geometry },
+        ],
+      });
     };
 
     if (map.isStyleLoaded() && map.getSource("atlas-route")) apply();
     else map.once("idle", apply);
+
+    return () => {
+      ac.abort();
+    };
   }, [focusPlaces]);
 
   return <div ref={containerRef} className="w-full h-full" />;
