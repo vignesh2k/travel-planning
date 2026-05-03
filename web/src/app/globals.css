@@ -137,6 +137,28 @@ button:active:not(:disabled) {
   }
 }
 
+/* Hover treatment for the home-page chips (date, airports, suggestions).
+   Lifts a couple of pixels with a soft terracotta-tinted shadow and
+   warms the border so the cursor's intent is reflected without losing
+   the cartographic feel. transition-all so transform + shadow + border
+   move together. */
+.atlas-pill {
+  transition:
+    transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 180ms ease-out,
+    border-color 180ms ease-out,
+    background-color 180ms ease-out;
+}
+.atlas-pill:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px -12px rgba(201, 100, 66, 0.40);
+  border-color: rgba(201, 100, 66, 0.32) !important;
+  background-color: rgba(255, 255, 255, 0.92) !important;
+}
+.atlas-pill:disabled {
+  transform: none;
+}
+
 /* Atlas-as-map landing — pin-input ripple breathing while focused. */
 @keyframes atlas-ripple {
   0%, 100% { transform: scale(1); opacity: 1; }
@@ -148,51 +170,51 @@ button:active:not(:disabled) {
 .atlas-ripple-on > *:nth-child(2) { animation-delay: 0.15s; }
 .atlas-ripple-on > *:nth-child(3) { animation-delay: 0.3s; }
 
-/* Slow ambient drift on the background ornaments. The motion should
-   feel barely-there — the page is supposed to read like printed paper,
-   not like a liquid screensaver. Long durations + low amplitude. */
+/* Ambient drift on the background ornaments. The motion should be
+   visible at a glance but not distracting — slightly faster cycles
+   and a touch more amplitude than the original "barely there" pass. */
 @keyframes atlas-drift-a {
   0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-  50%      { transform: translate3d(-1%, 0.6%, 0) scale(1.025); }
+  50%      { transform: translate3d(-1.6%, 1.0%, 0) scale(1.04); }
 }
 @keyframes atlas-drift-b {
   0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-  50%      { transform: translate3d(0.8%, -0.5%, 0) scale(1.02); }
+  50%      { transform: translate3d(1.4%, -0.9%, 0) scale(1.035); }
 }
 @keyframes atlas-drift-c {
   0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-  50%      { transform: translate3d(-0.5%, 0.4%, 0) scale(1.03); }
+  50%      { transform: translate3d(-0.9%, 0.7%, 0) scale(1.045); }
 }
-.atlas-drift-a { animation: atlas-drift-a 22s ease-in-out infinite; }
-.atlas-drift-b { animation: atlas-drift-b 28s ease-in-out infinite; }
-.atlas-drift-c { animation: atlas-drift-c 18s ease-in-out infinite; }
+.atlas-drift-a { animation: atlas-drift-a 14s ease-in-out infinite; }
+.atlas-drift-b { animation: atlas-drift-b 17s ease-in-out infinite; }
+.atlas-drift-c { animation: atlas-drift-c 11s ease-in-out infinite; }
 
-/* Compass needle drifts a degree or so each way, like a real
-   magnetic compass settling. */
+/* Compass needle settles, drifts, settles. Fuller swing now so it
+   reads as alive without looking nervous. */
 @keyframes atlas-compass-needle {
-  0%, 100% { transform: rotate(-1.4deg); }
-  50%      { transform: rotate(1.4deg); }
+  0%, 100% { transform: rotate(-2.4deg); }
+  50%      { transform: rotate(2.4deg); }
 }
 .atlas-compass-needle {
   transform-origin: 50% 50%;
-  animation: atlas-compass-needle 9s ease-in-out infinite;
+  animation: atlas-compass-needle 6s ease-in-out infinite;
 }
 
-/* Mount stagger — each piece fades up slightly later than the last,
-   so the hero composes itself once on load. */
+/* Mount stagger — pieces fade and lift in. Punchier travel and a
+   tighter back-to-back stagger so the whole hero lands in <500ms. */
 @keyframes atlas-rise {
-  from { opacity: 0; transform: translate3d(0, 8px, 0); }
+  from { opacity: 0; transform: translate3d(0, 18px, 0); }
   to   { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 .atlas-rise {
-  animation: atlas-rise 480ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  animation: atlas-rise 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .atlas-rise-1 { animation-delay: 0ms; }
-.atlas-rise-2 { animation-delay: 90ms; }
-.atlas-rise-3 { animation-delay: 200ms; }
-.atlas-rise-4 { animation-delay: 320ms; }
-.atlas-rise-5 { animation-delay: 420ms; }
-.atlas-rise-6 { animation-delay: 540ms; }
+.atlas-rise-2 { animation-delay: 60ms; }
+.atlas-rise-3 { animation-delay: 140ms; }
+.atlas-rise-4 { animation-delay: 220ms; }
+.atlas-rise-5 { animation-delay: 300ms; }
+.atlas-rise-6 { animation-delay: 380ms; }
 
 /* Logbook expand: rows beyond the collapsed-4 fade-and-rise into
    place with a stagger as the container's height eases open. The

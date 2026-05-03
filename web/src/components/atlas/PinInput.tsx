@@ -196,7 +196,7 @@ export function PinInput() {
             key={s.label}
             type="button"
             onClick={() => setText(s.prompt)}
-            className="inline-flex items-center gap-2 rounded-full border transition-colors hover:bg-white/85"
+            className="atlas-pill inline-flex items-center gap-2 rounded-full border"
             style={{
               padding: "6px 12px 6px 8px",
               background: "rgba(255,255,255,0.6)",
@@ -247,7 +247,7 @@ function ContextPill({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="inline-flex items-center gap-2 rounded-full border transition-colors disabled:opacity-50"
+      className="atlas-pill inline-flex items-center gap-2 rounded-full border disabled:opacity-50"
       style={
         active
           ? {

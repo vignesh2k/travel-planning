@@ -9,6 +9,7 @@ import { Logbook } from "@/components/atlas/Logbook";
 import { PinInput } from "@/components/atlas/PinInput";
 import { SideRail } from "@/components/atlas/SideRail";
 import { WanderingStrokes } from "@/components/atlas/WanderingStrokes";
+import { WhereToTitle } from "@/components/atlas/WhereToTitle";
 import { listTrips } from "@/lib/api";
 import { findActiveTrip } from "@/lib/active-trip";
 import { getServerToken } from "@/lib/auth";
@@ -74,19 +75,7 @@ export default async function Home() {
               : "✦   Drop a pin anywhere   ✦"}
           </div>
 
-          <h1
-            style={{
-              fontFamily: "var(--font-serif)",
-              fontWeight: 400,
-              letterSpacing: "-0.03em",
-              lineHeight: 0.92,
-              margin: 0,
-              color: "var(--color-paper-ink)",
-            }}
-            className="text-5xl sm:text-6xl md:text-8xl lg:text-[100px] atlas-rise atlas-rise-2"
-          >
-            Where to <em style={{ fontStyle: "italic" }}>next</em>?
-          </h1>
+          <WhereToTitle />
 
           <div className="atlas-rise atlas-rise-3">
             <PinInput />
