@@ -298,10 +298,7 @@ function DatesPill({
         onClick={() => setOpen((v) => !v)}
         disabled={disabled}
       >
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.06em" }}>
-          DATE
-        </span>
-        <span>·</span>
+        <CalendarGlyph />
         {value ? formatShortDate(value) : "Pick a start date"}
       </ContextPill>
       {open && (
@@ -407,10 +404,7 @@ function AirportsPill({
         onClick={() => setOpen((v) => !v)}
         disabled={disabled}
       >
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.06em" }}>
-          AIR
-        </span>
-        <span>·</span>
+        <AirplaneGlyph />
         {label}
       </ContextPill>
       {open && (
@@ -494,6 +488,48 @@ function PinIcon({ className }: { className?: string }) {
     >
       <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
       <circle cx="12" cy="10" r="3" />
+    </svg>
+  );
+}
+
+/** SF Symbols-style "calendar" glyph. Stroke-only, rounded line caps,
+ *  scales with the surrounding font-size so the optical weight stays
+ *  matched to the pill text. */
+function CalendarGlyph() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      style={{ flexShrink: 0 }}
+    >
+      <rect x="3" y="5" width="18" height="16" rx="2.5" />
+      <path d="M3 10h18" />
+      <path d="M8 3v4" />
+      <path d="M16 3v4" />
+    </svg>
+  );
+}
+
+/** SF Symbols-style "airplane" glyph. The swept-wing shape Apple
+ *  uses, simplified to a single fill so it renders crisply at 14px. */
+function AirplaneGlyph() {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+      style={{ flexShrink: 0 }}
+    >
+      <path d="M21.45 11.04 13.5 7.05V3.5a1.5 1.5 0 1 0-3 0v3.55l-7.95 3.99a.6.6 0 0 0-.33.54v1.18c0 .35.33.6.67.51l7.61-2.04v4.27l-2.4 1.6a.6.6 0 0 0-.27.5v.83c0 .34.32.59.65.5l3.52-.94 3.52.94c.33.09.65-.16.65-.5v-.83a.6.6 0 0 0-.27-.5l-2.4-1.6v-4.27l7.61 2.04a.55.55 0 0 0 .67-.51v-1.18a.6.6 0 0 0-.33-.54Z" />
     </svg>
   );
 }
