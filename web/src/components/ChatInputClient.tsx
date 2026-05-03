@@ -10,7 +10,7 @@ import { getBrowserToken } from "@/lib/auth.browser";
 import { streamTrip } from "@/lib/streamingTrip";
 import type { Place } from "@/lib/types";
 
-export function ChatInputClient() {
+export function ChatInputClient({ hasProfile = false }: { hasProfile?: boolean }) {
   const router = useRouter();
   const [text, setText] = useState("");
   const [pending, setPending] = useState(false);
@@ -18,12 +18,17 @@ export function ChatInputClient() {
   const [chars, setChars] = useState(0);
   const [places, setPlaces] = useState<Place[]>([]);
 
+  const placeholder = hasProfile
+    ? "Where to next? E.g. 7 days in Kyoto, mid-October"
+    : "7 days in Kyoto, vegetarian, photography focus, mid-October…";
+
   return (
     <>
       <ChatInput
         text={text}
         setText={setText}
         pending={pending}
+        placeholder={placeholder}
         onSubmit={async (brief) => {
           setPending(true);
           setStatus("Sending your brief…");

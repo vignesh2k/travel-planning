@@ -2,9 +2,10 @@ import { redirect } from "next/navigation";
 
 import { BrandMark } from "@/components/BrandMark";
 import { ChatInputClient } from "@/components/ChatInputClient";
+import { ProfileBanner } from "@/components/ProfileBanner";
 import { TripsList } from "@/components/TripsList";
 import { UserMenu } from "@/components/UserMenu";
-import { listTrips } from "@/lib/api";
+import { getProfile, listTrips } from "@/lib/api";
 import { getServerToken } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -14,7 +15,12 @@ export default async function Home() {
   if (!user) redirect("/auth/signin");
 
   const token = await getServerToken();
-  const trips = token ? await listTrips(token).catch(() => []) : [];
+  const [trips, profile] = token
+    ? await Promise.all([
+        listTrips(token).catch(() => []),
+        getProfile(token).catch(() => null),
+      ])
+    : [[], null];
 
   return (
     <main className="min-h-screen flex flex-col">
@@ -30,7 +36,8 @@ export default async function Home() {
         <p className="text-ink-500 max-w-md text-center">
           Tell me about your trip in plain English — destination, days, what you love.
         </p>
-        <ChatInputClient />
+        {profile === null && <ProfileBanner />}
+        <ChatInputClient hasProfile={profile !== null} />
         <TripsList trips={trips} />
       </section>
     </main>

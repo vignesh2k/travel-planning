@@ -1,4 +1,11 @@
-import type { TripFull, TripSummary, TripBriefIn, Neighborhood } from "./types";
+import type {
+  Neighborhood,
+  TripBriefIn,
+  TripFull,
+  TripSummary,
+  UserProfile,
+  UserProfileIn,
+} from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE!;
 
@@ -54,4 +61,24 @@ export async function postBrief(brief: TripBriefIn, token: string): Promise<Trip
 export async function deleteTrip(slug: string, token: string): Promise<void> {
   const res = await authedFetch(`/trips/${slug}`, { method: "DELETE" }, token);
   if (!res.ok) throw new Error(`deleteTrip ${res.status}`);
+}
+
+export async function getProfile(token: string): Promise<UserProfile | null> {
+  const res = await authedFetch("/me/profile", { method: "GET" }, token);
+  if (!res.ok) throw new Error(`getProfile ${res.status}`);
+  const data = await res.json();
+  return data ?? null;
+}
+
+export async function saveProfile(
+  profile: UserProfileIn,
+  token: string,
+): Promise<UserProfile> {
+  const res = await authedFetch(
+    "/me/profile",
+    { method: "PUT", body: JSON.stringify(profile) },
+    token,
+  );
+  if (!res.ok) throw new Error(`saveProfile ${res.status}`);
+  return res.json();
 }

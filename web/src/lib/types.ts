@@ -54,3 +54,18 @@ export type TripStreamEvent =
   | { type: "progress"; chars: number }
   | { type: "place"; place: Place }
   | { type: "done"; slug: string };
+
+export type Budget = "cheap" | "mid" | "premium";
+export type Pace = "relaxed" | "balanced" | "packed";
+
+export interface UserProfileIn {
+  diet?: string | null;
+  budget?: Budget | null;
+  pace?: Pace | null;
+  interests?: string[];
+  notes?: string | null;
+}
+
+export interface UserProfile extends UserProfileIn {
+  updated_at: string;
+}
