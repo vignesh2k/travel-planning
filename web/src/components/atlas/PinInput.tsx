@@ -1,9 +1,11 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 
+import { AirportInput } from "@/components/AirportInput";
 import { StreamingOverlay } from "@/components/StreamingOverlay";
+import { airportByCode } from "@/lib/airports";
 import { getBrowserToken } from "@/lib/auth.browser";
 import { streamTrip } from "@/lib/streamingTrip";
 import type { Place } from "@/lib/types";
@@ -15,6 +17,15 @@ const SUGGESTIONS: { coord: string; label: string; prompt: string }[] = [
   { coord: "64.1° N", label: "Reykjavík, in winter", prompt: "5 days in Reykjavík, in winter" },
 ];
 
+function formatShortDate(iso: string): string {
+  const d = new Date(`${iso}T00:00:00`);
+  return d.toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+}
+
 export function PinInput() {
   const router = useRouter();
   const [text, setText] = useState("");
@@ -23,6 +34,11 @@ export function PinInput() {
   const [status, setStatus] = useState("");
   const [chars, setChars] = useState(0);
   const [places, setPlaces] = useState<Place[]>([]);
+
+  // Structured fields that ride along on the brief.
+  const [startDate, setStartDate] = useState<string | null>(null);
+  const [airportEntry, setAirportEntry] = useState<string | null>(null);
+  const [airportExit, setAirportExit] = useState<string | null>(null);
 
   const canSubmit = text.trim().length >= 3 && !pending;
 
@@ -41,7 +57,12 @@ export function PinInput() {
       await streamTrip(
         process.env.NEXT_PUBLIC_API_BASE!,
         token,
-        { text: text.trim() },
+        {
+          text: text.trim(),
+          start_date: startDate || undefined,
+          airport_entry: airportEntry || undefined,
+          airport_exit: airportExit || undefined,
+        },
         {
           onStatus: setStatus,
           onProgress: setChars,
@@ -130,6 +151,7 @@ export function PinInput() {
             disabled={pending}
             placeholder="7 days in Kyoto, mid-October — slow & cultural"
             className="flex-1 bg-transparent outline-none text-[15.5px] font-serif italic text-[var(--color-paper-ink-2)] placeholder:text-[var(--color-paper-ink-4)] disabled:opacity-60"
+            style={{ fontFamily: "var(--font-serif)" }}
           />
           <button
             type="submit"
@@ -142,17 +164,35 @@ export function PinInput() {
         </div>
       </form>
 
+      {/* Context pills (dates + airports) — match the suggestion chip
+          aesthetic so the controls don't break the cartographic feel. */}
+      <div
+        className="flex flex-wrap justify-center"
+        style={{ marginTop: 18, gap: 10 }}
+      >
+        <DatesPill value={startDate} onChange={setStartDate} disabled={pending} />
+        <AirportsPill
+          entry={airportEntry}
+          exit={airportExit}
+          onChange={(en, ex) => {
+            setAirportEntry(en);
+            setAirportExit(ex);
+          }}
+          disabled={pending}
+        />
+      </div>
+
       {/* Suggestion chips */}
       <div
-        className="flex flex-wrap justify-center gap-[10px]"
-        style={{ marginTop: 32 }}
+        className="flex flex-wrap justify-center"
+        style={{ marginTop: 18, gap: 10 }}
       >
         {SUGGESTIONS.map((s) => (
           <button
             key={s.label}
             type="button"
             onClick={() => setText(s.prompt)}
-            className="inline-flex items-center gap-2 rounded-full border transition-colors"
+            className="inline-flex items-center gap-2 rounded-full border transition-colors hover:bg-white/85"
             style={{
               padding: "6px 12px 6px 8px",
               background: "rgba(255,255,255,0.6)",
@@ -182,6 +222,255 @@ export function PinInput() {
 
       {pending && <StreamingOverlay status={status} chars={chars} places={places} />}
     </>
+  );
+}
+
+// ── Atlas-styled context pills ───────────────────────────────────────────────
+
+function ContextPill({
+  active,
+  onClick,
+  disabled,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="inline-flex items-center gap-2 rounded-full border transition-colors disabled:opacity-50"
+      style={
+        active
+          ? {
+              padding: "6px 12px 6px 10px",
+              background: "rgba(201,100,66,0.10)",
+              borderColor: "rgba(201,100,66,0.35)",
+              color: "var(--color-terracotta-500)",
+              backdropFilter: "blur(4px)",
+            }
+          : {
+              padding: "6px 12px 6px 10px",
+              background: "rgba(255,255,255,0.6)",
+              borderColor: "rgba(31,26,20,0.06)",
+              color: "var(--color-paper-ink-2)",
+              backdropFilter: "blur(4px)",
+            }
+      }
+    >
+      <span style={{ fontSize: 12.5 }}>{children}</span>
+    </button>
+  );
+}
+
+function DatesPill({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string | null;
+  onChange: (v: string | null) => void;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => {
+      if (wrapperRef.current?.contains(e.target as Node)) return;
+      setOpen(false);
+    };
+    window.addEventListener("mousedown", h);
+    return () => window.removeEventListener("mousedown", h);
+  }, [open]);
+  return (
+    <div ref={wrapperRef} className="relative">
+      <ContextPill
+        active={Boolean(value)}
+        onClick={() => setOpen((v) => !v)}
+        disabled={disabled}
+      >
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.06em" }}>
+          DATE
+        </span>
+        <span>·</span>
+        {value ? formatShortDate(value) : "Pick a start date"}
+      </ContextPill>
+      {open && (
+        <div
+          className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-30 flex flex-col gap-2"
+          style={{
+            width: 240,
+            padding: 12,
+            background: "rgba(255,255,255,0.96)",
+            border: "1px solid rgba(31,26,20,0.08)",
+            borderRadius: 12,
+            boxShadow: "0 16px 40px -20px rgba(31,26,20,0.25)",
+          }}
+        >
+          <div
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: 10,
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              color: "var(--color-paper-ink-3)",
+            }}
+          >
+            Trip start date
+          </div>
+          <input
+            type="date"
+            value={value ?? ""}
+            onChange={(e) => onChange(e.target.value || null)}
+            className="w-full rounded-[8px] px-2 py-1.5 text-sm outline-none"
+            style={{
+              background: "rgba(255,255,255,0.85)",
+              border: "1px solid rgba(31,26,20,0.10)",
+              color: "var(--color-paper-ink)",
+            }}
+          />
+          <div className="flex items-center gap-2 mt-1">
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="rounded-[8px] text-xs font-semibold px-3 py-1"
+              style={{ background: "var(--color-paper-ink)", color: "white" }}
+            >
+              Done
+            </button>
+            {value && (
+              <button
+                type="button"
+                onClick={() => {
+                  onChange(null);
+                  setOpen(false);
+                }}
+                className="text-xs ml-auto"
+                style={{ color: "var(--color-terracotta-500)" }}
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AirportsPill({
+  entry,
+  exit,
+  onChange,
+  disabled,
+}: {
+  entry: string | null;
+  exit: string | null;
+  onChange: (en: string | null, ex: string | null) => void;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => {
+      if (wrapperRef.current?.contains(e.target as Node)) return;
+      setOpen(false);
+    };
+    window.addEventListener("mousedown", h);
+    return () => window.removeEventListener("mousedown", h);
+  }, [open]);
+
+  const entryAirport = entry ? airportByCode(entry) : null;
+  const exitAirport = exit ? airportByCode(exit) : null;
+  const left = entryAirport?.city || entry;
+  const right = exitAirport?.city || exit;
+  let label: string;
+  if (left && right && left !== right) label = `${left} → ${right}`;
+  else if (left) label = left;
+  else if (right) label = right;
+  else label = "Add airports";
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <ContextPill
+        active={Boolean(entry || exit)}
+        onClick={() => setOpen((v) => !v)}
+        disabled={disabled}
+      >
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.06em" }}>
+          AIR
+        </span>
+        <span>·</span>
+        {label}
+      </ContextPill>
+      {open && (
+        <div
+          className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-30 flex flex-col gap-3"
+          style={{
+            width: 300,
+            padding: 12,
+            background: "rgba(255,255,255,0.96)",
+            border: "1px solid rgba(31,26,20,0.08)",
+            borderRadius: 12,
+            boxShadow: "0 16px 40px -20px rgba(31,26,20,0.25)",
+          }}
+        >
+          <div
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: 10,
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              color: "var(--color-paper-ink-3)",
+            }}
+          >
+            Airports
+          </div>
+          <AirportInput
+            label="Entry (arriving)"
+            value={entry}
+            onChange={(en) => onChange(en, exit)}
+            placeholder="e.g. London or LHR"
+            autoFocus
+          />
+          <AirportInput
+            label="Exit (departing home)"
+            value={exit}
+            onChange={(ex) => onChange(entry, ex)}
+            placeholder="Same as entry, or different"
+          />
+          <div className="flex items-center gap-2 mt-1">
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="rounded-[8px] text-xs font-semibold px-3 py-1"
+              style={{ background: "var(--color-paper-ink)", color: "white" }}
+            >
+              Done
+            </button>
+            {(entry || exit) && (
+              <button
+                type="button"
+                onClick={() => {
+                  onChange(null, null);
+                  setOpen(false);
+                }}
+                className="text-xs ml-auto"
+                style={{ color: "var(--color-terracotta-500)" }}
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

@@ -23,6 +23,8 @@ export default async function Home() {
   const trips = token ? await listTrips(token).catch(() => []) : [];
   const active = findActiveTrip(trips);
 
+  const hasLogbook = trips.length > 0;
+
   return (
     <main
       className="relative min-h-screen overflow-hidden"
@@ -42,46 +44,48 @@ export default async function Home() {
       {/* Top nav */}
       <AtlasNav email={user.email ?? ""} />
 
-      {/* Centered hero */}
-      <section
-        className="absolute left-1/2 -translate-x-1/2 text-center w-full px-6 md:w-[700px] md:px-0"
-        style={{ top: "50%", transform: "translate(-50%, -50%)" }}
+      {/* Centered hero — flex centering is reliable across breakpoints. */}
+      <div
+        className="relative z-10 min-h-screen flex items-center justify-center px-6"
+        style={{ paddingBottom: hasLogbook ? 180 : 80 }}
       >
-        <div
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: 10.5,
-            letterSpacing: "0.22em",
-            textTransform: "uppercase",
-            color: active
-              ? "var(--color-terracotta-500)"
-              : "var(--color-paper-ink-3)",
-            marginBottom: 22,
-          }}
-        >
-          {active
-            ? `✦   Today · Day ${active.dayNumber} of ${active.totalDays} · ${active.trip.destination}   ✦`
-            : "✦   Drop a pin anywhere   ✦"}
-        </div>
+        <section className="w-full max-w-[700px] text-center">
+          <div
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: 10.5,
+              letterSpacing: "0.22em",
+              textTransform: "uppercase",
+              color: active
+                ? "var(--color-terracotta-500)"
+                : "var(--color-paper-ink-3)",
+              marginBottom: 22,
+            }}
+          >
+            {active
+              ? `✦   Today · Day ${active.dayNumber} of ${active.totalDays} · ${active.trip.destination}   ✦`
+              : "✦   Drop a pin anywhere   ✦"}
+          </div>
 
-        <h1
-          style={{
-            fontFamily: "var(--font-serif)",
-            fontWeight: 400,
-            letterSpacing: "-0.03em",
-            lineHeight: 0.92,
-            margin: 0,
-            color: "var(--color-paper-ink)",
-          }}
-          className="text-5xl sm:text-6xl md:text-8xl lg:text-[100px]"
-        >
-          Where to <em style={{ fontStyle: "italic" }}>next</em>?
-        </h1>
+          <h1
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontWeight: 400,
+              letterSpacing: "-0.03em",
+              lineHeight: 0.92,
+              margin: 0,
+              color: "var(--color-paper-ink)",
+            }}
+            className="text-5xl sm:text-6xl md:text-8xl lg:text-[100px]"
+          >
+            Where to <em style={{ fontStyle: "italic" }}>next</em>?
+          </h1>
 
-        <PinInput />
-      </section>
+          <PinInput />
+        </section>
+      </div>
 
-      {/* Bottom logbook strip */}
+      {/* Bottom logbook strip — absolute so it doesn't affect centering. */}
       <Logbook trips={trips} />
 
       {/* When an active trip exists, kick the SW pre-cache. */}
