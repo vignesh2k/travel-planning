@@ -53,9 +53,22 @@ export function TripView({
       </div>
 
       <header className="absolute top-0 inset-x-0 px-6 py-3 flex items-center justify-between backdrop-blur-md bg-cream-50/40 z-10 anim-slide-up">
-        <Link href="/" className="contents">
-          <BrandMark />
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/" className="contents">
+            <BrandMark />
+          </Link>
+          <Link
+            href="/"
+            title="New trip"
+            className="frosted rounded-[10px] px-3 py-1 text-xs hover:bg-white/85 flex items-center gap-1.5 text-ink-900"
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden>
+              <circle cx="5" cy="5" r="3.2" stroke="currentColor" strokeWidth="1.4" fill="none" />
+              <path d="m7.4 7.4 2.6 2.6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+            </svg>
+            <span className="hidden sm:inline">New trip</span>
+          </Link>
+        </div>
         <div className="text-sm text-ink-700 font-medium flex items-center gap-2">
           <span>{trip.destination} · {trip.days} days</span>
           <span className="text-ink-300">·</span>
