@@ -4,7 +4,6 @@ const SUGGESTIONS = [
   "A long weekend in Lisbon",
   "Hiking week in the Dolomites",
   "10 days through Vietnam, street food focus",
-  "Surprise me",
 ];
 
 export function SuggestionChips({ onPick }: { onPick: (text: string) => void }) {
