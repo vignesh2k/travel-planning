@@ -141,3 +141,24 @@ def test_parsed_brief_coerces_null_travel_style_to_empty():
 
     p = ParsedBrief(destination="Lisbon", days=5, travel_style=None)
     assert p.travel_style == ""
+
+
+def test_place_coerces_unknown_category_to_logistics():
+    """The LLM occasionally invents categories like 'hiking' or 'nature'.
+    Don't 500 the trip-fetch route — coerce to logistics."""
+    from api.models import Place
+
+    p = Place(name="Kyoto Trail", category="hiking", description="x")
+    assert p.category == "logistics"
+
+    p = Place(name="Random Mountain", category="nature", description="x")
+    assert p.category == "logistics"
+
+
+def test_place_aliases_known_synonyms():
+    from api.models import Place
+
+    assert Place(name="A", category="neighborhood", description="x").category == "neighbourhood"
+    assert Place(name="A", category="cafe", description="x").category == "restaurant"
+    assert Place(name="A", category="viewpoint", description="x").category == "photography_spot"
+    assert Place(name="A", category="airport", description="x").category == "logistics"

@@ -5,6 +5,20 @@ from pydantic import BaseModel, Field, field_validator
 
 CategoryLiteral = Literal["neighbourhood", "restaurant", "photography_spot", "logistics"]
 
+_KNOWN_CATEGORIES: set[str] = {"neighbourhood", "restaurant", "photography_spot", "logistics"}
+_CATEGORY_ALIASES: dict[str, str] = {
+    "neighborhood": "neighbourhood",
+    "food": "restaurant",
+    "cafe": "restaurant",
+    "bar": "restaurant",
+    "viewpoint": "photography_spot",
+    "photo": "photography_spot",
+    "photo_spot": "photography_spot",
+    "transport": "logistics",
+    "airport": "logistics",
+    "station": "logistics",
+}
+
 
 class Place(BaseModel):
     name: str
@@ -12,6 +26,19 @@ class Place(BaseModel):
     description: str
     lat: float | None = None
     lng: float | None = None
+
+    @field_validator("category", mode="before")
+    @classmethod
+    def _coerce_category(cls, v: Any) -> str:
+        # The research LLM occasionally invents categories like "hiking",
+        # "nature", "viewpoint". Coerce known aliases; everything else
+        # falls back to "logistics" so a bad place never crashes the trip.
+        if not isinstance(v, str):
+            return "logistics"
+        s = v.strip().lower()
+        if s in _KNOWN_CATEGORIES:
+            return s
+        return _CATEGORY_ALIASES.get(s, "logistics")
 
 
 class TripBriefIn(BaseModel):
