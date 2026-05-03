@@ -1,7 +1,6 @@
 """Per-day budget estimates in destination currency.
 
 Single LLM call. Runs in parallel with research at trip-creation time.
-Cheap model: gemini-2.5-flash-lite.
 """
 
 from __future__ import annotations

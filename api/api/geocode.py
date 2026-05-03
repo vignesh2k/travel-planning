@@ -1,9 +1,15 @@
+from functools import lru_cache
+
 import httpx
 
 from api.config import get_settings
 
 
+@lru_cache(maxsize=1024)
 def geocode_place(place_name: str) -> tuple[float | None, float | None]:
+    """Process-local cache. Trip refines and re-creates of similar places
+    (e.g. "Gion, Kyoto" appearing across multiple itineraries) hit the
+    Google API once instead of every time."""
     try:
         resp = httpx.get(
             "https://maps.googleapis.com/maps/api/geocode/json",

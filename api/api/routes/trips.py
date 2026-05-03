@@ -88,13 +88,20 @@ def create_trip(brief: TripBriefIn, user: CurrentUser) -> TripFull:
         key=lambda p: GEOCODE_PRIORITY.index(p.get("category", "logistics"))
         if p.get("category") in GEOCODE_PRIORITY else len(GEOCODE_PRIORITY),
     )
-    places: list[Place] = []
-    for p in raw_places[:GEOCODE_CAP]:
-        lat, lng = geocode_place(p["name"])
-        places.append(Place(
+    capped = raw_places[:GEOCODE_CAP]
+    # Parallel geocode — each call is independent and IO-bound (~150ms
+    # round-trip to Google). Fan out, preserve order via index.
+    with concurrent.futures.ThreadPoolExecutor(
+        max_workers=min(len(capped), 8) or 1,
+    ) as ex:
+        coords = list(ex.map(lambda p: geocode_place(p["name"]), capped))
+    places: list[Place] = [
+        Place(
             name=p["name"], category=p["category"], description=p["description"],
             lat=lat, lng=lng,
-        ))
+        )
+        for p, (lat, lng) in zip(capped, coords)
+    ]
 
     document = TripDocument(
         document_markdown=research["document"],
@@ -140,16 +147,22 @@ def create_trip_stream(brief: TripBriefIn, user: CurrentUser):
         # otherwise-sequential parse_brief latency.
         fast_dest, fast_days = quick_extract(brief.text)
 
-        addendum = profile_addendum(fetch_profile_for(user["sub"]))
+        # Profile fetch happens in the executor too, so the first SSE
+        # status event flushes before any blocking I/O.
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
+        profile_future = executor.submit(fetch_profile_for, user["sub"])
 
         def combine(brief_style: str) -> str:
+            try:
+                addendum = profile_addendum(profile_future.result(timeout=5))
+            except Exception:
+                addendum = ""
             if not addendum:
                 return brief_style
             if not brief_style:
                 return addendum
             return f"{addendum}. {brief_style}"
 
-        executor = concurrent.futures.ThreadPoolExecutor(max_workers=3)
         try:
             if fast_dest and fast_days:
                 yield ("status", f"Researching {fast_dest} for {fast_days} days…")
@@ -207,12 +220,27 @@ def create_trip_stream(brief: TripBriefIn, user: CurrentUser):
             key=lambda p: GEOCODE_PRIORITY.index(p.get("category", "logistics"))
             if p.get("category") in GEOCODE_PRIORITY else len(GEOCODE_PRIORITY),
         )
+        capped = raw_places[:GEOCODE_CAP]
+        # Parallel geocode. Yield "place" events in input order as each
+        # future completes — fast trips populate the map almost
+        # instantly instead of stepping place-by-place at ~150ms each.
         geocoded: list[dict[str, Any]] = []
-        for p in raw_places[:GEOCODE_CAP]:
-            lat, lng = geocode_place(p["name"])
-            place = {**p, "lat": lat, "lng": lng}
-            geocoded.append(place)
-            yield ("place", place)
+        if capped:
+            with concurrent.futures.ThreadPoolExecutor(
+                max_workers=min(len(capped), 8),
+            ) as geox:
+                future_to_p = {
+                    geox.submit(geocode_place, p["name"]): p for p in capped
+                }
+                for fut in concurrent.futures.as_completed(future_to_p):
+                    p = future_to_p[fut]
+                    try:
+                        lat, lng = fut.result()
+                    except Exception:
+                        lat, lng = None, None
+                    place = {**p, "lat": lat, "lng": lng}
+                    geocoded.append(place)
+                    yield ("place", place)
 
         document = {
             "document_markdown": research["document"],

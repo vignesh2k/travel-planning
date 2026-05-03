@@ -25,14 +25,13 @@ export default async function TripPage({
   const token = await getServerToken();
   if (!token) redirect("/auth/signin");
 
-  let trip;
-  try {
-    trip = await getTrip(slug, token);
-  } catch {
-    notFound();
-  }
+  // Fetch trip + budget in parallel. getBudget tolerates 404 internally;
+  // getTrip throws on 4xx/5xx so we catch and notFound().
+  const [tripResult, budget] = await Promise.all([
+    getTrip(slug, token).catch(() => null),
+    getBudget(slug, token).catch(() => null),
+  ]);
+  if (!tripResult) notFound();
 
-  const budget = await getBudget(slug, token).catch(() => null);
-
-  return <TripView trip={trip} budget={budget} initialDay={initialDay} />;
+  return <TripView trip={tripResult} budget={budget} initialDay={initialDay} />;
 }
