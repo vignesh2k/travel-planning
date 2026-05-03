@@ -4,7 +4,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef } from "react";
 import maplibregl from "maplibre-gl";
 
-import { fetchRoute } from "@/lib/osrm";
+import { fetchRoute, pickProfile } from "@/lib/osrm";
 import type { Place } from "@/lib/types";
 
 const CATEGORY_COLOR: Record<Place["category"], string> = {
@@ -303,10 +303,12 @@ export function Map({
         routeLabelsRef.current.push(marker);
       }
 
-      // Upgrade: ask OSRM for a road-following polyline. If it succeeds
-      // and the user hasn't switched days in the meantime, swap the
-      // source to the real route geometry.
-      const route = await fetchRoute(points, "foot", ac.signal);
+      // Upgrade: ask OSRM for a road-following polyline. Walking by
+      // default; switch to driving if any segment is too far to walk
+      // (e.g. a day-trip to another town). If OSRM fails, the optimistic
+      // straight line stays.
+      const profile = pickProfile(points);
+      const route = await fetchRoute(points, profile, ac.signal);
       if (ac.signal.aborted) return;
       if (!route) return; // OSRM down or returned no route — keep straight.
       const stillCurrent = map.getSource("atlas-route") as
