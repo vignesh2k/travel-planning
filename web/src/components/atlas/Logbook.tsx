@@ -192,16 +192,20 @@ export function Logbook({ trips: initial }: { trips: TripSummary[] }) {
                 >
                   {place}
                 </span>
-                <span
-                  className="shrink-0"
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: 10,
-                    color: "var(--color-paper-ink-4)",
-                  }}
-                >
-                  {month} · {t.days} {t.days === 1 ? "day" : "days"}
-                </span>
+                {/* Hidden while confirming so the absolute Delete? Yes No
+                    controls aren't sitting on top of it. */}
+                {!isConfirming && (
+                  <span
+                    className="shrink-0"
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: 10,
+                      color: "var(--color-paper-ink-4)",
+                    }}
+                  >
+                    {month} · {t.days} {t.days === 1 ? "day" : "days"}
+                  </span>
+                )}
               </div>
               <div
                 className="truncate"
