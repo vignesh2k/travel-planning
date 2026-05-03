@@ -28,12 +28,18 @@ function splitDestination(dest: string): { place: string; country: string } {
   };
 }
 
-/** "37.7° N · 25.4° W" — same artsy mono style as the original handoff. */
-function formatCoord(lat: number | null, lng: number | null): string | null {
-  if (lat === null || lng === null) return null;
-  const ns = lat >= 0 ? "N" : "S";
-  const ew = lng >= 0 ? "E" : "W";
-  return `${Math.abs(lat).toFixed(1)}° ${ns} · ${Math.abs(lng).toFixed(1)}° ${ew}`;
+/** "37.7° N · 25.4° W" — same artsy mono style as the original handoff.
+ *  Returns null when either coord is missing OR isn't a finite number. */
+function formatCoord(
+  lat: number | null | undefined,
+  lng: number | null | undefined,
+): string | null {
+  const la = typeof lat === "number" ? lat : Number(lat);
+  const ln = typeof lng === "number" ? lng : Number(lng);
+  if (!Number.isFinite(la) || !Number.isFinite(ln)) return null;
+  const ns = la >= 0 ? "N" : "S";
+  const ew = ln >= 0 ? "E" : "W";
+  return `${Math.abs(la).toFixed(1)}° ${ns} · ${Math.abs(ln).toFixed(1)}° ${ew}`;
 }
 
 export function Logbook({ trips: initial }: { trips: TripSummary[] }) {
