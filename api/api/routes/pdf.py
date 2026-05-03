@@ -9,8 +9,10 @@ from pydantic import BaseModel
 from api.auth import CurrentUser
 from api.db import service_client
 from api.llm.pdf_plan import PdfSections, stream_pdf_plan
+from api.llm.profile import profile_addendum
 from api.models import PdfPlan, TripDocument
 from api.pdf import generate_pdf, render_plan_pdf
+from api.routes.profile import fetch_profile_for
 from api.sse import sse_stream
 
 router = APIRouter(tags=["pdf"])
@@ -57,7 +59,10 @@ def build_pdf(slug: str, body: PdfBuildIn, user: CurrentUser):
     base_md = doc.document_markdown
     destination = row["destination"]
     days = row["days"]
-    travel_style = row.get("travel_style", "")
+    travel_style = row.get("travel_style") or ""
+    addendum = profile_addendum(fetch_profile_for(user["sub"]))
+    if addendum and not travel_style.startswith(addendum):
+        travel_style = f"{addendum}. {travel_style}" if travel_style else addendum
     start_date_iso = row.get("start_date")
     safe_name = destination.replace(" ", "_").replace(",", "")
     sections = PdfSections(food=body.food, photos=body.photos, tips=body.tips)

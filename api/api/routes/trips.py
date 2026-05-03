@@ -7,9 +7,11 @@ from api.auth import CurrentUser
 from api.db import service_client
 from api.geocode import geocode_place
 from api.llm.parse_brief import parse_brief
+from api.llm.profile import profile_addendum
 from api.llm.quick_extract import quick_extract
 from api.llm.research import get_travel_research, stream_travel_research
 from api.models import Place, TripBriefIn, TripDocument, TripFull, TripSummary
+from api.routes.profile import fetch_profile_for
 from api.slug import make_trip_slug
 from api.sse import sse_stream
 
@@ -19,11 +21,22 @@ GEOCODE_CAP = 15
 GEOCODE_PRIORITY = ["restaurant", "photography_spot", "neighbourhood", "logistics"]
 
 
+def _combine_style(user_id: str, brief_style: str) -> str:
+    """Prefix the user's saved profile (if any) onto the brief's travel_style."""
+    addendum = profile_addendum(fetch_profile_for(user_id))
+    if not addendum:
+        return brief_style
+    if not brief_style:
+        return addendum
+    return f"{addendum}. {brief_style}"
+
+
 @router.post("/trips", response_model=TripFull)
 def create_trip(brief: TripBriefIn, user: CurrentUser) -> TripFull:
     parsed = parse_brief(brief)
+    combined_style = _combine_style(user["sub"], parsed.travel_style)
 
-    research = get_travel_research(parsed.destination, parsed.days, parsed.travel_style)
+    research = get_travel_research(parsed.destination, parsed.days, combined_style)
 
     raw_places = research.get("places", [])
     raw_places.sort(
@@ -50,7 +63,7 @@ def create_trip(brief: TripBriefIn, user: CurrentUser) -> TripFull:
         "user_id": user["sub"],
         "destination": parsed.destination,
         "days": parsed.days,
-        "travel_style": parsed.travel_style,
+        "travel_style": combined_style,
         "start_date": parsed.start_date.isoformat() if parsed.start_date else None,
         "airport_entry": parsed.airport_entry,
         "airport_exit": parsed.airport_exit,
@@ -72,6 +85,15 @@ def create_trip_stream(brief: TripBriefIn, user: CurrentUser):
         # otherwise-sequential parse_brief latency.
         fast_dest, fast_days = quick_extract(brief.text)
 
+        addendum = profile_addendum(fetch_profile_for(user["sub"]))
+
+        def combine(brief_style: str) -> str:
+            if not addendum:
+                return brief_style
+            if not brief_style:
+                return addendum
+            return f"{addendum}. {brief_style}"
+
         executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
         try:
             if fast_dest and fast_days:
@@ -80,7 +102,7 @@ def create_trip_stream(brief: TripBriefIn, user: CurrentUser):
                 research_dest, research_days, research_style = (
                     fast_dest,
                     fast_days,
-                    brief.text,
+                    combine(brief.text),
                 )
             else:
                 yield ("status", "Parsing your brief…")
@@ -93,7 +115,7 @@ def create_trip_stream(brief: TripBriefIn, user: CurrentUser):
                 research_dest, research_days, research_style = (
                     parsed_now.destination,
                     parsed_now.days,
-                    parsed_now.travel_style,
+                    combine(parsed_now.travel_style),
                 )
 
             research: dict[str, Any] | None = None
@@ -142,7 +164,7 @@ def create_trip_stream(brief: TripBriefIn, user: CurrentUser):
             "user_id": user["sub"],
             "destination": parsed.destination,
             "days": parsed.days,
-            "travel_style": parsed.travel_style,
+            "travel_style": combine(parsed.travel_style),
             "start_date": parsed.start_date.isoformat() if parsed.start_date else None,
             "airport_entry": parsed.airport_entry,
             "airport_exit": parsed.airport_exit,

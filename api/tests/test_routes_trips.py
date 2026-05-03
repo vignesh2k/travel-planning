@@ -246,3 +246,56 @@ def test_delete_trip_missing_404(monkeypatch, auth_headers) -> None:
     monkeypatch.setattr("api.routes.trips.service_client", lambda: client)
     res = TestClient(app).delete("/trips/missing-slug", headers=auth_headers)
     assert res.status_code == 404
+
+
+def test_post_trips_stream_uses_profile_when_present(monkeypatch, auth_headers) -> None:
+    """When a profile is set, the addendum prefixes travel_style going to research."""
+    from datetime import datetime, timezone
+
+    from api.models import UserProfile
+
+    captured_style: dict[str, str] = {}
+
+    def fake_stream_research(d, l, s):
+        captured_style["s"] = s
+        yield ("result", {"document": "## x", "places": []})
+
+    monkeypatch.setattr(
+        "api.routes.trips.parse_brief",
+        lambda b: MagicMock(
+            destination="Kyoto", days=7, travel_style="brief style",
+            start_date=None, airport_entry=None, airport_exit=None,
+        ),
+    )
+    monkeypatch.setattr("api.routes.trips.stream_travel_research", fake_stream_research)
+    monkeypatch.setattr("api.routes.trips.geocode_place", lambda n: (35.0, 135.7))
+    monkeypatch.setattr(
+        "api.routes.trips.fetch_profile_for",
+        lambda uid: UserProfile(
+            diet="vegan", budget="mid", pace=None, interests=["food"],
+            notes=None, updated_at=datetime.now(timezone.utc),
+        ),
+    )
+
+    inserted = {
+        "id": "t1", "slug": "kyoto-7d-prof", "user_id": "u", "destination": "Kyoto",
+        "days": 7, "travel_style": "vegan. mid budget. Interests: food. brief style",
+        "start_date": None, "airport_entry": None, "airport_exit": None,
+        "document": {"document_markdown": "## x", "places": [], "neighborhoods": []},
+        "places": [], "created_at": "2026-05-03T00:00:00+00:00",
+    }
+    table = MagicMock()
+    table.insert.return_value.execute.return_value = MagicMock(data=[inserted])
+    client = MagicMock()
+    client.table.return_value = table
+    monkeypatch.setattr("api.routes.trips.service_client", lambda: client)
+
+    with TestClient(app).stream(
+        "POST", "/trips/stream",
+        headers=auth_headers, json={"text": "Kyoto"},
+    ) as res:
+        res.read()
+
+    assert "vegan" in captured_style["s"]
+    assert "mid budget" in captured_style["s"]
+    assert "brief style" in captured_style["s"]
