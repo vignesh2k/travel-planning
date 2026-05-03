@@ -2,7 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { airportByCode } from "@/lib/airports";
 import type { TripBriefIn } from "@/lib/types";
+
+import { AirportInput } from "./AirportInput";
 
 const DEFAULT_PLACEHOLDER =
   "7 days in Kyoto, vegetarian, photography focus, mid-October…";
@@ -189,15 +192,7 @@ function AirportsPill({
   disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const [entryDraft, setEntryDraft] = useState(entry ?? "");
-  const [exitDraft, setExitDraft] = useState(exit ?? "");
   const wrapperRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    setEntryDraft(entry ?? "");
-    setExitDraft(exit ?? "");
-  }, [open, entry, exit]);
 
   useEffect(() => {
     if (!open) return;
@@ -209,16 +204,17 @@ function AirportsPill({
     return () => window.removeEventListener("mousedown", h);
   }, [open]);
 
-  function commit() {
-    const en = entryDraft.trim().toUpperCase().slice(0, 3);
-    const ex = exitDraft.trim().toUpperCase().slice(0, 3);
-    onChange(en || null, ex || null);
-    setOpen(false);
-  }
+  // Pill summary: prefer city names if known, fall back to codes.
+  const entryAirport = entry ? airportByCode(entry) : null;
+  const exitAirport = exit ? airportByCode(exit) : null;
+  const left = entryAirport?.city || entry;
+  const right = exitAirport?.city || exit;
 
-  const summary = entry && exit && entry !== exit
-    ? `${entry} → ${exit}`
-    : entry || exit || "Airports";
+  let summary: string;
+  if (left && right && left !== right) summary = `${left} → ${right}`;
+  else if (left) summary = left;
+  else if (right) summary = right;
+  else summary = "Airports";
 
   return (
     <div ref={wrapperRef} className="relative">
@@ -230,36 +226,27 @@ function AirportsPill({
         ✈️ {summary}
       </PillButton>
       {open && (
-        <div className="absolute left-0 top-full mt-2 w-[260px] frosted-strong rounded-[12px] p-3 shadow-lg z-30 flex flex-col gap-2">
+        <div className="absolute left-0 top-full mt-2 w-[300px] frosted-strong rounded-[12px] p-3 shadow-lg z-30 flex flex-col gap-3">
           <div className="text-[10px] uppercase tracking-wider text-amber-700">
-            Airports (IATA)
+            Airports
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <label className="flex flex-col gap-1">
-              <span className="text-[10px] text-ink-500">Entry</span>
-              <input
-                value={entryDraft}
-                onChange={(e) => setEntryDraft(e.target.value.toUpperCase())}
-                maxLength={3}
-                placeholder="LHR"
-                className="rounded-[8px] bg-white/85 border border-amber-700/12 px-2 py-1.5 text-sm text-ink-900 outline-none focus:border-amber-600/40 uppercase tracking-wide"
-              />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-[10px] text-ink-500">Exit</span>
-              <input
-                value={exitDraft}
-                onChange={(e) => setExitDraft(e.target.value.toUpperCase())}
-                maxLength={3}
-                placeholder="ITM"
-                className="rounded-[8px] bg-white/85 border border-amber-700/12 px-2 py-1.5 text-sm text-ink-900 outline-none focus:border-amber-600/40 uppercase tracking-wide"
-              />
-            </label>
-          </div>
+          <AirportInput
+            label="Entry (arriving)"
+            value={entry}
+            onChange={(en) => onChange(en, exit)}
+            placeholder="e.g. London or LHR"
+            autoFocus
+          />
+          <AirportInput
+            label="Exit (departing home)"
+            value={exit}
+            onChange={(ex) => onChange(entry, ex)}
+            placeholder="Same as entry, or different"
+          />
           <div className="flex items-center gap-2 mt-1">
             <button
               type="button"
-              onClick={commit}
+              onClick={() => setOpen(false)}
               className="rounded-[8px] bg-amber-600 text-white text-xs font-semibold px-3 py-1 hover:bg-amber-700"
             >
               Done
@@ -267,12 +254,7 @@ function AirportsPill({
             {(entry || exit) && (
               <button
                 type="button"
-                onClick={() => {
-                  setEntryDraft("");
-                  setExitDraft("");
-                  onChange(null, null);
-                  setOpen(false);
-                }}
+                onClick={() => { onChange(null, null); setOpen(false); }}
                 className="text-xs text-rose-500 hover:text-rose-700 ml-auto"
               >
                 Clear
