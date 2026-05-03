@@ -41,6 +41,17 @@ def _combine_style(user_id: str, brief_style: str) -> str:
     return f"{addendum}. {brief_style}"
 
 
+def _centroid(places: list[dict]) -> tuple[float | None, float | None]:
+    """Mean of (lat, lng) over places that have valid coords. Used as the
+    trip's "headline location" for the home-screen Logbook coord readout."""
+    coords = [(p["lat"], p["lng"]) for p in places if p.get("lat") is not None and p.get("lng") is not None]
+    if not coords:
+        return (None, None)
+    avg_lat = sum(c[0] for c in coords) / len(coords)
+    avg_lng = sum(c[1] for c in coords) / len(coords)
+    return (avg_lat, avg_lng)
+
+
 def _persist_budget(trip_id: str, estimate: BudgetEstimateRaw) -> None:
     """Best-effort write of a fresh budget row alongside a new trip."""
     fx = get_gbp_rate(estimate.currency)
@@ -92,6 +103,7 @@ def create_trip(brief: TripBriefIn, user: CurrentUser) -> TripFull:
     )
 
     slug = make_trip_slug(parsed.destination, parsed.days)
+    cent_lat, cent_lng = _centroid([p.model_dump() for p in places])
     row = {
         "slug": slug,
         "user_id": user["sub"],
@@ -103,6 +115,8 @@ def create_trip(brief: TripBriefIn, user: CurrentUser) -> TripFull:
         "airport_exit": parsed.airport_exit,
         "document": document.model_dump(mode="json"),
         "places": [],  # legacy column, unused
+        "centroid_lat": cent_lat,
+        "centroid_lng": cent_lng,
     }
     res = service_client().table("trips").insert(row).execute()
     inserted = res.data[0]
@@ -207,6 +221,7 @@ def create_trip_stream(brief: TripBriefIn, user: CurrentUser):
         }
 
         slug = make_trip_slug(parsed.destination, parsed.days)
+        cent_lat, cent_lng = _centroid(geocoded)
         row = {
             "slug": slug,
             "user_id": user["sub"],
@@ -218,6 +233,8 @@ def create_trip_stream(brief: TripBriefIn, user: CurrentUser):
             "airport_exit": parsed.airport_exit,
             "document": document,
             "places": [],
+            "centroid_lat": cent_lat,
+            "centroid_lng": cent_lng,
         }
         res = service_client().table("trips").insert(row).execute()
         saved_slug = res.data[0]["slug"] if res.data else slug
@@ -239,7 +256,7 @@ def create_trip_stream(brief: TripBriefIn, user: CurrentUser):
 def list_trips(user: CurrentUser) -> list[TripSummary]:
     res = (
         service_client().table("trips")
-        .select("id, slug, destination, days, start_date, created_at")
+        .select("id, slug, destination, days, start_date, centroid_lat, centroid_lng, created_at")
         .eq("user_id", user["sub"])
         .order("created_at", desc=True)
         .limit(50)

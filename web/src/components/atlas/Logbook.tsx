@@ -28,6 +28,14 @@ function splitDestination(dest: string): { place: string; country: string } {
   };
 }
 
+/** "37.7° N · 25.4° W" — same artsy mono style as the original handoff. */
+function formatCoord(lat: number | null, lng: number | null): string | null {
+  if (lat === null || lng === null) return null;
+  const ns = lat >= 0 ? "N" : "S";
+  const ew = lng >= 0 ? "E" : "W";
+  return `${Math.abs(lat).toFixed(1)}° ${ns} · ${Math.abs(lng).toFixed(1)}° ${ew}`;
+}
+
 export function Logbook({ trips: initial }: { trips: TripSummary[] }) {
   const router = useRouter();
   const [trips, setTrips] = useState(initial);
@@ -178,7 +186,7 @@ export function Logbook({ trips: initial }: { trips: TripSummary[] }) {
                   color: "var(--color-paper-ink-4)",
                 }}
               >
-                {country || "—"}
+                {formatCoord(t.centroid_lat, t.centroid_lng) ?? country ?? "—"}
               </div>
 
               {/* Delete affordance — sits in the top-right with click events

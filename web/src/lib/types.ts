@@ -32,6 +32,8 @@ export interface TripSummary {
   destination: string;
   days: number;
   start_date: string | null;
+  centroid_lat: number | null;
+  centroid_lng: number | null;
   created_at: string;
 }
 

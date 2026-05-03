@@ -112,6 +112,8 @@ class TripSummary(BaseModel):
     destination: str
     days: int
     start_date: date | None = None
+    centroid_lat: float | None = None
+    centroid_lng: float | None = None
     created_at: datetime
 
 
