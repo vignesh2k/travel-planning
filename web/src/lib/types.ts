@@ -55,12 +55,12 @@ export type TripStreamEvent =
   | { type: "place"; place: Place }
   | { type: "done"; slug: string };
 
-export type Budget = "cheap" | "mid" | "premium";
+export type BudgetTier = "cheap" | "mid" | "premium";
 export type Pace = "relaxed" | "balanced" | "packed";
 
 export interface UserProfileIn {
   diet?: string | null;
-  budget?: Budget | null;
+  budget?: BudgetTier | null;
   pace?: Pace | null;
   interests?: string[];
   notes?: string | null;
@@ -68,4 +68,45 @@ export interface UserProfileIn {
 
 export interface UserProfile extends UserProfileIn {
   updated_at: string;
+}
+
+export interface BudgetItem {
+  name: string;
+  amount: number;
+}
+
+export interface BudgetDay {
+  number: number;
+  title: string;
+  estimated: number;
+  override: number | null;
+  items: BudgetItem[];
+}
+
+export interface Budget {
+  trip_id: string;
+  currency: string;
+  gbp_rate: number;
+  gbp_rate_date: string;
+  days: BudgetDay[];
+  updated_at: string;
+}
+
+export interface BudgetDayIn {
+  override: number | null;
+  items: BudgetItem[];
+}
+
+export interface PdfCostCategory {
+  name: "Lodging" | "Food" | "Activities" | "Transport";
+  amount: number;
+  gbp_amount: number;
+}
+
+export interface PdfCosts {
+  currency: string;
+  gbp_rate: number;
+  categories: PdfCostCategory[];
+  total_local: number;
+  total_gbp: number;
 }

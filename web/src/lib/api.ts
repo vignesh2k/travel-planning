@@ -1,4 +1,7 @@
 import type {
+  Budget,
+  BudgetDay,
+  BudgetDayIn,
   Neighborhood,
   TripBriefIn,
   TripFull,
@@ -80,5 +83,32 @@ export async function saveProfile(
     token,
   );
   if (!res.ok) throw new Error(`saveProfile ${res.status}`);
+  return res.json();
+}
+
+export async function getBudget(slug: string, token: string): Promise<Budget | null> {
+  const res = await authedFetch(`/trips/${slug}/budget`, { method: "GET" }, token);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`getBudget ${res.status}`);
+  return res.json();
+}
+
+export async function regenerateBudget(slug: string, token: string): Promise<Budget> {
+  const res = await authedFetch(
+    `/trips/${slug}/budget/regenerate`, { method: "POST" }, token,
+  );
+  if (!res.ok) throw new Error(`regenerateBudget ${res.status}`);
+  return res.json();
+}
+
+export async function updateBudgetDay(
+  slug: string, day: number, body: BudgetDayIn, token: string,
+): Promise<BudgetDay> {
+  const res = await authedFetch(
+    `/trips/${slug}/budget/days/${day}`,
+    { method: "PUT", body: JSON.stringify(body) },
+    token,
+  );
+  if (!res.ok) throw new Error(`updateBudgetDay ${res.status}`);
   return res.json();
 }

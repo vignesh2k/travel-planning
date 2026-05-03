@@ -5,13 +5,13 @@ import { useState } from "react";
 
 import { saveProfile } from "@/lib/api";
 import { getBrowserToken } from "@/lib/auth.browser";
-import type { Budget, Pace, UserProfile } from "@/lib/types";
+import type { BudgetTier, Pace, UserProfile } from "@/lib/types";
 
 const PRESET_INTERESTS = [
   "Food", "Photography", "Hiking", "History", "Nightlife",
   "Beach", "Museums", "Architecture", "Nature", "Shopping",
 ];
-const BUDGETS: { value: Budget; label: string }[] = [
+const BUDGETS: { value: BudgetTier; label: string }[] = [
   { value: "cheap", label: "Cheap" },
   { value: "mid", label: "Mid" },
   { value: "premium", label: "Premium" },
@@ -25,7 +25,7 @@ const PACES: { value: Pace; label: string }[] = [
 export function ProfileForm({ initial }: { initial: UserProfile | null }) {
   const router = useRouter();
   const [diet, setDiet] = useState(initial?.diet ?? "");
-  const [budget, setBudget] = useState<Budget | null>(initial?.budget ?? null);
+  const [budget, setBudget] = useState<BudgetTier | null>(initial?.budget ?? null);
   const [pace, setPace] = useState<Pace | null>(initial?.pace ?? null);
   const [interests, setInterests] = useState<string[]>(initial?.interests ?? []);
   const [customInterest, setCustomInterest] = useState("");
