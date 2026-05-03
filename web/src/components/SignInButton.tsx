@@ -10,8 +10,16 @@ export function SignInButton({
   const supabase = createClient();
   const className =
     variant === "primary"
-      ? "rounded-[12px] px-5 py-3 text-sm font-semibold text-white bg-gradient-to-br from-amber-400 to-amber-600 hover:shadow-lg shadow-md transition-shadow flex items-center gap-3"
+      ? "rounded-[12px] px-5 py-3 text-sm font-semibold text-white hover:shadow-lg shadow-md transition-shadow flex items-center gap-3"
       : "frosted-strong rounded-[10px] px-4 py-2 text-sm font-medium text-ink-900 hover:bg-white/95 flex items-center gap-2";
+
+  const primaryStyle =
+    variant === "primary"
+      ? {
+          background:
+            "linear-gradient(135deg, var(--color-terracotta-400) 0%, var(--color-terracotta-500) 100%)",
+        }
+      : undefined;
 
   return (
     <button
@@ -22,6 +30,7 @@ export function SignInButton({
         });
       }}
       className={className}
+      style={primaryStyle}
     >
       <GoogleG className={variant === "primary" ? "w-5 h-5" : "w-4 h-4"} />
       Sign in with Google
