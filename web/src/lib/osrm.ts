@@ -53,12 +53,38 @@ export interface RouteResult {
   duration: number; // seconds
 }
 
+// In-memory LRU cache. Switching back and forth between the same day's
+// points re-uses the route immediately — no extra OSRM hits. Entries
+// are tiny (a few hundred coords each), 50-entry cap is generous.
+const _ROUTE_CACHE = new Map<string, RouteResult>();
+const _ROUTE_CACHE_MAX = 50;
+
+function cacheKey(
+  profile: RouteProfile,
+  points: { lat: number; lng: number }[],
+): string {
+  return (
+    profile +
+    "|" +
+    points.map((p) => `${p.lat.toFixed(5)},${p.lng.toFixed(5)}`).join(";")
+  );
+}
+
 export async function fetchRoute(
   points: { lat: number; lng: number }[],
   profile: RouteProfile = "foot",
   signal?: AbortSignal,
 ): Promise<RouteResult | null> {
   if (points.length < 2) return null;
+  const key = cacheKey(profile, points);
+  const cached = _ROUTE_CACHE.get(key);
+  if (cached) {
+    // Touch (LRU): re-insert moves to back of insertion order.
+    _ROUTE_CACHE.delete(key);
+    _ROUTE_CACHE.set(key, cached);
+    return cached;
+  }
+
   // OSRM expects lng,lat (not lat,lng).
   const coords = points.map((p) => `${p.lng},${p.lat}`).join(";");
   const url = `${OSRM_BASE}/${profile}/${coords}?overview=full&geometries=geojson`;
@@ -68,11 +94,17 @@ export async function fetchRoute(
     const body = await res.json();
     const route = body?.routes?.[0];
     if (!route?.geometry) return null;
-    return {
+    const result: RouteResult = {
       geometry: route.geometry as GeoJSON.LineString,
       distance: Number(route.distance) || 0,
       duration: Number(route.duration) || 0,
     };
+    if (_ROUTE_CACHE.size >= _ROUTE_CACHE_MAX) {
+      const oldest = _ROUTE_CACHE.keys().next().value;
+      if (oldest !== undefined) _ROUTE_CACHE.delete(oldest);
+    }
+    _ROUTE_CACHE.set(key, result);
+    return result;
   } catch {
     return null;
   }

@@ -252,7 +252,41 @@ def stream_pdf_plan(
     for n in range(1, total_days + 1):
         yield ("stage", {"key": f"day_{n}", "label": f"Crafting Day {n}", "status": "running"})
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=min(total_days, 5)) as ex:
+    # Costs runs in parallel with day generation when possible. The
+    # estimate uses destination, travel_style, day_estimates, and
+    # hotel_names — none of which depend on the per-day plan output —
+    # so it can fire at the same time as the days. day_titles becomes
+    # an optional, ignored input here. Saves ~1.5-3s of wall-clock at
+    # the end of a build vs. running serially after all days complete.
+    will_run_costs = sections.costs and gbp_rate is not None
+
+    with concurrent.futures.ThreadPoolExecutor(
+        max_workers=min(total_days, 5) + (1 if will_run_costs else 0),
+    ) as ex:
+        if will_run_costs:
+            yield ("stage", {"key": "costs", "label": "Estimating costs", "status": "running"})
+            from api.llm.pdf_costs import estimate_pdf_costs
+
+            costs_future = ex.submit(
+                estimate_pdf_costs,
+                destination,
+                travel_style,
+                [],  # day_titles not yet known; the prompt tolerates empty
+                day_estimates or [],
+                hotel_names or [],
+                gbp_rate,
+            )
+        elif sections.costs:
+            # gbp_rate is None — emit a terminal "skipped" event so the
+            # frontend's progress tracker advances.
+            yield ("stage", {
+                "key": "costs", "label": "Estimating costs", "status": "done",
+                "message": "Skipped — generate the budget first to include this section.",
+            })
+            costs_future = None
+        else:
+            costs_future = None
+
         futures = {
             ex.submit(
                 _generate_day,
@@ -286,6 +320,16 @@ def stream_pdf_plan(
                     },
                 )
 
+        # Resolve the costs future (was started in parallel with days).
+        costs = None
+        if costs_future is not None:
+            try:
+                costs = costs_future.result(timeout=60)
+                yield ("stage", {"key": "costs", "label": "Estimating costs", "status": "done"})
+            except Exception as e:
+                yield ("stage", {"key": "costs", "label": "Estimating costs",
+                                 "status": "error", "message": str(e)})
+
     if not completed:
         yield ("error", "All day generations failed")
         return
@@ -296,36 +340,8 @@ def stream_pdf_plan(
         subtitle=f"{total_days} days · curated by Atlas",
         route=[d.get("title", f"Day {d.get('number', '?')}") for d in days_sorted],
         days=[PdfDay(**d) for d in days_sorted],
+        costs=costs,
     )
-
-    if sections.costs:
-        yield ("stage", {"key": "costs", "label": "Estimating costs", "status": "running"})
-        if gbp_rate is None:
-            # No budget anchor available (older trip, or budget LLM/FX failed
-            # at trip creation). Skip the LLM call but ALWAYS emit a terminal
-            # event so the frontend's progress tracker advances.
-            yield ("stage", {
-                "key": "costs", "label": "Estimating costs",
-                "status": "done",
-                "message": "Skipped — generate the budget first to include this section.",
-            })
-        else:
-            try:
-                from api.llm.pdf_costs import estimate_pdf_costs
-
-                costs = estimate_pdf_costs(
-                    destination=destination,
-                    travel_style=travel_style,
-                    day_titles=[d.title for d in plan.days],
-                    day_estimates=day_estimates or [],
-                    hotel_names=hotel_names or [],
-                    gbp_rate=gbp_rate,
-                )
-                plan = plan.model_copy(update={"costs": costs})
-                yield ("stage", {"key": "costs", "label": "Estimating costs", "status": "done"})
-            except Exception as e:
-                yield ("stage", {"key": "costs", "label": "Estimating costs",
-                                 "status": "error", "message": str(e)})
 
     yield ("plan", plan)
 
