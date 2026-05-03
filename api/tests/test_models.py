@@ -162,3 +162,41 @@ def test_place_aliases_known_synonyms():
     assert Place(name="A", category="cafe", description="x").category == "restaurant"
     assert Place(name="A", category="viewpoint", description="x").category == "photography_spot"
     assert Place(name="A", category="airport", description="x").category == "logistics"
+
+
+# ── Sharing ─────────────────────────────────────────────────────────────────
+
+
+def test_share_out_round_trips():
+    from api.models import ShareOut
+
+    s = ShareOut(share_url="https://atlas.viggy.dev/s/abc", token="abc")
+    assert s.share_url.endswith("/s/abc")
+    assert s.token == "abc"
+
+
+def test_public_trip_excludes_personal_fields():
+    from api.models import PublicTrip
+
+    field_names = set(PublicTrip.model_fields.keys())
+    assert "user_id" not in field_names
+    assert "airport_entry" not in field_names
+    assert "airport_exit" not in field_names
+    assert "travel_style" not in field_names
+    for f in ("slug", "destination", "days", "document"):
+        assert f in field_names
+
+
+def test_trip_full_accepts_optional_share_token():
+    from datetime import datetime
+
+    from api.models import TripDocument, TripFull
+
+    t = TripFull(
+        id="t1", slug="x-7d-aaa",
+        destination="Kyoto", days=7, travel_style="x",
+        start_date=None, airport_entry=None, airport_exit=None,
+        document=TripDocument(document_markdown="x", places=[], neighborhoods=[]),
+        created_at=datetime.now(),
+    )
+    assert t.share_token is None

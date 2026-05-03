@@ -120,6 +120,7 @@ class TripFull(TripSummary):
     airport_entry: str | None
     airport_exit: str | None
     document: TripDocument
+    share_token: str | None = None
 
 
 class RefineIn(BaseModel):
@@ -231,3 +232,23 @@ class BudgetEstimateRaw(BaseModel):
     """Wire format from the LLM. Validated, then converted to BudgetDay rows."""
     currency: str
     days: list[BudgetEstimateDay]
+
+
+# ── Sharing ─────────────────────────────────────────────────────────────────
+
+
+class ShareOut(BaseModel):
+    share_url: str
+    token: str
+
+
+class PublicTrip(BaseModel):
+    """Anonymous-readable subset of a trip. Excludes personal fields:
+    no user_id, no airport_*, no travel_style (which now carries the
+    profile addendum like "Knee injury, light walking")."""
+    slug: str
+    destination: str
+    days: int
+    start_date: date | None
+    document: TripDocument
+    created_at: datetime

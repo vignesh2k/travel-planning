@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     supabase_service_role_key: str
     supabase_jwt_secret: str
     allowed_origins: str = "http://localhost:3000"
+    app_base_url: str = "https://atlas.viggy.dev"
     port: int = 8080
 
 
