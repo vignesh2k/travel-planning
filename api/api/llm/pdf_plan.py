@@ -26,6 +26,7 @@ class PdfSections:
     food: bool = True
     photos: bool = True
     tips: bool = True
+    costs: bool = True
 
 
 DAY_SYSTEM = (
@@ -228,6 +229,9 @@ def stream_pdf_plan(
     base_md: str,
     sections: PdfSections,
     start_date_iso: str | None = None,
+    day_estimates: list[int] | None = None,
+    hotel_names: list[str] | None = None,
+    gbp_rate: float | None = None,
 ) -> Iterator[tuple[str, Any]]:
     """Stream stage events while generating the per-day PDF plan in parallel.
 
@@ -293,6 +297,26 @@ def stream_pdf_plan(
         route=[d.get("title", f"Day {d.get('number', '?')}") for d in days_sorted],
         days=[PdfDay(**d) for d in days_sorted],
     )
+
+    if sections.costs and gbp_rate is not None:
+        yield ("stage", {"key": "costs", "label": "Estimating costs", "status": "running"})
+        try:
+            from api.llm.pdf_costs import estimate_pdf_costs
+
+            costs = estimate_pdf_costs(
+                destination=destination,
+                travel_style=travel_style,
+                day_titles=[d.title for d in plan.days],
+                day_estimates=day_estimates or [],
+                hotel_names=hotel_names or [],
+                gbp_rate=gbp_rate,
+            )
+            plan = plan.model_copy(update={"costs": costs})
+            yield ("stage", {"key": "costs", "label": "Estimating costs", "status": "done"})
+        except Exception as e:
+            yield ("stage", {"key": "costs", "label": "Estimating costs",
+                             "status": "error", "message": str(e)})
+
     yield ("plan", plan)
 
 

@@ -12,6 +12,7 @@ from api.llm.pdf_plan import PdfSections, stream_pdf_plan
 from api.llm.profile import profile_addendum
 from api.models import PdfPlan, TripDocument
 from api.pdf import generate_pdf, render_plan_pdf
+from api.routes.budget import fetch_budget_for
 from api.routes.profile import fetch_profile_for
 from api.sse import sse_stream
 
@@ -38,6 +39,7 @@ class PdfBuildIn(BaseModel):
     food: bool = True
     photos: bool = True
     tips: bool = True
+    costs: bool = True
 
 
 @router.post("/trips/{slug}/pdf/build")
@@ -65,7 +67,23 @@ def build_pdf(slug: str, body: PdfBuildIn, user: CurrentUser):
         travel_style = f"{addendum}. {travel_style}" if travel_style else addendum
     start_date_iso = row.get("start_date")
     safe_name = destination.replace(" ", "_").replace(",", "")
-    sections = PdfSections(food=body.food, photos=body.photos, tips=body.tips)
+    sections = PdfSections(
+        food=body.food, photos=body.photos, tips=body.tips, costs=body.costs,
+    )
+
+    bgt = fetch_budget_for(row["id"]) or {}
+    day_estimates = [
+        (d.get("override") if d.get("override") is not None else d.get("estimated", 0))
+        + sum(it.get("amount", 0) for it in d.get("items", []) or [])
+        for d in bgt.get("days", []) or []
+    ]
+    gbp_rate = bgt.get("gbp_rate")
+
+    hotel_names: list[str] = []
+    for nb in (doc.neighborhoods or []):
+        for h in (nb.hotels or []):
+            if h.name:
+                hotel_names.append(h.name)
 
     def events() -> Iterator[tuple[str, Any]]:
         plan: PdfPlan | None = None
@@ -76,6 +94,9 @@ def build_pdf(slug: str, body: PdfBuildIn, user: CurrentUser):
             base_md=base_md,
             sections=sections,
             start_date_iso=start_date_iso,
+            day_estimates=day_estimates,
+            hotel_names=hotel_names,
+            gbp_rate=gbp_rate,
         ):
             if ev_type == "stage":
                 yield ("stage", payload)

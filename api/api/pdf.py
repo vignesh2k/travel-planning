@@ -23,7 +23,14 @@ from fpdf import FPDF, FontFace
 # pure noise in our case. Quiet them.
 logging.getLogger("fpdf").setLevel(logging.ERROR)
 
-from api.models import PdfDay, PdfFoodSpot, PdfPhotoSpot, PdfPlan, PdfScheduleItem
+from api.models import (
+    PdfCosts,
+    PdfDay,
+    PdfFoodSpot,
+    PdfPhotoSpot,
+    PdfPlan,
+    PdfScheduleItem,
+)
 
 # ── Palette — mirrors the Montenegro reference style ────────────────────────
 INK = (26, 26, 26)            # near-black body text
@@ -119,6 +126,9 @@ def render_plan_pdf(plan: PdfPlan) -> bytes:
         if i > 0:
             pdf.ln(8)
         _render_day(pdf, reg, bold, day)
+
+    if plan.costs is not None:
+        _render_costs_page(pdf, reg, bold, plan.costs)
 
     return bytes(pdf.output())
 
@@ -533,3 +543,69 @@ def _render_photo_section(
         pdf.set_x(x0)
         pdf.multi_cell(pdf.epw, 4.5, spot.what)
         pdf.ln(2)
+
+
+def _render_costs_page(pdf: FPDF, reg: str, bold: str, costs: PdfCosts) -> None:
+    pdf.add_page()
+    pdf.set_font(bold, "B", 22)
+    pdf.set_text_color(*ACCENT)
+    pdf.cell(0, 12, "Estimated costs", new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(2)
+
+    pdf.set_font(reg, "", 10)
+    pdf.set_text_color(*INK_MUTED)
+    pdf.cell(
+        0, 6,
+        f"In {costs.currency} with GBP equivalents (rate {costs.gbp_rate:.4f}).",
+        new_x="LMARGIN", new_y="NEXT",
+    )
+    pdf.ln(6)
+
+    label_w = 38
+    amount_w = 70
+    page_w = pdf.w - pdf.l_margin - pdf.r_margin
+    bar_w_max = max(page_w - label_w - amount_w - 4, 30)
+    max_amount = max((c.amount for c in costs.categories), default=1) or 1
+    row_h = 9
+
+    for cat in costs.categories:
+        y = pdf.get_y()
+        pdf.set_font(bold, "B", 11)
+        pdf.set_text_color(*INK)
+        pdf.set_x(pdf.l_margin)
+        pdf.cell(label_w, row_h, cat.name, new_x="RIGHT", new_y="TOP")
+
+        pdf.set_font(reg, "", 10)
+        pdf.set_text_color(*INK_MUTED)
+        pdf.cell(
+            amount_w, row_h,
+            f"{cat.amount:,} {costs.currency}  (£{cat.gbp_amount:,})",
+            new_x="RIGHT", new_y="TOP",
+        )
+
+        bar_x = pdf.get_x() + 2
+        bar_w = bar_w_max * (cat.amount / max_amount)
+        pdf.set_fill_color(*TAG_BG)
+        pdf.rect(bar_x, y + 3, bar_w, 3.5, "F")
+        pdf.set_y(y + row_h)
+
+    pdf.ln(4)
+    pdf.set_draw_color(*RULE)
+    pdf.set_line_width(0.3)
+    pdf.line(pdf.l_margin, pdf.get_y(), pdf.w - pdf.r_margin, pdf.get_y())
+    pdf.ln(4)
+
+    pdf.set_font(bold, "B", 13)
+    pdf.set_text_color(*ACCENT)
+    pdf.cell(label_w, 9, "Total")
+    pdf.set_text_color(*INK)
+    pdf.cell(
+        0, 9,
+        f"{costs.total_local:,} {costs.currency}  (£{costs.total_gbp:,})",
+        new_x="LMARGIN", new_y="NEXT",
+    )
+
+    pdf.ln(8)
+    pdf.set_font(reg, "", 8)
+    pdf.set_text_color(*INK_MUTED)
+    pdf.multi_cell(0, 4, "Estimates based on the itinerary; actual prices vary.")
