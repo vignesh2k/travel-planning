@@ -150,8 +150,8 @@ export function PinInput() {
             onBlur={() => setFocused(false)}
             disabled={pending}
             placeholder="7 days in Kyoto, mid-October — slow & cultural"
-            className="flex-1 bg-transparent outline-none text-[15.5px] font-serif italic text-[var(--color-paper-ink-2)] placeholder:text-[var(--color-paper-ink-4)] disabled:opacity-60"
-            style={{ fontFamily: "var(--font-serif)" }}
+            className="flex-1 bg-transparent outline-none text-[14px] text-[var(--color-paper-ink-2)] placeholder:text-[var(--color-paper-ink-4)] disabled:opacity-60"
+            style={{ fontFamily: "var(--font-sans)" }}
           />
           <button
             type="submit"
