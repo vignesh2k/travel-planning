@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { deleteTrip } from "@/lib/api";
 import { getBrowserToken } from "@/lib/auth.browser";
@@ -49,6 +49,19 @@ export function Logbook({ trips: initial }: { trips: TripSummary[] }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
 
+  // Drives the scale-Y "punch" pulse on every toggle. Increment on each
+  // expand/collapse so the keyframe re-runs (key change forces remount
+  // of the wrapper, which restarts the CSS animation).
+  const [popKey, setPopKey] = useState(0);
+  const firstRenderRef = useRef(true);
+  useEffect(() => {
+    if (firstRenderRef.current) {
+      firstRenderRef.current = false;
+      return;
+    }
+    setPopKey((k) => k + 1);
+  }, [expanded]);
+
   if (trips.length === 0) return null;
 
   async function doDelete(slug: string) {
@@ -72,7 +85,12 @@ export function Logbook({ trips: initial }: { trips: TripSummary[] }) {
 
   return (
     <div
-      className="absolute pointer-events-auto z-30 transition-[max-height] duration-300 ease-out overflow-hidden"
+      // key changes on every expand/collapse to retrigger the
+      // scale-Y "punch" keyframe. The atlas-logbook-pop class fires
+      // a one-shot 460ms cubic-bezier overshoot so the whole strip
+      // visibly springs.
+      key={popKey}
+      className="absolute pointer-events-auto z-30 overflow-hidden atlas-logbook-pop"
       style={{
         left: 32,
         right: 32,
@@ -84,6 +102,12 @@ export function Logbook({ trips: initial }: { trips: TripSummary[] }) {
         borderRadius: 12,
         padding: "14px 22px",
         maxHeight: expanded ? 1200 : 180,
+        // Back-ease on expand (overshoots — snaps with anticipation),
+        // smoother in-out on collapse so it doesn't feel snappy backwards.
+        transition: expanded
+          ? "max-height 460ms cubic-bezier(0.34, 1.56, 0.64, 1)"
+          : "max-height 320ms cubic-bezier(0.45, 0, 0.55, 1)",
+        willChange: "max-height, transform",
       }}
     >
       <div className="flex justify-between items-center" style={{ marginBottom: 10 }}>
