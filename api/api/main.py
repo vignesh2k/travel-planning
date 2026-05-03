@@ -8,6 +8,7 @@ from api.routes import hotels as hotels_routes
 from api.routes import pdf as pdf_routes
 from api.routes import profile as profile_routes
 from api.routes import budget as budget_routes
+from api.routes import share as share_routes
 
 settings = get_settings()
 app = FastAPI(title="Atlas API")
@@ -26,6 +27,7 @@ app.include_router(hotels_routes.router)
 app.include_router(pdf_routes.router)
 app.include_router(profile_routes.router)
 app.include_router(budget_routes.router)
+app.include_router(share_routes.router)
 
 
 @app.get("/health")
