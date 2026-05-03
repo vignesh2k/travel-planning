@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { BrandMark } from "@/components/BrandMark";
+import { BrandIcon, BrandMark } from "@/components/BrandMark";
 import { listTrips } from "@/lib/api";
 import { findActiveTrip } from "@/lib/active-trip";
 import { getServerToken } from "@/lib/auth";
@@ -26,7 +26,7 @@ export default async function TodayPage() {
         <Link href="/" className="contents"><BrandMark /></Link>
       </header>
       <section className="flex-1 flex flex-col items-center justify-center gap-4 px-6 pb-12 anim-fade-in text-center">
-        <div className="text-amber-600 text-3xl">✦</div>
+        <BrandIcon className="w-12 h-12" />
         <h1 className="font-display text-3xl font-semibold text-ink-900">
           Nothing scheduled today
         </h1>

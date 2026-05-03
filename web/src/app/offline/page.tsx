@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { BrandMark } from "@/components/BrandMark";
+import { BrandIcon, BrandMark } from "@/components/BrandMark";
 
 export default function OfflinePage() {
   return (
@@ -9,7 +9,7 @@ export default function OfflinePage() {
         <Link href="/" className="contents"><BrandMark /></Link>
       </header>
       <section className="flex-1 flex flex-col items-center justify-center gap-4 px-6 pb-12 text-center">
-        <div className="text-amber-600 text-3xl">✦</div>
+        <BrandIcon className="w-12 h-12" />
         <h1 className="font-display text-2xl font-semibold text-ink-900">
           You&apos;re offline
         </h1>

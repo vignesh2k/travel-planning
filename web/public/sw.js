@@ -4,7 +4,7 @@
  * everything on the next activation (e.g. shell HTML structure change).
  */
 
-const VERSION = "v2";
+const VERSION = "v3";
 const CACHE_SHELL = `atlas-shell-${VERSION}`;
 const CACHE_TRIPS = `atlas-trips-${VERSION}`;
 const CACHE_TILES = `atlas-tiles-${VERSION}`;
