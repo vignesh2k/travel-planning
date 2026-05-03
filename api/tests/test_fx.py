@@ -28,6 +28,7 @@ def test_fetch_jpy_to_gbp():
     mock_get.assert_called_once()
     assert "from=JPY" in mock_get.call_args[0][0]
     assert "to=GBP" in mock_get.call_args[0][0]
+    assert mock_get.call_args.kwargs.get("follow_redirects") is True
 
 
 def test_cache_avoids_second_fetch_within_24h():

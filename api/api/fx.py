@@ -12,7 +12,7 @@ from datetime import date
 
 import httpx
 
-_FRANKFURTER = "https://api.frankfurter.app/latest"
+_FRANKFURTER = "https://api.frankfurter.dev/v1/latest"
 _TTL_SECONDS = 24 * 60 * 60
 
 
@@ -36,7 +36,7 @@ def get_gbp_rate(currency: str) -> FxRate:
         return cached[0]
 
     url = f"{_FRANKFURTER}?from={code}&to=GBP"
-    resp = httpx.get(url, timeout=10)
+    resp = httpx.get(url, timeout=10, follow_redirects=True)
     resp.raise_for_status()
     body = resp.json()
     rate = FxRate(

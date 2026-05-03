@@ -298,24 +298,34 @@ def stream_pdf_plan(
         days=[PdfDay(**d) for d in days_sorted],
     )
 
-    if sections.costs and gbp_rate is not None:
+    if sections.costs:
         yield ("stage", {"key": "costs", "label": "Estimating costs", "status": "running"})
-        try:
-            from api.llm.pdf_costs import estimate_pdf_costs
+        if gbp_rate is None:
+            # No budget anchor available (older trip, or budget LLM/FX failed
+            # at trip creation). Skip the LLM call but ALWAYS emit a terminal
+            # event so the frontend's progress tracker advances.
+            yield ("stage", {
+                "key": "costs", "label": "Estimating costs",
+                "status": "done",
+                "message": "Skipped — generate the budget first to include this section.",
+            })
+        else:
+            try:
+                from api.llm.pdf_costs import estimate_pdf_costs
 
-            costs = estimate_pdf_costs(
-                destination=destination,
-                travel_style=travel_style,
-                day_titles=[d.title for d in plan.days],
-                day_estimates=day_estimates or [],
-                hotel_names=hotel_names or [],
-                gbp_rate=gbp_rate,
-            )
-            plan = plan.model_copy(update={"costs": costs})
-            yield ("stage", {"key": "costs", "label": "Estimating costs", "status": "done"})
-        except Exception as e:
-            yield ("stage", {"key": "costs", "label": "Estimating costs",
-                             "status": "error", "message": str(e)})
+                costs = estimate_pdf_costs(
+                    destination=destination,
+                    travel_style=travel_style,
+                    day_titles=[d.title for d in plan.days],
+                    day_estimates=day_estimates or [],
+                    hotel_names=hotel_names or [],
+                    gbp_rate=gbp_rate,
+                )
+                plan = plan.model_copy(update={"costs": costs})
+                yield ("stage", {"key": "costs", "label": "Estimating costs", "status": "done"})
+            except Exception as e:
+                yield ("stage", {"key": "costs", "label": "Estimating costs",
+                                 "status": "error", "message": str(e)})
 
     yield ("plan", plan)
 
