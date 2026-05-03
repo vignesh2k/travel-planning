@@ -3,6 +3,8 @@ import type {
   BudgetDay,
   BudgetDayIn,
   Neighborhood,
+  PublicTrip,
+  ShareOut,
   TripBriefIn,
   TripFull,
   TripSummary,
@@ -110,5 +112,30 @@ export async function updateBudgetDay(
     token,
   );
   if (!res.ok) throw new Error(`updateBudgetDay ${res.status}`);
+  return res.json();
+}
+
+export async function createShare(slug: string, token: string): Promise<ShareOut> {
+  const res = await authedFetch(
+    `/trips/${slug}/share`, { method: "POST" }, token,
+  );
+  if (!res.ok) throw new Error(`createShare ${res.status}`);
+  return res.json();
+}
+
+export async function revokeShare(slug: string, token: string): Promise<void> {
+  const res = await authedFetch(
+    `/trips/${slug}/share`, { method: "DELETE" }, token,
+  );
+  if (!res.ok && res.status !== 204) throw new Error(`revokeShare ${res.status}`);
+}
+
+export async function getPublicTrip(token: string): Promise<PublicTrip | null> {
+  const res = await fetch(
+    `${API_BASE}/public/trips/${token}`,
+    { method: "GET" },
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`getPublicTrip ${res.status}`);
   return res.json();
 }

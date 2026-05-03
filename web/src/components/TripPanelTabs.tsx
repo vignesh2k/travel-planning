@@ -1,18 +1,20 @@
 "use client";
 
-const TABS = ["Itinerary", "Where to stay", "Budget"] as const;
-export type Tab = (typeof TABS)[number];
+const ALL_TABS = ["Itinerary", "Where to stay", "Budget"] as const;
+export type Tab = (typeof ALL_TABS)[number];
 
 export function TripPanelTabs({
   active,
   onChange,
+  tabs = ALL_TABS as readonly Tab[],
 }: {
   active: Tab;
   onChange: (t: Tab) => void;
+  tabs?: readonly Tab[];
 }) {
   return (
     <div className="flex gap-4 px-4 pt-3 border-b border-amber-700/10">
-      {TABS.map((t) => (
+      {tabs.map((t) => (
         <button
           key={t}
           onClick={() => onChange(t)}

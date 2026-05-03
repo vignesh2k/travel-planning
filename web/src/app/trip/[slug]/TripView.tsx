@@ -7,6 +7,7 @@ import { BrandMark } from "@/components/BrandMark";
 import { Map } from "@/components/Map";
 import { MobileSheet } from "@/components/MobileSheet";
 import { PdfExportMenu } from "@/components/PdfExportMenu";
+import { ShareMenu } from "@/components/ShareMenu";
 import { RefineInput } from "@/components/RefineInput";
 import { TripPanel } from "@/components/TripPanel";
 import type { Budget, Place, TripFull } from "@/lib/types";
@@ -32,7 +33,6 @@ export function TripView({
 }) {
   const [trip, setTrip] = useState(initial);
   const isMobile = useIsMobile();
-  const [shareCopied, setShareCopied] = useState(false);
   const [focusPlaces, setFocusPlaces] = useState<Place[] | null>(null);
   const [refinePrefill, setRefinePrefill] = useState<string | undefined>(undefined);
   const [refinePrefillKey, setRefinePrefillKey] = useState(0);
@@ -40,16 +40,6 @@ export function TripView({
   function pushRefinePrefill(text: string) {
     setRefinePrefill(text);
     setRefinePrefillKey((n) => n + 1);
-  }
-
-  async function copyShareLink() {
-    try {
-      await navigator.clipboard.writeText(window.location.href);
-      setShareCopied(true);
-      window.setTimeout(() => setShareCopied(false), 1500);
-    } catch (e) {
-      console.error("clipboard write failed", e);
-    }
   }
 
   return (
@@ -65,13 +55,8 @@ export function TripView({
         <div className="text-sm text-ink-700 font-medium">
           {trip.destination} · {trip.days} days
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={copyShareLink}
-            className="frosted rounded-[10px] px-3 py-1 text-xs hover:bg-white/85"
-          >
-            {shareCopied ? "Copied ✓" : "Share"}
-          </button>
+        <div className="flex gap-2 items-center">
+          <ShareMenu slug={trip.slug} initialToken={trip.share_token} />
           <PdfExportMenu slug={trip.slug} destination={trip.destination} days={trip.days} />
         </div>
       </header>

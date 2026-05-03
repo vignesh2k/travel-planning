@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { fetchHotels } from "@/lib/api";
 import { getBrowserToken } from "@/lib/auth.browser";
-import type { Budget, Neighborhood, Place, TripFull } from "@/lib/types";
+import type { Budget, Neighborhood, Place, PublicTrip, TripFull } from "@/lib/types";
 
 import { BudgetTab } from "./BudgetTab";
 import { type Day } from "./DayCard";
@@ -12,14 +12,19 @@ import { HotelCard } from "./HotelCard";
 import { Itinerary } from "./Itinerary";
 import { TripPanelTabs, type Tab } from "./TripPanelTabs";
 
+const FULL_TABS: readonly Tab[] = ["Itinerary", "Where to stay", "Budget"] as const;
+const READONLY_TABS: readonly Tab[] = ["Itinerary", "Where to stay"] as const;
+
 export function TripPanel({
   trip,
   budget,
+  readOnly = false,
   onFocusPlaces,
   onRefinePrefill,
 }: {
-  trip: TripFull;
+  trip: TripFull | PublicTrip;
   budget: Budget | null;
+  readOnly?: boolean;
   onFocusPlaces: (places: Place[] | null) => void;
   onRefinePrefill: (text: string) => void;
 }) {
@@ -46,6 +51,7 @@ export function TripPanel({
     <div className="h-full flex flex-col overflow-hidden">
       <TripPanelTabs
         active={tab}
+        tabs={readOnly ? READONLY_TABS : FULL_TABS}
         onChange={(t) => {
           setTab(t);
           if (t === "Where to stay") loadHotels();
@@ -74,7 +80,7 @@ export function TripPanel({
           />
         )}
 
-        {tab === "Budget" && (
+        {tab === "Budget" && !readOnly && (
           <BudgetTab slug={trip.slug} initial={budget} />
         )}
 

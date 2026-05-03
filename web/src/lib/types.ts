@@ -40,6 +40,7 @@ export interface TripFull extends TripSummary {
   airport_entry: string | null;
   airport_exit: string | null;
   document: TripDocument;
+  share_token: string | null;
 }
 
 export interface TripBriefIn {
@@ -109,4 +110,18 @@ export interface PdfCosts {
   categories: PdfCostCategory[];
   total_local: number;
   total_gbp: number;
+}
+
+export interface ShareOut {
+  share_url: string;
+  token: string;
+}
+
+export interface PublicTrip {
+  slug: string;
+  destination: string;
+  days: number;
+  start_date: string | null;
+  document: TripDocument;
+  created_at: string;
 }
