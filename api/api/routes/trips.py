@@ -5,12 +5,21 @@ from fastapi import APIRouter, HTTPException
 
 from api.auth import CurrentUser
 from api.db import service_client
+from api.fx import get_gbp_rate
 from api.geocode import geocode_place
+from api.llm.budget import budget_estimate
 from api.llm.parse_brief import parse_brief
 from api.llm.profile import profile_addendum
 from api.llm.quick_extract import quick_extract
 from api.llm.research import get_travel_research, stream_travel_research
-from api.models import Place, TripBriefIn, TripDocument, TripFull, TripSummary
+from api.models import (
+    BudgetEstimateRaw,
+    Place,
+    TripBriefIn,
+    TripDocument,
+    TripFull,
+    TripSummary,
+)
 from api.routes.profile import fetch_profile_for
 from api.slug import make_trip_slug
 from api.sse import sse_stream
@@ -29,6 +38,30 @@ def _combine_style(user_id: str, brief_style: str) -> str:
     if not brief_style:
         return addendum
     return f"{addendum}. {brief_style}"
+
+
+def _persist_budget(trip_id: str, estimate: BudgetEstimateRaw) -> None:
+    """Best-effort write of a fresh budget row alongside a new trip."""
+    fx = get_gbp_rate(estimate.currency)
+    row = {
+        "trip_id": trip_id,
+        "currency": estimate.currency,
+        "gbp_rate": fx.rate,
+        "gbp_rate_date": fx.fetched_on.isoformat(),
+        "days": [
+            {
+                "number": d.number,
+                "title": f"Day {d.number}",
+                "estimated": d.estimated,
+                "override": None,
+                "items": [],
+            }
+            for d in estimate.days
+        ],
+    }
+    service_client().table("trip_budgets").upsert(
+        row, on_conflict="trip_id",
+    ).execute()
 
 
 @router.post("/trips", response_model=TripFull)
@@ -72,6 +105,13 @@ def create_trip(brief: TripBriefIn, user: CurrentUser) -> TripFull:
     }
     res = service_client().table("trips").insert(row).execute()
     inserted = res.data[0]
+
+    try:
+        estimate = budget_estimate(parsed.destination, parsed.days, combined_style)
+        _persist_budget(inserted["id"], estimate)
+    except Exception as e:
+        print(f"[trips.create] budget persist failed: {e}")
+
     inserted_data = {**inserted}
     doc_dict = inserted_data.pop("document")
     return TripFull(**inserted_data, document=TripDocument(**doc_dict))
@@ -94,7 +134,7 @@ def create_trip_stream(brief: TripBriefIn, user: CurrentUser):
                 return addendum
             return f"{addendum}. {brief_style}"
 
-        executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=3)
         try:
             if fast_dest and fast_days:
                 yield ("status", f"Researching {fast_dest} for {fast_days} days…")
@@ -103,6 +143,9 @@ def create_trip_stream(brief: TripBriefIn, user: CurrentUser):
                     fast_dest,
                     fast_days,
                     combine(brief.text),
+                )
+                budget_future = executor.submit(
+                    budget_estimate, fast_dest, fast_days, research_style,
                 )
             else:
                 yield ("status", "Parsing your brief…")
@@ -116,6 +159,10 @@ def create_trip_stream(brief: TripBriefIn, user: CurrentUser):
                     parsed_now.destination,
                     parsed_now.days,
                     combine(parsed_now.travel_style),
+                )
+                budget_future = executor.submit(
+                    budget_estimate, parsed_now.destination, parsed_now.days,
+                    research_style,
                 )
 
             research: dict[str, Any] | None = None
@@ -173,6 +220,15 @@ def create_trip_stream(brief: TripBriefIn, user: CurrentUser):
         }
         res = service_client().table("trips").insert(row).execute()
         saved_slug = res.data[0]["slug"] if res.data else slug
+
+        if res.data:
+            try:
+                estimate = budget_future.result(timeout=30)
+                _persist_budget(res.data[0]["id"], estimate)
+            except Exception as e:
+                # Budget is best-effort. Trip creation already succeeded.
+                print(f"[trips.stream] budget persist failed: {e}")
+
         yield ("done", {"slug": saved_slug})
 
     return sse_stream(events())

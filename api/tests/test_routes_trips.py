@@ -299,3 +299,118 @@ def test_post_trips_stream_uses_profile_when_present(monkeypatch, auth_headers) 
     assert "vegan" in captured_style["s"]
     assert "mid budget" in captured_style["s"]
     assert "brief style" in captured_style["s"]
+
+
+def test_post_trips_stream_creates_budget(monkeypatch, auth_headers) -> None:
+    """When budget_estimate succeeds, the stream inserts a trip_budgets row."""
+    from datetime import date
+
+    from api.fx import FxRate
+    from api.models import BudgetEstimateDay, BudgetEstimateRaw
+
+    monkeypatch.setattr(
+        "api.routes.trips.parse_brief",
+        lambda b: MagicMock(
+            destination="Kyoto", days=2, travel_style="brief style",
+            start_date=None, airport_entry=None, airport_exit=None,
+        ),
+    )
+    monkeypatch.setattr(
+        "api.routes.trips.stream_travel_research",
+        lambda *_a, **_k: iter([("result", {"document": "## x", "places": []})]),
+    )
+    monkeypatch.setattr("api.routes.trips.geocode_place", lambda n: (35.0, 135.7))
+    monkeypatch.setattr(
+        "api.routes.trips.budget_estimate",
+        lambda *_a, **_k: BudgetEstimateRaw(
+            currency="JPY",
+            days=[BudgetEstimateDay(number=1, estimated=18000),
+                  BudgetEstimateDay(number=2, estimated=22000)],
+        ),
+    )
+    monkeypatch.setattr(
+        "api.routes.trips.get_gbp_rate",
+        lambda c: FxRate(rate=0.0052, fetched_on=date(2026, 5, 3)),
+    )
+
+    captured: dict = {}
+    trips_table = MagicMock()
+    trips_table.insert.return_value.execute.return_value = MagicMock(data=[{
+        "id": "t1", "slug": "kyoto-2d-z", "user_id": "u", "destination": "Kyoto",
+        "days": 2, "travel_style": "brief style",
+        "start_date": None, "airport_entry": None, "airport_exit": None,
+        "document": {"document_markdown": "## x", "places": [], "neighborhoods": []},
+        "places": [], "created_at": "2026-05-03T00:00:00+00:00",
+    }])
+    budgets_table = MagicMock()
+
+    def upsert_side_effect(row, on_conflict=None):
+        captured["budget"] = row
+        chain = MagicMock()
+        chain.execute.return_value = MagicMock(data=[row])
+        return chain
+
+    budgets_table.upsert.side_effect = upsert_side_effect
+
+    def table_router(name: str) -> MagicMock:
+        return trips_table if name == "trips" else budgets_table
+
+    client = MagicMock()
+    client.table.side_effect = table_router
+    monkeypatch.setattr("api.routes.trips.service_client", lambda: client)
+
+    with TestClient(app).stream(
+        "POST", "/trips/stream",
+        headers=auth_headers, json={"text": "Kyoto"},
+    ) as res:
+        res.read()
+
+    assert captured["budget"]["currency"] == "JPY"
+    assert captured["budget"]["trip_id"] == "t1"
+    assert captured["budget"]["days"][0]["estimated"] == 18000
+
+
+def test_post_trips_stream_succeeds_when_budget_fails(monkeypatch, auth_headers) -> None:
+    """If budget_estimate raises, trip creation still completes."""
+    monkeypatch.setattr(
+        "api.routes.trips.parse_brief",
+        lambda b: MagicMock(
+            destination="Kyoto", days=2, travel_style="x",
+            start_date=None, airport_entry=None, airport_exit=None,
+        ),
+    )
+    monkeypatch.setattr(
+        "api.routes.trips.stream_travel_research",
+        lambda *_a, **_k: iter([("result", {"document": "## x", "places": []})]),
+    )
+    monkeypatch.setattr("api.routes.trips.geocode_place", lambda n: (35.0, 135.7))
+
+    def boom(*_a, **_k):
+        raise RuntimeError("LLM hiccup")
+
+    monkeypatch.setattr("api.routes.trips.budget_estimate", boom)
+
+    trips_table = MagicMock()
+    trips_table.insert.return_value.execute.return_value = MagicMock(data=[{
+        "id": "t1", "slug": "kyoto-2d-y", "user_id": "u", "destination": "Kyoto",
+        "days": 2, "travel_style": "x",
+        "start_date": None, "airport_entry": None, "airport_exit": None,
+        "document": {"document_markdown": "## x", "places": [], "neighborhoods": []},
+        "places": [], "created_at": "2026-05-03T00:00:00+00:00",
+    }])
+
+    def table_router(name: str) -> MagicMock:
+        return trips_table if name == "trips" else MagicMock()
+
+    client = MagicMock()
+    client.table.side_effect = table_router
+    monkeypatch.setattr("api.routes.trips.service_client", lambda: client)
+
+    with TestClient(app).stream(
+        "POST", "/trips/stream",
+        headers=auth_headers, json={"text": "Kyoto"},
+    ) as res:
+        body = res.read().decode()
+
+    assert "event: done" in body
+    assert "kyoto-2d-y" in body
