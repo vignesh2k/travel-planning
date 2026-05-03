@@ -66,6 +66,27 @@ export function Map({
     });
     popupRef.current = popup;
 
+    map.on("load", () => {
+      // Route source (always present; data swapped on focusPlaces change).
+      map.addSource("atlas-route", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+      // HTML markers float above any GL layer, so the dots stay clickable.
+      map.addLayer({
+        id: "atlas-route-line",
+        type: "line",
+        source: "atlas-route",
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": "#b45309",      // amber-700
+          "line-opacity": 0.5,
+          "line-width": 3,
+          "line-dasharray": [2, 2],
+        },
+      });
+    });
+
     return () => {
       if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
       popup.remove();
@@ -212,6 +233,46 @@ export function Map({
 
     if (map.isStyleLoaded()) apply();
     else map.once("load", apply);
+  }, [focusPlaces]);
+
+  // Update the route line whenever the active focus changes.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const apply = () => {
+      const source = map.getSource("atlas-route") as
+        | maplibregl.GeoJSONSource
+        | undefined;
+      if (!source) return;
+
+      const points = (focusPlaces ?? []).filter(
+        (p): p is Place & { lat: number; lng: number } =>
+          p.lat !== null && p.lng !== null,
+      );
+
+      if (points.length < 2) {
+        source.setData({ type: "FeatureCollection", features: [] });
+        return;
+      }
+
+      source.setData({
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            properties: {},
+            geometry: {
+              type: "LineString",
+              coordinates: points.map((p) => [p.lng, p.lat]),
+            },
+          },
+        ],
+      });
+    };
+
+    if (map.isStyleLoaded() && map.getSource("atlas-route")) apply();
+    else map.once("idle", apply);
   }, [focusPlaces]);
 
   return <div ref={containerRef} className="w-full h-full" />;
