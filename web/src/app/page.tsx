@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import { ActiveTripPrecache } from "@/components/ActiveTripPrecache";
 import { BrandMark } from "@/components/BrandMark";
 import { ChatInputClient } from "@/components/ChatInputClient";
 import { ProfileBanner } from "@/components/ProfileBanner";
@@ -40,7 +41,12 @@ export default async function Home() {
         <p className="text-ink-500 max-w-md text-center">
           Tell me about your trip in plain English — destination, days, what you love.
         </p>
-        {active && <TodayBanner active={active} />}
+        {active && (
+          <>
+            <TodayBanner active={active} />
+            <ActiveTripPrecache slug={active.trip.slug} />
+          </>
+        )}
         {profile === null && <ProfileBanner />}
         <ChatInputClient hasProfile={profile !== null} />
         <TripsList trips={trips} />
