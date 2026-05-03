@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 import { deleteTrip } from "@/lib/api";
 import { getBrowserToken } from "@/lib/auth.browser";
@@ -49,19 +49,6 @@ export function Logbook({ trips: initial }: { trips: TripSummary[] }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
 
-  // Drives the scale-Y "punch" pulse on every toggle. Increment on each
-  // expand/collapse so the keyframe re-runs (key change forces remount
-  // of the wrapper, which restarts the CSS animation).
-  const [popKey, setPopKey] = useState(0);
-  const firstRenderRef = useRef(true);
-  useEffect(() => {
-    if (firstRenderRef.current) {
-      firstRenderRef.current = false;
-      return;
-    }
-    setPopKey((k) => k + 1);
-  }, [expanded]);
-
   if (trips.length === 0) return null;
 
   async function doDelete(slug: string) {
@@ -85,12 +72,7 @@ export function Logbook({ trips: initial }: { trips: TripSummary[] }) {
 
   return (
     <div
-      // key changes on every expand/collapse to retrigger the
-      // scale-Y "punch" keyframe. The atlas-logbook-pop class fires
-      // a one-shot 460ms cubic-bezier overshoot so the whole strip
-      // visibly springs.
-      key={popKey}
-      className="absolute pointer-events-auto z-30 overflow-hidden atlas-logbook-pop"
+      className="absolute pointer-events-auto z-30 overflow-hidden"
       style={{
         left: 32,
         right: 32,
@@ -101,13 +83,14 @@ export function Logbook({ trips: initial }: { trips: TripSummary[] }) {
         border: "1px solid rgba(31,26,20,0.06)",
         borderRadius: 12,
         padding: "14px 22px",
-        maxHeight: expanded ? 1200 : 180,
-        // Back-ease on expand (overshoots — snaps with anticipation),
-        // smoother in-out on collapse so it doesn't feel snappy backwards.
-        transition: expanded
-          ? "max-height 460ms cubic-bezier(0.34, 1.56, 0.64, 1)"
-          : "max-height 320ms cubic-bezier(0.45, 0, 0.55, 1)",
-        willChange: "max-height, transform",
+        maxHeight: expanded ? 800 : 180,
+        // Strong but smooth deceleration. Same curve in both directions
+        // so the rhythm feels consistent. Cubic-bezier(0.22, 1, 0.36, 1)
+        // is the "ease-out quint" — fast start, gentle landing — no
+        // overshoot. Pairs with the per-row fade-rise on the new entries.
+        transition:
+          "max-height 540ms cubic-bezier(0.22, 1, 0.36, 1)",
+        willChange: "max-height",
       }}
     >
       <div className="flex justify-between items-center" style={{ marginBottom: 10 }}>
@@ -154,11 +137,18 @@ export function Logbook({ trips: initial }: { trips: TripSummary[] }) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-[18px] gap-y-3">
-        {visible.map((t) => {
+        {visible.map((t, idx) => {
           const { place, country } = splitDestination(t.destination);
           const month = formatMonth(t.start_date, "—");
           const isConfirming = confirming === t.slug;
           const isBusy = busy === t.slug;
+          // Rows beyond the 4 always-visible ones fade-rise in with a
+          // stagger when the strip expands. Skip the animation on the
+          // first 4 (they're always there) and on collapse.
+          const isExtraRow = expanded && idx >= collapsedCount;
+          const riseDelay = isExtraRow
+            ? Math.min((idx - collapsedCount) * 40, 320)
+            : 0;
 
           function go() {
             if (isConfirming || isBusy) return;
@@ -182,8 +172,14 @@ export function Logbook({ trips: initial }: { trips: TripSummary[] }) {
               onClick={go}
               onKeyDown={onKey}
               aria-label={`Open trip ${place}`}
-              className="group relative pl-3 flex flex-col gap-1 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-terracotta-500)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent rounded-r-md"
-              style={{ borderLeft: "1px solid rgba(31,26,20,0.12)" }}
+              className={
+                "group relative pl-3 flex flex-col gap-1 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-terracotta-500)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent rounded-r-md " +
+                (isExtraRow ? "atlas-row-rise" : "")
+              }
+              style={{
+                borderLeft: "1px solid rgba(31,26,20,0.12)",
+                animationDelay: isExtraRow ? `${riseDelay}ms` : undefined,
+              }}
             >
               <div className="flex items-baseline justify-between gap-2 pr-7">
                 <span
