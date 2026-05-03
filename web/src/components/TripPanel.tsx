@@ -19,12 +19,14 @@ export function TripPanel({
   trip,
   budget,
   readOnly = false,
+  initialDay,
   onFocusPlaces,
   onRefinePrefill,
 }: {
   trip: TripFull | PublicTrip;
   budget: Budget | null;
   readOnly?: boolean;
+  initialDay?: number;
   onFocusPlaces: (places: Place[] | null) => void;
   onRefinePrefill: (text: string) => void;
 }) {
@@ -66,6 +68,7 @@ export function TripPanel({
             restaurants={restaurants}
             destination={trip.destination}
             budget={budget}
+            initialDay={initialDay}
             onFocusPlaces={onFocusPlaces}
             onRefinePrefill={onRefinePrefill}
             onOpenBudgetDay={(n) => {

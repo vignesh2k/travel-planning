@@ -3,9 +3,11 @@ import { redirect } from "next/navigation";
 import { BrandMark } from "@/components/BrandMark";
 import { ChatInputClient } from "@/components/ChatInputClient";
 import { ProfileBanner } from "@/components/ProfileBanner";
+import { TodayBanner } from "@/components/TodayBanner";
 import { TripsList } from "@/components/TripsList";
 import { UserMenu } from "@/components/UserMenu";
 import { getProfile, listTrips } from "@/lib/api";
+import { findActiveTrip } from "@/lib/active-trip";
 import { getServerToken } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -22,6 +24,8 @@ export default async function Home() {
       ])
     : [[], null];
 
+  const active = findActiveTrip(trips);
+
   return (
     <main className="min-h-screen flex flex-col">
       <header className="px-6 py-4 flex items-center justify-between">
@@ -36,6 +40,7 @@ export default async function Home() {
         <p className="text-ink-500 max-w-md text-center">
           Tell me about your trip in plain English — destination, days, what you love.
         </p>
+        {active && <TodayBanner active={active} />}
         {profile === null && <ProfileBanner />}
         <ChatInputClient hasProfile={profile !== null} />
         <TripsList trips={trips} />

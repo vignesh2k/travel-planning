@@ -28,9 +28,11 @@ function useIsMobile(): boolean | null {
 export function TripView({
   trip: initial,
   budget,
+  initialDay,
 }: {
   trip: TripFull;
   budget: Budget | null;
+  initialDay?: number;
 }) {
   const [trip, setTrip] = useState(initial);
   const isMobile = useIsMobile();
@@ -70,6 +72,7 @@ export function TripView({
             <TripPanel
               trip={trip}
               budget={budget}
+              initialDay={initialDay}
               onFocusPlaces={setFocusPlaces}
               onRefinePrefill={pushRefinePrefill}
             />

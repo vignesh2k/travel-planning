@@ -8,10 +8,16 @@ import { TripView } from "./TripView";
 
 export default async function TripPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ day?: string }>;
 }) {
   const { slug } = await params;
+  const { day } = await searchParams;
+  const dayNum = day ? Number(day) : NaN;
+  const initialDay = Number.isFinite(dayNum) && dayNum >= 1 ? dayNum : undefined;
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth/signin");
@@ -28,5 +34,5 @@ export default async function TripPage({
 
   const budget = await getBudget(slug, token).catch(() => null);
 
-  return <TripView trip={trip} budget={budget} />;
+  return <TripView trip={trip} budget={budget} initialDay={initialDay} />;
 }

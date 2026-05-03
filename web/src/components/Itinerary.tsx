@@ -91,6 +91,7 @@ export function Itinerary({
   restaurants,
   destination,
   budget,
+  initialDay,
   onFocusPlaces,
   onRefinePrefill,
   onOpenBudgetDay,
@@ -100,11 +101,17 @@ export function Itinerary({
   restaurants: string[][];
   destination: string;
   budget: Budget | null;
+  initialDay?: number;
   onFocusPlaces: (places: Place[] | null) => void;
   onRefinePrefill: (text: string) => void;
   onOpenBudgetDay: (dayNumber: number) => void;
 }) {
-  const [activeNum, setActiveNum] = useState<number>(days[0]?.number ?? 1);
+  const fallbackNum = days[0]?.number ?? 1;
+  const seed =
+    initialDay !== undefined && days.length > 0
+      ? Math.min(Math.max(initialDay, 1), days.length)
+      : fallbackNum;
+  const [activeNum, setActiveNum] = useState<number>(seed);
   const active = useMemo(() => days.find((d) => d.number === activeNum) ?? days[0], [days, activeNum]);
 
   // When the active day changes, refocus the map.
