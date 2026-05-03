@@ -1,6 +1,6 @@
 from api.llm.client import make_client
 
-REFINE_MODEL = "google/gemini-3.1-flash-lite"
+REFINE_MODEL = "google/gemini-3.1-flash-lite-preview"
 
 
 def refine_document(document: str, instruction: str) -> str:
