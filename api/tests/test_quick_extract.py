@@ -34,3 +34,22 @@ def test_returns_none_for_no_destination():
 
 def test_rejects_huge_day_count():
     assert quick_extract("365 days in Tokyo") == (None, None)
+
+
+def test_hyphenated_n_day_trip():
+    assert quick_extract("5-day Lisbon trip") == ("Lisbon", 5)
+    assert quick_extract("7-night Kyoto trip") == ("Kyoto", 7)
+
+
+def test_trip_to_destination_for_days():
+    assert quick_extract("trip to Lisbon for 5 days") == ("Lisbon", 5)
+
+
+def test_visiting_destination_for_days():
+    assert quick_extract("Visiting Tokyo for 7 days") == ("Tokyo", 7)
+
+
+def test_destination_comma_days():
+    assert quick_extract("Lisbon, 5 days") == ("Lisbon", 5)
+    assert quick_extract("Kyoto - 7 days") == ("Kyoto", 7)
+    assert quick_extract("Paris: 4 nights") == ("Paris", 4)

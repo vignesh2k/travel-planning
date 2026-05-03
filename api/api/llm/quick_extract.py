@@ -12,23 +12,42 @@ import re
 
 # Patterns we recognize, in priority order. Each pattern must capture both the
 # destination text and the day count.
+_DEST = r"[A-Z][\w\-’']*(?:\s+(?:and|&|the)?\s*[A-Z][\w\-’']*){0,3}"
 _PATTERNS = [
     # "7 days in Kyoto", "10 days in Vietnam", "3 days through Patagonia"
     re.compile(
-        r"\b(?P<days>\d{1,2})\s*(?:day|days|night|nights)\s+(?:in|to|through|across|exploring|around)\s+(?P<dest>[A-Z][\w\-’']*(?:\s+(?:and|&|the)?\s*[A-Z][\w\-’']*){0,3})",
+        rf"\b(?P<days>\d{{1,2}})\s*(?:day|days|night|nights)\s+(?:in|to|through|across|exploring|around|at)\s+(?P<dest>{_DEST})",
         re.UNICODE,
+    ),
+    # "trip to Lisbon for 5 days", "visiting Kyoto for 7 days" — must come
+    # BEFORE the generic "Y for X days" pattern, otherwise "Visiting Tokyo"
+    # is captured as the destination.
+    re.compile(
+        rf"\b(?:trip\s+to|visit(?:ing)?|spending|going\s+to|fly(?:ing)?\s+to)\s+(?P<dest>{_DEST})\s+for\s+(?P<days>\d{{1,2}})\s*(?:day|days|night|nights)",
+        re.UNICODE | re.IGNORECASE,
     ),
     # "Kyoto for 7 days", "Lisbon for 4 nights"
     re.compile(
-        r"\b(?P<dest>[A-Z][\w\-’']*(?:\s+[A-Z][\w\-’']*){0,3})\s+for\s+(?P<days>\d{1,2})\s*(?:day|days|night|nights)\b",
+        rf"\b(?P<dest>{_DEST})\s+for\s+(?P<days>\d{{1,2}})\s*(?:day|days|night|nights)\b",
+        re.UNICODE,
+    ),
+    # "5-day Lisbon trip", "7-night Kyoto trip", "10 day vietnam trip"
+    re.compile(
+        rf"\b(?P<days>\d{{1,2}})[-\s](?:day|night)s?\s+(?:trip\s+(?:to|in)\s+)?(?P<dest>{_DEST})",
+        re.UNICODE,
+    ),
+    # "Lisbon, 5 days" / "Lisbon - 5 days" / "Lisbon: 5 days"
+    re.compile(
+        rf"\b(?P<dest>{_DEST})\s*[,\-:–—]\s*(?P<days>\d{{1,2}})\s*(?:day|days|night|nights)\b",
         re.UNICODE,
     ),
     # "weekend in Lisbon" → 3 days
     re.compile(
-        r"\b(?P<duration>weekend|long\s+weekend|week|fortnight)\s+in\s+(?P<dest>[A-Z][\w\-’']*(?:\s+[A-Z][\w\-’']*){0,3})",
+        rf"\b(?P<duration>weekend|long\s+weekend|week|fortnight)\s+in\s+(?P<dest>{_DEST})",
         re.UNICODE,
     ),
 ]
+_DURATION_PATTERN_INDEX = 5
 
 _DURATION_TO_DAYS = {
     "weekend": 3,
@@ -45,7 +64,7 @@ def quick_extract(text: str) -> tuple[str | None, int | None]:
         if not m:
             continue
         dest = m.group("dest").strip()
-        if i == 2:
+        if i == _DURATION_PATTERN_INDEX:
             duration = re.sub(r"\s+", " ", m.group("duration").strip().lower())
             days = _DURATION_TO_DAYS.get(duration)
         else:
