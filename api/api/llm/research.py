@@ -70,6 +70,26 @@ def _extract_json(raw: str) -> str:
     return raw
 
 
+def _parse_json_with_salvage(raw: str) -> dict:
+    """Try strict json.loads; on failure, fall back to json_repair which
+    handles common LLM malformations: unescaped quotes inside strings,
+    raw newlines, trailing commas, missing commas between items.
+
+    Raises json.JSONDecodeError if BOTH passes fail (json_repair returns
+    an empty dict {} on total failure — we treat that as failure too)."""
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as strict_err:
+        try:
+            from json_repair import repair_json
+        except ImportError:
+            raise strict_err
+        repaired = repair_json(raw, return_objects=True)
+        if not isinstance(repaired, dict) or not repaired:
+            raise strict_err
+        return repaired
+
+
 def get_travel_research(destination: str, trip_length: int, travel_style: str) -> dict:
     client = make_client()
     response = client.chat.completions.create(
@@ -81,7 +101,7 @@ def get_travel_research(destination: str, trip_length: int, travel_style: str) -
         ],
     )
     raw = _extract_json(response.choices[0].message.content)
-    return json.loads(raw)
+    return _parse_json_with_salvage(raw)
 
 
 def stream_travel_research(
@@ -124,7 +144,7 @@ def stream_travel_research(
 
     raw = _extract_json(accumulated)
     try:
-        parsed = json.loads(raw)
+        parsed = _parse_json_with_salvage(raw)
     except json.JSONDecodeError as e:
         yield ("error", f"Could not parse research response: {e}; len={len(accumulated)}")
         return

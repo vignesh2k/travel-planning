@@ -29,3 +29,31 @@ def test_get_travel_research_returns_document_and_places(monkeypatch) -> None:
     assert "Overview" in result["document"]
     assert len(result["places"]) == 2
     assert result["places"][0]["category"] == "neighbourhood"
+
+
+def test_parse_json_with_salvage_handles_missing_comma():
+    """gemini-flash-lite occasionally drops commas between object members."""
+    from api.llm.research import _parse_json_with_salvage
+
+    bad = '{"a": 1 "b": 2}'
+    out = _parse_json_with_salvage(bad)
+    assert out == {"a": 1, "b": 2}
+
+
+def test_parse_json_with_salvage_handles_unescaped_quote():
+    """Embedded quote inside a string value — common cause of the
+    'Expecting , delimiter' parse error."""
+    from api.llm.research import _parse_json_with_salvage
+
+    bad = '{"desc": "He said "hi" to me", "x": 1}'
+    out = _parse_json_with_salvage(bad)
+    assert out["x"] == 1
+    assert "hi" in out["desc"]
+
+
+def test_parse_json_with_salvage_strict_first():
+    """Valid JSON should not even touch json_repair."""
+    from api.llm.research import _parse_json_with_salvage
+
+    out = _parse_json_with_salvage('{"a": 1, "b": [2, 3]}')
+    assert out == {"a": 1, "b": [2, 3]}
