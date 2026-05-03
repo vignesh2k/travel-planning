@@ -30,12 +30,14 @@ export default async function Home() {
       className="relative min-h-screen overflow-hidden"
       style={{ background: "var(--color-paper-cream)" }}
     >
-      {/* Layered ornaments — graticule, wandering strokes, contour clusters. */}
+      {/* Layered ornaments — graticule, wandering strokes, contour clusters.
+          Each gets a slow, low-amplitude drift so the page breathes; three
+          different durations avoid synchronised motion. */}
       <GraticuleBg opacity={0.05} />
-      <WanderingStrokes />
-      <Contours opacity={0.1} cx={18} cy={28} count={8} seed={1} />
-      <Contours opacity={0.09} cx={88} cy={70} count={9} seed={4} />
-      <Contours opacity={0.07} cx={70} cy={20} count={6} seed={7} />
+      <WanderingStrokes className="atlas-drift-b" />
+      <Contours opacity={0.1} cx={18} cy={28} count={8} seed={1} className="atlas-drift-a" />
+      <Contours opacity={0.09} cx={88} cy={70} count={9} seed={4} className="atlas-drift-c" />
+      <Contours opacity={0.07} cx={70} cy={20} count={6} seed={7} className="atlas-drift-b" />
 
       {/* Decorative ornaments */}
       <CompassMark />
@@ -51,6 +53,7 @@ export default async function Home() {
       >
         <section className="w-full max-w-[700px] text-center">
           <div
+            className="atlas-rise atlas-rise-1"
             style={{
               fontFamily: "var(--font-mono)",
               fontSize: 10.5,
@@ -76,12 +79,14 @@ export default async function Home() {
               margin: 0,
               color: "var(--color-paper-ink)",
             }}
-            className="text-5xl sm:text-6xl md:text-8xl lg:text-[100px]"
+            className="text-5xl sm:text-6xl md:text-8xl lg:text-[100px] atlas-rise atlas-rise-2"
           >
             Where to <em style={{ fontStyle: "italic" }}>next</em>?
           </h1>
 
-          <PinInput />
+          <div className="atlas-rise atlas-rise-3">
+            <PinInput />
+          </div>
         </section>
       </div>
 

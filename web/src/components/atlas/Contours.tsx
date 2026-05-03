@@ -1,6 +1,8 @@
-/** Concentric "topographic relief" contour lines. */
+/** Concentric "topographic relief" contour lines. Optional className lets
+ *  the parent apply a slow drift animation. */
 export function Contours({
   cx, cy, count = 9, seed = 1, opacity = 0.1, color = "#1f1a14",
+  className = "",
 }: {
   cx: number;
   cy: number;
@@ -8,6 +10,7 @@ export function Contours({
   seed?: number;
   opacity?: number;
   color?: string;
+  className?: string;
 }) {
   const lines: React.ReactNode[] = [];
   for (let i = 0; i < count; i++) {
@@ -35,8 +38,8 @@ export function Contours({
       viewBox="0 0 100 100"
       preserveAspectRatio="xMidYMid slice"
       aria-hidden="true"
-      className="absolute inset-0 w-full h-full pointer-events-none"
-      style={{ opacity }}
+      className={`absolute inset-0 w-full h-full pointer-events-none ${className}`}
+      style={{ opacity, transformOrigin: `${cx}% ${cy}%` }}
     >
       {lines}
     </svg>

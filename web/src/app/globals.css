@@ -144,3 +144,60 @@ button:active:not(:disabled) {
 }
 .atlas-ripple-on > *:nth-child(2) { animation-delay: 0.15s; }
 .atlas-ripple-on > *:nth-child(3) { animation-delay: 0.3s; }
+
+/* Slow ambient drift on the background ornaments. The motion should
+   feel barely-there — the page is supposed to read like printed paper,
+   not like a liquid screensaver. Long durations + low amplitude. */
+@keyframes atlas-drift-a {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(-1%, 0.6%, 0) scale(1.025); }
+}
+@keyframes atlas-drift-b {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(0.8%, -0.5%, 0) scale(1.02); }
+}
+@keyframes atlas-drift-c {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(-0.5%, 0.4%, 0) scale(1.03); }
+}
+.atlas-drift-a { animation: atlas-drift-a 22s ease-in-out infinite; }
+.atlas-drift-b { animation: atlas-drift-b 28s ease-in-out infinite; }
+.atlas-drift-c { animation: atlas-drift-c 18s ease-in-out infinite; }
+
+/* Compass needle drifts a degree or so each way, like a real
+   magnetic compass settling. */
+@keyframes atlas-compass-needle {
+  0%, 100% { transform: rotate(-1.4deg); }
+  50%      { transform: rotate(1.4deg); }
+}
+.atlas-compass-needle {
+  transform-origin: 50% 50%;
+  animation: atlas-compass-needle 9s ease-in-out infinite;
+}
+
+/* Mount stagger — each piece fades up slightly later than the last,
+   so the hero composes itself once on load. */
+@keyframes atlas-rise {
+  from { opacity: 0; transform: translate3d(0, 8px, 0); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+.atlas-rise {
+  animation: atlas-rise 480ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+.atlas-rise-1 { animation-delay: 0ms; }
+.atlas-rise-2 { animation-delay: 90ms; }
+.atlas-rise-3 { animation-delay: 200ms; }
+.atlas-rise-4 { animation-delay: 320ms; }
+.atlas-rise-5 { animation-delay: 420ms; }
+.atlas-rise-6 { animation-delay: 540ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .atlas-drift-a,
+  .atlas-drift-b,
+  .atlas-drift-c,
+  .atlas-compass-needle,
+  .atlas-ripple-on > * {
+    animation: none !important;
+  }
+  .atlas-rise { animation-duration: 1ms; }
+}

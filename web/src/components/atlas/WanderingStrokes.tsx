@@ -1,5 +1,5 @@
 /** Three sinuous "coastline" strokes. Pure atmosphere. */
-export function WanderingStrokes() {
+export function WanderingStrokes({ className = "" }: { className?: string }) {
   const wandering = (offset: number, amp: number) => {
     const pts: string[] = [];
     for (let x = -10; x < 110; x += 4) {
@@ -16,7 +16,7 @@ export function WanderingStrokes() {
       viewBox="0 0 100 65"
       preserveAspectRatio="xMidYMid slice"
       aria-hidden="true"
-      className="absolute inset-0 w-full h-full pointer-events-none opacity-50"
+      className={`absolute inset-0 w-full h-full pointer-events-none opacity-50 ${className}`}
     >
       <path d={wandering(0, 8)} fill="none" stroke="rgba(31,26,20,0.10)" strokeWidth="0.15" />
       <path d={wandering(50, 12)} fill="none" stroke="rgba(31,26,20,0.08)" strokeWidth="0.15" />

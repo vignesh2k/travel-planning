@@ -157,7 +157,11 @@ export function PinInput() {
             type="submit"
             disabled={!canSubmit}
             aria-label="Plan trip"
-            className="shrink-0 w-[38px] h-[38px] rounded-[10px] bg-[var(--color-paper-ink)] hover:bg-[var(--color-paper-ink-2)] flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+            className="shrink-0 w-[38px] h-[38px] rounded-[10px] flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-shadow hover:shadow-md"
+            style={{
+              background:
+                "linear-gradient(135deg, var(--color-terracotta-400) 0%, var(--color-terracotta-500) 100%)",
+            }}
           >
             <ArrowUp />
           </button>
