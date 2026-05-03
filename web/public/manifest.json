@@ -1,0 +1,14 @@
+{
+  "name": "Atlas — AI Travel Planner",
+  "short_name": "Atlas",
+  "description": "Polished AI travel guides, offline-ready.",
+  "start_url": "/today",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fef9f1",
+  "theme_color": "#b45309",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
