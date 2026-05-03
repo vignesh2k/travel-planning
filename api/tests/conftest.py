@@ -31,3 +31,9 @@ def _default_no_profile(monkeypatch) -> None:
         except AttributeError:
             # Module doesn't import the helper yet (e.g., before Task 7) — fine.
             pass
+
+    for path in ("api.routes.pdf.fetch_budget_for",):
+        try:
+            monkeypatch.setattr(path, lambda _trip_id: None)
+        except AttributeError:
+            pass
