@@ -12,7 +12,7 @@ from api.models import BudgetEstimateRaw
 
 _MODEL = "google/gemini-3.1-flash-lite-preview"
 
-_PROMPT = """You estimate per-day travel budgets.
+_PROMPT = """You estimate per-day travel budgets with a category breakdown.
 
 Destination: {destination}
 Days: {days}
@@ -23,15 +23,29 @@ Return ONLY a JSON object — no prose, no markdown.
 {{
   "currency": "<ISO 4217 code for the destination, e.g. JPY for Kyoto, EUR for Lisbon>",
   "days": [
-    {{"number": 1, "estimated": <integer in destination currency>}},
+    {{
+      "number": 1,
+      "estimated": <integer in destination currency — sum of breakdown>,
+      "breakdown": [
+        {{"label": "Food",            "amount": <integer>}},
+        {{"label": "Activities",      "amount": <integer>}},
+        {{"label": "Local transport", "amount": <integer>}},
+        {{"label": "Misc",            "amount": <integer>}}
+      ]
+    }},
     ...one row per day...
   ]
 }}
 
 Rules:
 - Estimates are PER PERSON, PER DAY, and EXCLUDE flights and lodging.
-- Cover food, local transport, activities, and incidentals.
-- Round to natural increments (¥500, €5, $5).
+- The `estimated` field MUST equal the sum of the `breakdown` amounts.
+- Each day has 3 to 5 breakdown lines covering the actual day. Reasonable
+  labels: Food, Activities, Local transport, Misc, Coffee & snacks,
+  Tickets & entries, Tips & extras. Tailor labels to what the day will
+  involve — a beach day shouldn't list "Tickets & entries".
+- Round each breakdown amount to natural increments (¥500, €5, $5)
+  and ensure they sum exactly to `estimated`.
 - Reflect the budget tier in the travel_style. Cheap is shoestring,
   mid is comfortable, premium is splurge.
 - Vary days based on travel intensity (long sightseeing day > rest day).

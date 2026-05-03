@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { BudgetItemRow } from "./BudgetItemRow";
-import { combined, dayTotal, formatGbp } from "@/lib/currency";
+import { combined, dayTotal, formatGbp, formatLocal } from "@/lib/currency";
 import type { BudgetDay } from "@/lib/types";
 
 export function BudgetDayRow({
@@ -20,9 +20,12 @@ export function BudgetDayRow({
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
+  const [showBreakdown, setShowBreakdown] = useState(false);
 
   const total = dayTotal(day);
   const baseValue = day.override ?? day.estimated;
+  const breakdown = day.breakdown ?? [];
+  const hasBreakdown = breakdown.length > 0;
 
   function submitItem() {
     const value = Number(amount);
@@ -77,6 +80,50 @@ export function BudgetDayRow({
           </button>
         )}
       </div>
+
+      {hasBreakdown && (
+        <div className="flex flex-col gap-1">
+          <button
+            type="button"
+            onClick={() => setShowBreakdown((v) => !v)}
+            className="self-start text-[11px] text-ink-500 hover:text-ink-900 inline-flex items-center gap-1"
+            aria-expanded={showBreakdown}
+          >
+            <span
+              className="inline-block transition-transform"
+              style={{
+                transform: showBreakdown ? "rotate(90deg)" : "rotate(0deg)",
+              }}
+              aria-hidden="true"
+            >
+              ›
+            </span>
+            {showBreakdown ? "Hide breakdown" : "Where the estimate goes"}
+          </button>
+          {showBreakdown && (
+            <div
+              className="flex flex-col gap-0.5 pl-3 ml-1"
+              style={{ borderLeft: "1px solid rgba(168, 95, 37, 0.15)" }}
+            >
+              {breakdown.map((b, i) => (
+                <div
+                  key={`${b.label}-${i}`}
+                  className="flex items-baseline justify-between text-[11px]"
+                >
+                  <span className="text-ink-700 truncate">{b.label}</span>
+                  <span className="text-ink-500 tabular-nums shrink-0 ml-2">
+                    {formatLocal(b.amount, currency)}
+                    <span className="text-ink-300">
+                      {" · "}
+                      {formatGbp(Math.round(b.amount * gbpRate))}
+                    </span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {day.items.length > 0 && (
         <div className="flex flex-col">

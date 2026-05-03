@@ -65,6 +65,7 @@ def _persist_budget(trip_id: str, estimate: BudgetEstimateRaw) -> None:
                 "number": d.number,
                 "title": f"Day {d.number}",
                 "estimated": d.estimated,
+                "breakdown": [b.model_dump() for b in d.breakdown],
                 "override": None,
                 "items": [],
             }

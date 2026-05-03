@@ -94,6 +94,7 @@ def regenerate_budget(slug: str, user: CurrentUser) -> Budget:
             "number": ed.number,
             "title": prior.get("title", f"Day {ed.number}"),
             "estimated": ed.estimated,
+            "breakdown": [b.model_dump() for b in ed.breakdown],
             "override": prior.get("override"),
             "items": prior.get("items", []),
         })

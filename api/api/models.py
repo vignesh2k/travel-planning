@@ -211,6 +211,13 @@ class BudgetItem(BaseModel):
     amount: int = Field(..., ge=0)
 
 
+class BudgetBreakdownLine(BaseModel):
+    """LLM-generated category breakdown for a day's `estimated` total.
+    Read-only; user-added items are tracked separately in `items`."""
+    label: str = Field(..., min_length=1, max_length=60)
+    amount: int = Field(..., ge=0)
+
+
 class BudgetDayIn(BaseModel):
     override: int | None = Field(None, ge=0)
     items: list[BudgetItem] = Field(default_factory=list, max_length=20)
@@ -220,6 +227,7 @@ class BudgetDay(BudgetDayIn):
     number: int
     title: str
     estimated: int
+    breakdown: list[BudgetBreakdownLine] = Field(default_factory=list)
 
 
 class Budget(BaseModel):
@@ -234,6 +242,7 @@ class Budget(BaseModel):
 class BudgetEstimateDay(BaseModel):
     number: int
     estimated: int = Field(..., ge=0)
+    breakdown: list[BudgetBreakdownLine] = Field(default_factory=list)
 
 
 class BudgetEstimateRaw(BaseModel):

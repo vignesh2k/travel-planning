@@ -78,10 +78,16 @@ export interface BudgetItem {
   amount: number;
 }
 
+export interface BudgetBreakdownLine {
+  label: string;
+  amount: number;
+}
+
 export interface BudgetDay {
   number: number;
   title: string;
   estimated: number;
+  breakdown?: BudgetBreakdownLine[];
   override: number | null;
   items: BudgetItem[];
 }
