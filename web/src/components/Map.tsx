@@ -39,6 +39,7 @@ export function Map({
   const markersRef = useRef<MapMarker[]>([]);
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const closeTimerRef = useRef<number | undefined>(undefined);
+  const routeLabelsRef = useRef<maplibregl.Marker[]>([]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -89,6 +90,8 @@ export function Map({
 
     return () => {
       if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
+      for (const m of routeLabelsRef.current) m.remove();
+      routeLabelsRef.current = [];
       popup.remove();
       map.remove();
       mapRef.current = null;
@@ -251,6 +254,10 @@ export function Map({
           p.lat !== null && p.lng !== null,
       );
 
+      // Always clear prior start/end labels before deciding what to draw.
+      for (const m of routeLabelsRef.current) m.remove();
+      routeLabelsRef.current = [];
+
       if (points.length < 2) {
         source.setData({ type: "FeatureCollection", features: [] });
         return;
@@ -269,6 +276,27 @@ export function Map({
           },
         ],
       });
+
+      // Start/end pill labels above the first and last stops. We use
+      // marker.offset (NOT a CSS transform on the root) because MapLibre
+      // owns the root's transform for positioning — see web/AGENTS.md.
+      const ends: { point: typeof points[0]; label: string; bg: string }[] = [
+        { point: points[0], label: "Start", bg: "#16a34a" },                     // green-600
+        { point: points[points.length - 1], label: "End", bg: "#b45309" },       // amber-700
+      ];
+      for (const { point, label, bg } of ends) {
+        const el = document.createElement("div");
+        el.style.cssText =
+          `background:${bg};color:white;font-size:10px;font-weight:600;` +
+          "padding:2px 7px;border-radius:9999px;white-space:nowrap;" +
+          "box-shadow:0 1px 4px rgba(0,0,0,0.2);pointer-events:none;" +
+          "letter-spacing:0.04em;text-transform:uppercase;";
+        el.textContent = label;
+        const marker = new maplibregl.Marker({ element: el, offset: [0, -22] })
+          .setLngLat([point.lng, point.lat])
+          .addTo(map);
+        routeLabelsRef.current.push(marker);
+      }
     };
 
     if (map.isStyleLoaded() && map.getSource("atlas-route")) apply();
