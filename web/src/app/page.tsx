@@ -1,13 +1,15 @@
 import { redirect } from "next/navigation";
 
 import { ActiveTripPrecache } from "@/components/ActiveTripPrecache";
-import { BrandMark } from "@/components/BrandMark";
-import { ChatInputClient } from "@/components/ChatInputClient";
-import { ProfileBanner } from "@/components/ProfileBanner";
-import { TodayBanner } from "@/components/TodayBanner";
-import { TripsList } from "@/components/TripsList";
-import { UserMenu } from "@/components/UserMenu";
-import { getProfile, listTrips } from "@/lib/api";
+import { AtlasNav } from "@/components/atlas/AtlasNav";
+import { CompassMark } from "@/components/atlas/CompassMark";
+import { Contours } from "@/components/atlas/Contours";
+import { GraticuleBg } from "@/components/atlas/GraticuleBg";
+import { Logbook } from "@/components/atlas/Logbook";
+import { PinInput } from "@/components/atlas/PinInput";
+import { SideRail } from "@/components/atlas/SideRail";
+import { WanderingStrokes } from "@/components/atlas/WanderingStrokes";
+import { listTrips } from "@/lib/api";
 import { findActiveTrip } from "@/lib/active-trip";
 import { getServerToken } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -18,39 +20,72 @@ export default async function Home() {
   if (!user) redirect("/auth/signin");
 
   const token = await getServerToken();
-  const [trips, profile] = token
-    ? await Promise.all([
-        listTrips(token).catch(() => []),
-        getProfile(token).catch(() => null),
-      ])
-    : [[], null];
-
+  const trips = token ? await listTrips(token).catch(() => []) : [];
   const active = findActiveTrip(trips);
 
   return (
-    <main className="min-h-screen flex flex-col">
-      <header className="px-6 py-4 flex items-center justify-between">
-        <BrandMark />
-        <UserMenu email={user.email ?? ""} />
-      </header>
+    <main
+      className="relative min-h-screen overflow-hidden"
+      style={{ background: "var(--color-paper-cream)" }}
+    >
+      {/* Layered ornaments — graticule, wandering strokes, contour clusters. */}
+      <GraticuleBg opacity={0.05} />
+      <WanderingStrokes />
+      <Contours opacity={0.1} cx={18} cy={28} count={8} seed={1} />
+      <Contours opacity={0.09} cx={88} cy={70} count={9} seed={4} />
+      <Contours opacity={0.07} cx={70} cy={20} count={6} seed={7} />
 
-      <section className="flex-1 flex flex-col items-center justify-center gap-6 px-6 pb-12 anim-fade-in">
-        <h1 className="font-display text-4xl md:text-5xl font-semibold tracking-tight text-ink-900 text-center">
-          Where to next?
+      {/* Decorative ornaments */}
+      <CompassMark />
+      <SideRail />
+
+      {/* Top nav */}
+      <AtlasNav email={user.email ?? ""} />
+
+      {/* Centered hero */}
+      <section
+        className="absolute left-1/2 -translate-x-1/2 text-center w-full px-6 md:w-[700px] md:px-0"
+        style={{ top: "50%", transform: "translate(-50%, -50%)" }}
+      >
+        <div
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: 10.5,
+            letterSpacing: "0.22em",
+            textTransform: "uppercase",
+            color: active
+              ? "var(--color-terracotta-500)"
+              : "var(--color-paper-ink-3)",
+            marginBottom: 22,
+          }}
+        >
+          {active
+            ? `✦   Today · Day ${active.dayNumber} of ${active.totalDays} · ${active.trip.destination}   ✦`
+            : "✦   Drop a pin anywhere   ✦"}
+        </div>
+
+        <h1
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontWeight: 400,
+            letterSpacing: "-0.03em",
+            lineHeight: 0.92,
+            margin: 0,
+            color: "var(--color-paper-ink)",
+          }}
+          className="text-5xl sm:text-6xl md:text-8xl lg:text-[100px]"
+        >
+          Where to <em style={{ fontStyle: "italic" }}>next</em>?
         </h1>
-        <p className="text-ink-500 max-w-md text-center">
-          Tell me about your trip in plain English — destination, days, what you love.
-        </p>
-        {active && (
-          <>
-            <TodayBanner active={active} />
-            <ActiveTripPrecache slug={active.trip.slug} />
-          </>
-        )}
-        {profile === null && <ProfileBanner />}
-        <ChatInputClient hasProfile={profile !== null} />
-        <TripsList trips={trips} />
+
+        <PinInput />
       </section>
+
+      {/* Bottom logbook strip */}
+      <Logbook trips={trips} />
+
+      {/* When an active trip exists, kick the SW pre-cache. */}
+      {active && <ActiveTripPrecache slug={active.trip.slug} />}
     </main>
   );
 }

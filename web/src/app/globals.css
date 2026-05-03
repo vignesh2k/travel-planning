@@ -15,12 +15,26 @@
   --color-sage-500: #3a8a5a;
   --color-rose-500: #c44a44;
 
+  /* Atlas-as-map palette (landing page). Warmer/desaturated than the
+     base cream/amber. Keep these distinct so legacy components don't
+     shift. */
+  --color-paper-cream: #f6efe2;
+  --color-paper-cream-2: #efe6d3;
+  --color-paper-ink: #1f1a14;
+  --color-paper-ink-2: #3b332a;
+  --color-paper-ink-3: #6b5f51;
+  --color-paper-ink-4: #9a8d7c;
+  --color-terracotta-500: #c96442;
+  --color-terracotta-400: #e08566;
+
   --radius-panel: 18px;
   --radius-card: 14px;
   --radius-btn: 10px;
 
   --font-display: "SF Pro Display", Inter, system-ui, sans-serif;
   --font-sans: Inter, system-ui, sans-serif;
+  --font-serif: "Instrument Serif", "Times New Roman", Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
 
   --background-image-cream-gradient: linear-gradient(180deg, #faf6f0 0%, #f3ebdf 100%);
 }
@@ -119,3 +133,14 @@ button:active:not(:disabled) {
     border: 1px solid color-mix(in srgb, #e8a85c 20%, transparent);
   }
 }
+
+/* Atlas-as-map landing — pin-input ripple breathing while focused. */
+@keyframes atlas-ripple {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.04); opacity: 0.85; }
+}
+.atlas-ripple-on > * {
+  animation: atlas-ripple 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+.atlas-ripple-on > *:nth-child(2) { animation-delay: 0.15s; }
+.atlas-ripple-on > *:nth-child(3) { animation-delay: 0.3s; }
