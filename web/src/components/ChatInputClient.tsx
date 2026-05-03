@@ -17,6 +17,9 @@ export function ChatInputClient({ hasProfile = false }: { hasProfile?: boolean }
   const [status, setStatus] = useState("");
   const [chars, setChars] = useState(0);
   const [places, setPlaces] = useState<Place[]>([]);
+  const [startDate, setStartDate] = useState<string | null>(null);
+  const [airportEntry, setAirportEntry] = useState<string | null>(null);
+  const [airportExit, setAirportExit] = useState<string | null>(null);
 
   const placeholder = hasProfile
     ? "Where to next? E.g. 7 days in Kyoto, mid-October"
@@ -29,6 +32,12 @@ export function ChatInputClient({ hasProfile = false }: { hasProfile?: boolean }
         setText={setText}
         pending={pending}
         placeholder={placeholder}
+        startDate={startDate}
+        setStartDate={setStartDate}
+        airportEntry={airportEntry}
+        setAirportEntry={setAirportEntry}
+        airportExit={airportExit}
+        setAirportExit={setAirportExit}
         onSubmit={async (brief) => {
           setPending(true);
           setStatus("Sending your brief…");
