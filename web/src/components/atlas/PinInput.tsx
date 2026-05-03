@@ -256,6 +256,8 @@ function ContextPill({
               borderColor: "rgba(201,100,66,0.35)",
               color: "var(--color-terracotta-500)",
               backdropFilter: "blur(4px)",
+              fontSize: 12.5,
+              lineHeight: 1,
             }
           : {
               padding: "6px 12px 6px 10px",
@@ -263,10 +265,12 @@ function ContextPill({
               borderColor: "rgba(31,26,20,0.06)",
               color: "var(--color-paper-ink-2)",
               backdropFilter: "blur(4px)",
+              fontSize: 12.5,
+              lineHeight: 1,
             }
       }
     >
-      <span style={{ fontSize: 12.5 }}>{children}</span>
+      {children}
     </button>
   );
 }
