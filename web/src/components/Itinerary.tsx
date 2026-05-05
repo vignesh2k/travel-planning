@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { combined } from "@/lib/currency";
 import {
@@ -8,7 +8,7 @@ import {
   removeItineraryItem,
   updateItineraryItem,
 } from "@/lib/itinerary-editing";
-import { activityId, nextPlanningStatus, setActivityStatus } from "@/lib/planning-status";
+import { activityId, PLANNING_STATUSES, setActivityStatus, STATUS_META } from "@/lib/planning-status";
 import { placeForText, placesForDay } from "@/lib/trip-insights";
 import type {
   Budget,
@@ -237,9 +237,6 @@ export function Itinerary({
                 const selected = place?.name === selectedPlaceName;
                 const id = activityId(active.number, b.time, i);
                 const status = planning?.statuses[id];
-                const cycleStatus = () => {
-                  onDocumentChange(setActivityStatus(tripDocument, id, nextPlanningStatus(status)));
-                };
                 return (
                   <li
                     key={`${b.time}-${i}`}
@@ -251,7 +248,9 @@ export function Itinerary({
                         place={place}
                         status={status}
                         onFocusPlaces={onFocusPlaces}
-                        onCycleStatus={cycleStatus}
+                        onStatusChange={(nextStatus) => {
+                          onDocumentChange(setActivityStatus(tripDocument, id, nextStatus));
+                        }}
                         onChange={(value) => {
                           onDocumentChange(updateItineraryItem(tripDocument, active.number, b.time, i, value));
                         }}
@@ -366,7 +365,7 @@ function ActivityEditorRow({
   place,
   status,
   onFocusPlaces,
-  onCycleStatus,
+  onStatusChange,
   onChange,
   onCommit,
   onRemove,
@@ -375,7 +374,7 @@ function ActivityEditorRow({
   place: Place | null;
   status?: PlanningStatusValue;
   onFocusPlaces: (places: Place[] | null) => void;
-  onCycleStatus: () => void;
+  onStatusChange: (status: PlanningStatusValue) => void;
   onChange: (value: string) => void;
   onCommit: (value: string) => void;
   onRemove: () => void;
@@ -403,7 +402,7 @@ function ActivityEditorRow({
         />
       </div>
       <div className="flex items-center gap-1.5 pl-6">
-        <StatusChip value={status ?? "idea"} onClick={onCycleStatus} compact />
+        <StatusPicker value={status ?? "idea"} onChange={onStatusChange} />
         <button
           type="button"
           onClick={onRemove}
@@ -411,6 +410,96 @@ function ActivityEditorRow({
         >
           Remove
         </button>
+      </div>
+    </div>
+  );
+}
+
+function StatusPicker({
+  value,
+  onChange,
+}: {
+  value: PlanningStatusValue;
+  onChange: (status: PlanningStatusValue) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const current = STATUS_META[value];
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(event: PointerEvent) {
+      if (!menuRef.current?.contains(event.target as Node)) setOpen(false);
+    }
+    window.addEventListener("pointerdown", onPointerDown);
+    return () => window.removeEventListener("pointerdown", onPointerDown);
+  }, [open]);
+
+  return (
+    <div ref={menuRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex h-6 items-center gap-1.5 rounded-full border border-amber-700/10 bg-white/85 px-2 text-[10px] font-medium text-ink-700 shadow-sm hover:bg-white"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        title="Set activity status"
+      >
+        <span className="text-ink-400">Status</span>
+        <span className="font-semibold text-ink-900">{current.label}</span>
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 10 10"
+          aria-hidden
+          className={open ? "rotate-180 transition-transform duration-150" : "transition-transform duration-150"}
+        >
+          <path d="M2.2 3.7 5 6.3l2.8-2.6" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+
+      <div
+        className={
+          open
+            ? "absolute left-0 bottom-8 z-30 w-36 origin-bottom-left scale-100 opacity-100 transition-all duration-150 ease-out"
+            : "pointer-events-none absolute left-0 bottom-8 z-30 w-36 origin-bottom-left scale-95 opacity-0 transition-all duration-100 ease-in"
+        }
+      >
+        <div className="overflow-hidden rounded-[12px] border border-amber-700/10 bg-white shadow-lg ring-1 ring-ink-900/5">
+          <div className="px-2 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-ink-400">
+            Status
+          </div>
+          <div role="listbox" aria-label="Activity status" className="pb-1">
+            {PLANNING_STATUSES.map((option) => {
+              const meta = STATUS_META[option];
+              const selected = option === value;
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  role="option"
+                  aria-selected={selected}
+                  onClick={() => {
+                    onChange(option);
+                    setOpen(false);
+                  }}
+                  className={
+                    selected
+                      ? "flex w-full items-center justify-between gap-2 bg-amber-50 px-2.5 py-1.5 text-left text-[11px] font-semibold text-ink-900"
+                      : "flex w-full items-center justify-between gap-2 px-2.5 py-1.5 text-left text-[11px] text-ink-700 hover:bg-amber-50/70"
+                  }
+                >
+                  <span>{meta.label}</span>
+                  {selected && (
+                    <svg width="11" height="11" viewBox="0 0 11 11" aria-hidden className="text-amber-700">
+                      <path d="m2.2 5.7 2 2 4.6-4.9" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   );
