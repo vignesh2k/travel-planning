@@ -57,46 +57,47 @@ export function SaveTripButton({
     }
   }
 
-  if (saved && !hasUnsavedChanges) {
-    return (
-      <span
-        className="frosted rounded-[10px] px-3 py-1 text-xs text-ink-500 flex items-center gap-1.5 cursor-default"
-        title="In your Logbook"
-      >
-        <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_2px_rgba(16,185,129,0.14)]" aria-hidden />
-        <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden className="text-amber-600">
-          <path d="M2.5 6.2 5 8.7l4.5-5" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        Saved
-      </span>
-    );
-  }
-
   const isSaving = phase === "saving" || savingChanges;
   const isError = phase === "error";
+  const disabled = isSaving || (saved && !hasUnsavedChanges);
+  const label = isError ? "Retry save" : saved && hasUnsavedChanges ? "Save changes" : "Save";
 
   return (
-    <button
-      onClick={save}
-      disabled={isSaving || (saved && !hasUnsavedChanges)}
-      className="rounded-[10px] bg-gradient-to-br from-amber-400 to-amber-600 text-white text-xs px-3 py-1 font-medium shadow-sm hover:shadow-md disabled:opacity-60 flex items-center gap-1.5"
-      title={isError ? "Couldn't save — try again" : saved ? "Save itinerary changes" : "Save to Logbook"}
-    >
-      {isSaving ? (
-        <>
-          <span className="w-3 h-3 rounded-full border-2 border-white/60 border-t-transparent animate-spin" aria-hidden />
-          Saving…
-        </>
-      ) : (
-        <>
-          <span className="h-2 w-2 rounded-full bg-orange-300 shadow-[0_0_0_2px_rgba(251,146,60,0.24)]" aria-hidden />
-          <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden>
-            <path d="M3 1.5h6l1.5 1.5v7.5h-9v-9z" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinejoin="round" />
-            <path d="M4.5 1.5v3h3v-3" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinejoin="round" />
-          </svg>
-          {isError ? "Retry save" : saved ? "Save changes" : "Save"}
-        </>
-      )}
-    </button>
+    <div className="flex items-center gap-1.5">
+      <span
+        className={
+          saved
+            ? "rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-semibold text-emerald-700"
+            : "rounded-full bg-orange-50 border border-orange-200 px-2 py-0.5 text-[10px] font-semibold text-orange-700"
+        }
+      >
+        {saved ? "Saved" : "Draft"}
+      </span>
+      <button
+        onClick={save}
+        disabled={disabled}
+        className={
+          disabled
+            ? "rounded-[10px] bg-white/65 border border-amber-700/10 text-ink-400 text-xs px-3 py-1 font-medium flex items-center gap-1.5 cursor-default"
+            : "rounded-[10px] bg-gradient-to-br from-amber-400 to-amber-600 text-white text-xs px-3 py-1 font-medium shadow-sm hover:shadow-md flex items-center gap-1.5"
+        }
+        title={isError ? "Couldn't save — try again" : saved ? "Save itinerary changes" : "Save to Logbook"}
+      >
+        {isSaving ? (
+          <>
+            <span className="w-3 h-3 rounded-full border-2 border-current/60 border-t-transparent animate-spin" aria-hidden />
+            Saving…
+          </>
+        ) : (
+          <>
+            <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden>
+              <path d="M3 1.5h6l1.5 1.5v7.5h-9v-9z" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinejoin="round" />
+              <path d="M4.5 1.5v3h3v-3" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinejoin="round" />
+            </svg>
+            {label}
+          </>
+        )}
+      </button>
+    </div>
   );
 }
