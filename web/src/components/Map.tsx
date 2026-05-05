@@ -31,9 +31,13 @@ interface MapMarker {
 export function Map({
   places,
   focusPlaces,
+  selectedPlaceName,
+  onPlaceClick,
 }: {
   places: Place[];
   focusPlaces?: Place[] | null;
+  selectedPlaceName?: string | null;
+  onPlaceClick?: (place: Place) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -186,13 +190,17 @@ export function Map({
         dot.style.background = CATEGORY_COLOR[p.category];
         dot.style.border = "2px solid #fff";
         dot.style.boxSizing = "border-box";
-        dot.style.boxShadow = "0 2px 4px rgba(0,0,0,0.2)";
+        dot.style.boxShadow = p.name === selectedPlaceName
+          ? "0 0 0 5px rgba(201,100,66,0.20), 0 4px 12px rgba(0,0,0,0.30)"
+          : "0 2px 4px rgba(0,0,0,0.2)";
+        dot.style.transform = p.name === selectedPlaceName ? "scale(1.35)" : "scale(1)";
         dot.style.transition = "transform 120ms ease, box-shadow 120ms ease";
         dot.style.transformOrigin = "center";
         root.appendChild(dot);
 
         root.addEventListener("mouseenter", () => showFor(p, dot));
         root.addEventListener("mouseleave", scheduleClose);
+        root.addEventListener("click", () => onPlaceClick?.(p));
 
         const marker = new maplibregl.Marker({ element: root })
           .setLngLat([p.lng, p.lat])
@@ -211,7 +219,7 @@ export function Map({
     if (map.isStyleLoaded()) apply();
     else map.once("load", apply);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [places]);
+  }, [places, selectedPlaceName, onPlaceClick]);
 
   // Refit when focusPlaces changes.
   useEffect(() => {
@@ -283,20 +291,17 @@ export function Map({
       };
       source.setData(straight);
 
-      // Start/end pill labels above the first and last stops. marker.offset
+      // Stop labels above each focused stop. marker.offset
       // (NOT a CSS transform on the root) — see web/AGENTS.md.
-      const ends: { point: typeof points[0]; label: string; bg: string }[] = [
-        { point: points[0], label: "Start", bg: "#16a34a" },               // green-600
-        { point: points[points.length - 1], label: "End", bg: "#b45309" }, // amber-700
-      ];
-      for (const { point, label, bg } of ends) {
+      for (const [i, point] of points.entries()) {
         const el = document.createElement("div");
+        const isEnd = i === points.length - 1;
         el.style.cssText =
-          `background:${bg};color:white;font-size:10px;font-weight:600;` +
-          "padding:2px 7px;border-radius:9999px;white-space:nowrap;" +
+          `background:${isEnd ? "#b45309" : "#16a34a"};color:white;font-size:10px;font-weight:700;` +
+          "min-width:18px;height:18px;padding:0 5px;border-radius:9999px;display:flex;align-items:center;justify-content:center;white-space:nowrap;" +
           "box-shadow:0 1px 4px rgba(0,0,0,0.2);pointer-events:none;" +
-          "letter-spacing:0.04em;text-transform:uppercase;";
-        el.textContent = label;
+          "letter-spacing:0.02em;";
+        el.textContent = `${i + 1}`;
         const marker = new maplibregl.Marker({ element: el, offset: [0, -22] })
           .setLngLat([point.lng, point.lat])
           .addTo(map);

@@ -17,6 +17,17 @@ const SUGGESTIONS: { coord: string; label: string; prompt: string }[] = [
   { coord: "64.1° N", label: "Reykjavík, in winter", prompt: "5 days in Reykjavík, in winter" },
 ];
 
+const BRIEF_CHIPS: { label: string; fragment: string }[] = [
+  { label: "Long weekend", fragment: "long weekend" },
+  { label: "Food-heavy", fragment: "food-heavy" },
+  { label: "No car", fragment: "no car" },
+  { label: "Photography", fragment: "photography focus" },
+  { label: "Budget aware", fragment: "budget-aware" },
+  { label: "With parents", fragment: "travelling with parents" },
+];
+
+const OUTPUT_PROOF = ["Map", "Stay", "Money", "Guide"] as const;
+
 function formatShortDate(iso: string): string {
   const d = new Date(`${iso}T00:00:00`);
   return d.toLocaleDateString("en-GB", {
@@ -41,6 +52,15 @@ export function PinInput() {
   const [airportExit, setAirportExit] = useState<string | null>(null);
 
   const canSubmit = text.trim().length >= 3 && !pending;
+
+  function appendFragment(fragment: string) {
+    setText((prev) => {
+      const trimmed = prev.trim();
+      if (!trimmed) return fragment;
+      if (trimmed.toLowerCase().includes(fragment.toLowerCase())) return trimmed;
+      return `${trimmed}, ${fragment}`;
+    });
+  }
 
   async function submit() {
     if (!canSubmit) return;
@@ -186,10 +206,35 @@ export function PinInput() {
         />
       </div>
 
+      <div
+        className="flex flex-wrap justify-center"
+        style={{ marginTop: 12, gap: 8 }}
+      >
+        {BRIEF_CHIPS.map((chip) => (
+          <button
+            key={chip.label}
+            type="button"
+            disabled={pending}
+            onClick={() => appendFragment(chip.fragment)}
+            className="atlas-pill inline-flex items-center rounded-full border disabled:opacity-50"
+            style={{
+              padding: "5px 10px",
+              background: "rgba(246,239,226,0.72)",
+              borderColor: "rgba(31,26,20,0.07)",
+              color: "var(--color-paper-ink-2)",
+              fontSize: 11.5,
+              backdropFilter: "blur(4px)",
+            }}
+          >
+            {chip.label}
+          </button>
+        ))}
+      </div>
+
       {/* Suggestion chips */}
       <div
         className="flex flex-wrap justify-center"
-        style={{ marginTop: 18, gap: 10 }}
+        style={{ marginTop: 14, gap: 10 }}
       >
         {SUGGESTIONS.map((s) => (
           <button
@@ -221,6 +266,29 @@ export function PinInput() {
               {s.label}
             </span>
           </button>
+        ))}
+      </div>
+
+      <div
+        className="mx-auto flex w-fit items-center gap-2 rounded-full border"
+        style={{
+          marginTop: 18,
+          padding: "6px 9px",
+          background: "rgba(255,255,255,0.45)",
+          borderColor: "rgba(31,26,20,0.06)",
+          color: "var(--color-paper-ink-3)",
+          fontFamily: "var(--font-mono)",
+          fontSize: 9.5,
+          letterSpacing: "0.12em",
+          textTransform: "uppercase",
+          backdropFilter: "blur(4px)",
+        }}
+      >
+        {OUTPUT_PROOF.map((item, index) => (
+          <span key={item} className="inline-flex items-center gap-2">
+            {index > 0 && <span aria-hidden style={{ color: "var(--color-paper-ink-4)" }}>·</span>}
+            {item}
+          </span>
         ))}
       </div>
 

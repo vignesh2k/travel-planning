@@ -27,10 +27,12 @@ export function PdfExportMenu({
   slug,
   destination,
   days,
+  prominent = false,
 }: {
   slug: string;
   destination: string;
   days: number;
+  prominent?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [phase, setPhase] = useState<Phase>("menu");
@@ -171,9 +173,13 @@ export function PdfExportMenu({
             setOpen((v) => !v);
           }
         }}
-        className="frosted rounded-[10px] px-3 py-1 text-xs hover:bg-white/85 flex items-center gap-1"
+        className={
+          prominent
+            ? "rounded-[10px] bg-white/85 border border-amber-700/12 px-3 py-1.5 text-xs font-semibold text-ink-900 hover:bg-white flex items-center gap-1"
+            : "frosted rounded-[10px] px-3 py-1 text-xs hover:bg-white/85 flex items-center gap-1"
+        }
       >
-        Export PDF
+        Guide PDF
         <span className="text-[9px] text-ink-500">▾</span>
       </button>
 

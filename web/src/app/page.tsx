@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 
 import { ActiveTripPrecache } from "@/components/ActiveTripPrecache";
 import { AtlasNav } from "@/components/atlas/AtlasNav";
@@ -77,9 +78,34 @@ export default async function Home() {
 
           <WhereToTitle />
 
+          <p
+            className="atlas-rise atlas-rise-2 mx-auto mt-5 max-w-[560px] text-[14px] leading-6"
+            style={{ color: "var(--color-paper-ink-3)" }}
+          >
+            Start with a sentence. Leave with something you can actually
+            travel with.
+          </p>
+
           <div className="atlas-rise atlas-rise-3">
             <PinInput />
           </div>
+
+          {active && (
+            <div className="atlas-rise atlas-rise-3 mt-5 flex justify-center">
+              <Link
+                href={`/trip/${active.trip.slug}?day=${active.dayNumber}`}
+                className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold transition-shadow hover:shadow-md"
+                style={{
+                  background: "rgba(31,26,20,0.92)",
+                  color: "white",
+                  borderColor: "rgba(31,26,20,0.12)",
+                }}
+              >
+                Continue today
+                <span aria-hidden>→</span>
+              </Link>
+            </div>
+          )}
         </section>
       </div>
 

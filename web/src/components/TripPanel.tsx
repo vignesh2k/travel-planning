@@ -10,15 +10,17 @@ import { BudgetTab } from "./BudgetTab";
 import { HotelCard } from "./HotelCard";
 import { Itinerary } from "./Itinerary";
 import { TripPanelTabs, type Tab } from "./TripPanelTabs";
+import { TripSummaryHeader } from "./TripSummaryHeader";
 
-const FULL_TABS: readonly Tab[] = ["Itinerary", "Where to stay", "Budget"] as const;
-const READONLY_TABS: readonly Tab[] = ["Itinerary", "Where to stay"] as const;
+const FULL_TABS: readonly Tab[] = ["Plan", "Stay", "Money"] as const;
+const READONLY_TABS: readonly Tab[] = ["Plan", "Stay"] as const;
 
 export function TripPanel({
   trip,
   budget,
   readOnly = false,
   initialDay,
+  selectedPlaceName,
   onFocusPlaces,
   onRefinePrefill,
 }: {
@@ -26,10 +28,11 @@ export function TripPanel({
   budget: Budget | null;
   readOnly?: boolean;
   initialDay?: number;
+  selectedPlaceName?: string | null;
   onFocusPlaces: (places: Place[] | null) => void;
   onRefinePrefill: (text: string) => void;
 }) {
-  const [tab, setTab] = useState<Tab>("Itinerary");
+  const [tab, setTab] = useState<Tab>("Plan");
   const days = trip.document.itinerary;
   const restaurants = trip.document.restaurants;
   const [neighborhoods, setNeighborhoods] = useState<Neighborhood[]>(trip.document.neighborhoods ?? []);
@@ -55,12 +58,22 @@ export function TripPanel({
         tabs={readOnly ? READONLY_TABS : FULL_TABS}
         onChange={(t) => {
           setTab(t);
-          if (t === "Where to stay") loadHotels();
-          if (t !== "Itinerary") onFocusPlaces(null);
+          if (t === "Stay") loadHotels();
+          if (t !== "Plan") onFocusPlaces(null);
         }}
       />
       <div className="flex-1 p-3 overflow-auto flex flex-col gap-2">
-        {tab === "Itinerary" && (
+        <TripSummaryHeader
+          trip={trip}
+          budget={budget}
+          readOnly={readOnly}
+          onFocusPlaces={onFocusPlaces}
+          onOpenMoney={() => {
+            if (!readOnly) setTab("Money");
+          }}
+        />
+
+        {tab === "Plan" && (
           <Itinerary
             days={days}
             places={trip.document.places}
@@ -68,10 +81,11 @@ export function TripPanel({
             destination={trip.destination}
             budget={budget}
             initialDay={initialDay}
+            selectedPlaceName={selectedPlaceName}
             onFocusPlaces={onFocusPlaces}
             onRefinePrefill={onRefinePrefill}
             onOpenBudgetDay={(n) => {
-              setTab("Budget");
+              setTab("Money");
               // After tab swap, scroll the matching row into view.
               setTimeout(() => {
                 document
@@ -82,13 +96,13 @@ export function TripPanel({
           />
         )}
 
-        {tab === "Budget" && !readOnly && (
+        {tab === "Money" && !readOnly && (
           <BudgetTab slug={trip.slug} initial={budget} />
         )}
 
-        {tab === "Where to stay" && (
+        {tab === "Stay" && (
           <>
-            {hotelsLoading && <p className="text-xs text-ink-500">Picking neighbourhoods…</p>}
+            {hotelsLoading && <StaySkeleton />}
             {neighborhoods.map((n) => (
               <div key={n.label} className="flex flex-col gap-2">
                 <div className="flex items-start gap-2">
@@ -103,9 +117,29 @@ export function TripPanel({
                 ))}
               </div>
             ))}
+            {!hotelsLoading && neighborhoods.length === 0 && (
+              <div className="frosted rounded-[14px] p-4 text-xs text-ink-600 leading-5">
+                Open this tab after saving to let Atlas pick neighbourhoods and
+                hotel anchors for the trip.
+              </div>
+            )}
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+function StaySkeleton() {
+  return (
+    <div className="flex flex-col gap-2">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="frosted rounded-[14px] p-3 flex flex-col gap-2">
+          <div className="h-3 w-28 rounded-full bg-amber-700/10 animate-pulse" />
+          <div className="h-2.5 w-full rounded-full bg-amber-700/10 animate-pulse" />
+          <div className="h-2.5 w-2/3 rounded-full bg-amber-700/10 animate-pulse" />
+        </div>
+      ))}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 
 import { BrandMark } from "@/components/BrandMark";
@@ -36,8 +36,10 @@ export function TripView({
   initialDay?: number;
 }) {
   const [trip, setTrip] = useState(initial);
+  const [saved, setSaved] = useState(initial.is_saved);
   const isMobile = useIsMobile();
   const [focusPlaces, setFocusPlaces] = useState<Place[] | null>(null);
+  const [selectedPlaceName, setSelectedPlaceName] = useState<string | null>(null);
   const [refinePrefill, setRefinePrefill] = useState<string | undefined>(undefined);
   const [refinePrefillKey, setRefinePrefillKey] = useState(0);
 
@@ -46,10 +48,25 @@ export function TripView({
     setRefinePrefillKey((n) => n + 1);
   }
 
+  const focusOnMap = useCallback((places: Place[] | null) => {
+    setFocusPlaces(places);
+    if (places?.length === 1) setSelectedPlaceName(places[0].name);
+  }, []);
+
+  const handlePlaceClick = useCallback((place: Place) => {
+    setSelectedPlaceName(place.name);
+    setFocusPlaces([place]);
+  }, []);
+
   return (
     <main className="relative h-dvh w-screen overflow-hidden">
       <div className="absolute inset-0 anim-fade-in">
-        <Map places={trip.document.places} focusPlaces={focusPlaces} />
+        <Map
+          places={trip.document.places}
+          focusPlaces={focusPlaces}
+          selectedPlaceName={selectedPlaceName}
+          onPlaceClick={handlePlaceClick}
+        />
       </div>
 
       <header className="absolute top-0 inset-x-0 px-6 py-3 flex items-center justify-between backdrop-blur-md bg-cream-50/40 z-10 anim-slide-up">
@@ -75,9 +92,16 @@ export function TripView({
           <TripDateEdit slug={trip.slug} initial={trip.start_date} />
         </div>
         <div className="flex gap-2 items-center">
-          <ShareMenu slug={trip.slug} initialToken={trip.share_token} />
-          <SaveTripButton slug={trip.slug} initialSaved={trip.is_saved} />
-          <PdfExportMenu slug={trip.slug} destination={trip.destination} days={trip.days} />
+          {!saved && (
+            <SaveTripButton
+              slug={trip.slug}
+              initialSaved={saved}
+              onSaved={() => setSaved(true)}
+            />
+          )}
+          <ShareMenu slug={trip.slug} initialToken={trip.share_token} prominent={saved} />
+          {saved && <PdfExportMenu slug={trip.slug} destination={trip.destination} days={trip.days} prominent />}
+          {!saved && <PdfExportMenu slug={trip.slug} destination={trip.destination} days={trip.days} />}
         </div>
       </header>
 
@@ -88,7 +112,8 @@ export function TripView({
               trip={trip}
               budget={budget}
               initialDay={initialDay}
-              onFocusPlaces={setFocusPlaces}
+              selectedPlaceName={selectedPlaceName}
+              onFocusPlaces={focusOnMap}
               onRefinePrefill={pushRefinePrefill}
             />
           </div>
@@ -110,7 +135,8 @@ export function TripView({
               <TripPanel
                 trip={trip}
                 budget={budget}
-                onFocusPlaces={setFocusPlaces}
+                selectedPlaceName={selectedPlaceName}
+                onFocusPlaces={focusOnMap}
                 onRefinePrefill={pushRefinePrefill}
               />
             </div>

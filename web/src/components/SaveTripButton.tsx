@@ -8,10 +8,11 @@ import { getBrowserToken } from "@/lib/auth.browser";
 type Phase = "unsaved" | "saving" | "saved" | "error";
 
 export function SaveTripButton({
-  slug, initialSaved,
+  slug, initialSaved, onSaved,
 }: {
   slug: string;
   initialSaved: boolean;
+  onSaved?: () => void;
 }) {
   const [phase, setPhase] = useState<Phase>(initialSaved ? "saved" : "unsaved");
 
@@ -23,6 +24,7 @@ export function SaveTripButton({
       if (!token) { setPhase("error"); return; }
       await saveTrip(slug, token);
       setPhase("saved");
+      onSaved?.();
     } catch (e) {
       console.error("saveTrip failed", e);
       setPhase("error");

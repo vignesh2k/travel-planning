@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { Map } from "@/components/Map";
 import { MobileSheet } from "@/components/MobileSheet";
@@ -23,11 +23,27 @@ function useIsMobile(): boolean | null {
 export function PublicView({ trip }: { trip: PublicTrip }) {
   const isMobile = useIsMobile();
   const [focusPlaces, setFocusPlaces] = useState<Place[] | null>(null);
+  const [selectedPlaceName, setSelectedPlaceName] = useState<string | null>(null);
+
+  const focusOnMap = useCallback((places: Place[] | null) => {
+    setFocusPlaces(places);
+    if (places?.length === 1) setSelectedPlaceName(places[0].name);
+  }, []);
+
+  const handlePlaceClick = useCallback((place: Place) => {
+    setSelectedPlaceName(place.name);
+    setFocusPlaces([place]);
+  }, []);
 
   return (
     <PublicShell title={trip.destination} subtitle={`${trip.days} days`}>
       <div className="absolute inset-0 anim-fade-in">
-        <Map places={trip.document.places} focusPlaces={focusPlaces} />
+        <Map
+          places={trip.document.places}
+          focusPlaces={focusPlaces}
+          selectedPlaceName={selectedPlaceName}
+          onPlaceClick={handlePlaceClick}
+        />
       </div>
 
       {isMobile === false && (
@@ -37,7 +53,8 @@ export function PublicView({ trip }: { trip: PublicTrip }) {
               trip={trip}
               budget={null}
               readOnly
-              onFocusPlaces={setFocusPlaces}
+              selectedPlaceName={selectedPlaceName}
+              onFocusPlaces={focusOnMap}
               onRefinePrefill={() => {}}
             />
           </div>
@@ -55,7 +72,8 @@ export function PublicView({ trip }: { trip: PublicTrip }) {
                 trip={trip}
                 budget={null}
                 readOnly
-                onFocusPlaces={setFocusPlaces}
+                selectedPlaceName={selectedPlaceName}
+                onFocusPlaces={focusOnMap}
                 onRefinePrefill={() => {}}
               />
             </div>

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { combined } from "@/lib/currency";
+import { placeForText, placesForDay } from "@/lib/trip-insights";
 import type { Budget, ItineraryDay, Place } from "@/lib/types";
 
 const TIME_META: Record<ItineraryDay["bullets"][number]["time"], { icon: string; tint: string }> = {
@@ -10,36 +11,6 @@ const TIME_META: Record<ItineraryDay["bullets"][number]["time"], { icon: string;
   Afternoon: { icon: "🌤️", tint: "text-amber-700" },
   Evening:   { icon: "🌙", tint: "text-ink-700"   },
 };
-
-/** Substring-match a bullet to any place. Picks the longest place-name token
- *  that appears in the bullet, ignoring the trailing ", City, Country" suffix. */
-function findPlaceForBullet(bullet: string, places: Place[]): Place | null {
-  const lower = bullet.toLowerCase();
-  let best: { p: Place; len: number } | null = null;
-  for (const p of places) {
-    const head = p.name.split(",")[0]?.trim();
-    if (!head || head.length < 4) continue;
-    if (lower.includes(head.toLowerCase())) {
-      if (!best || head.length > best.len) best = { p, len: head.length };
-    }
-  }
-  return best?.p ?? null;
-}
-
-function placesForDay(day: ItineraryDay, places: Place[]): Place[] {
-  const seen = new Set<string>();
-  const out: Place[] = [];
-  for (const b of day.bullets) {
-    for (const item of b.items) {
-      const p = findPlaceForBullet(item, places);
-      if (p && !seen.has(p.name) && p.lat !== null && p.lng !== null) {
-        seen.add(p.name);
-        out.push(p);
-      }
-    }
-  }
-  return out;
-}
 
 /** Pick restaurants likely to be relevant to a given day, by checking whether
  *  the restaurant name or area appears in the day's title or bullets. */
@@ -91,6 +62,7 @@ export function Itinerary({
   destination,
   budget,
   initialDay,
+  selectedPlaceName,
   onFocusPlaces,
   onRefinePrefill,
   onOpenBudgetDay,
@@ -101,6 +73,7 @@ export function Itinerary({
   destination: string;
   budget: Budget | null;
   initialDay?: number;
+  selectedPlaceName?: string | null;
   onFocusPlaces: (places: Place[] | null) => void;
   onRefinePrefill: (text: string) => void;
   onOpenBudgetDay: (dayNumber: number) => void;
@@ -112,6 +85,24 @@ export function Itinerary({
       : fallbackNum;
   const [activeNum, setActiveNum] = useState<number>(seed);
   const active = useMemo(() => days.find((d) => d.number === activeNum) ?? days[0], [days, activeNum]);
+
+  useEffect(() => {
+    if (!selectedPlaceName) return;
+    const targetDay = days.find((day) =>
+      day.bullets.some((group) =>
+        group.items.some((item) => placeForText(item, places)?.name === selectedPlaceName),
+      ),
+    );
+    const frame = requestAnimationFrame(() => {
+      if (targetDay && targetDay.number !== activeNum) {
+        setActiveNum(targetDay.number);
+      }
+      document
+        .getElementById(placeDomId(selectedPlaceName))
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [activeNum, days, places, selectedPlaceName]);
 
   // When the active day changes, refocus the map.
   useEffect(() => {
@@ -173,7 +164,7 @@ export function Itinerary({
                 type="button"
                 onClick={() => onOpenBudgetDay(active.number)}
                 className="text-[11px] rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 hover:bg-amber-200"
-                title="Open in Budget"
+                title="Open in Money"
               >
                 {combined(total, budget.currency, budget.gbp_rate)}
               </button>
@@ -189,6 +180,24 @@ export function Itinerary({
         </div>
       </div>
 
+      <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 pb-1">
+        {[
+          ["Slower", `Refine Day ${active.number}: make the day slower with fewer stops and more breathing room.`],
+          ["Less touristy", `Refine Day ${active.number}: make this less touristy and more local.`],
+          ["Rain backup", `Refine Day ${active.number}: add rainy-day backup options.`],
+          ["Cheaper", `Refine Day ${active.number}: lower the cost without making the day feel thin.`],
+        ].map(([label, prompt]) => (
+          <button
+            key={label}
+            type="button"
+            onClick={() => onRefinePrefill(prompt)}
+            className="shrink-0 rounded-full bg-white/60 border border-amber-700/10 px-2.5 py-1 text-[11px] text-ink-700 hover:bg-white/90 hover:border-amber-600/30"
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* Time-of-day sections */}
       <div className="flex flex-col gap-3">
         {active.bullets.map((b) => (
@@ -199,17 +208,38 @@ export function Itinerary({
             </div>
             <ul className="flex flex-col gap-1.5">
               {b.items.map((item, i) => {
-                const place = findPlaceForBullet(item, places);
+                const place = placeForText(item, places);
                 const clickable = place && place.lat !== null && place.lng !== null;
+                const selected = place?.name === selectedPlaceName;
                 return (
                   <li key={i}>
                     <button
+                      id={place ? placeDomId(place.name) : undefined}
                       onClick={() => clickable && onFocusPlaces([place])}
+                      onMouseEnter={() => clickable && onFocusPlaces([place])}
+                      onMouseLeave={() => {
+                        const dayPlaces = placesForDay(active, places);
+                        onFocusPlaces(dayPlaces.length > 0 ? dayPlaces : null);
+                      }}
                       disabled={!clickable}
                       className={
                         clickable
-                          ? "w-full text-left rounded-[12px] bg-white/70 border border-amber-700/10 px-3 py-2 text-[12px] text-ink-900 leading-snug hover:bg-white/95 hover:border-amber-600/30 hover:shadow-sm flex items-start gap-2"
+                          ? "w-full text-left rounded-[12px] border px-3 py-2 text-[12px] text-ink-900 leading-snug hover:bg-white/95 hover:border-amber-600/30 hover:shadow-sm flex items-start gap-2"
                           : "w-full text-left rounded-[12px] bg-white/40 border border-amber-700/10 px-3 py-2 text-[12px] text-ink-700 leading-snug flex items-start gap-2 cursor-default"
+                      }
+                      style={
+                        selected
+                          ? {
+                              background: "rgba(201,100,66,0.10)",
+                              borderColor: "rgba(201,100,66,0.45)",
+                              boxShadow: "0 6px 18px -14px rgba(31,26,20,0.45)",
+                            }
+                          : clickable
+                            ? {
+                                background: "rgba(255,255,255,0.70)",
+                                borderColor: "rgba(168,95,37,0.10)",
+                              }
+                            : undefined
                       }
                     >
                       <span className="text-[14px] leading-none mt-0.5 shrink-0" aria-hidden>
@@ -270,3 +300,7 @@ export const CATEGORY_EMOJI: Record<Place["category"], string> = {
   photography_spot: "📷",
   logistics: "🧭",
 };
+
+function placeDomId(name: string): string {
+  return `itinerary-place-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+}

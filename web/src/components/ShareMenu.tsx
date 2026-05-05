@@ -8,10 +8,11 @@ import { getBrowserToken } from "@/lib/auth.browser";
 type Phase = "idle" | "busy" | "error";
 
 export function ShareMenu({
-  slug, initialToken,
+  slug, initialToken, prominent = false,
 }: {
   slug: string;
   initialToken: string | null;
+  prominent?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [token, setToken] = useState<string | null>(initialToken);
@@ -85,6 +86,8 @@ export function ShareMenu({
         className={
           token
             ? "rounded-[10px] bg-amber-100 text-amber-800 text-xs font-semibold px-3 py-1.5 hover:bg-amber-200"
+            : prominent
+              ? "rounded-[10px] bg-ink-900 text-white text-xs font-semibold px-3 py-1.5 shadow-sm hover:shadow-md"
             : "rounded-[10px] bg-white/70 text-ink-700 text-xs px-3 py-1.5 border border-amber-700/12 hover:bg-white/90"
         }
         title={token ? "Public link active — manage" : "Share this trip"}
