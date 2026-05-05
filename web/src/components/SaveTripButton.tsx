@@ -37,6 +37,7 @@ export function SaveTripButton({
         className="frosted rounded-[10px] px-3 py-1 text-xs text-ink-500 flex items-center gap-1.5 cursor-default"
         title="In your Logbook"
       >
+        <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_2px_rgba(16,185,129,0.14)]" aria-hidden />
         <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden className="text-amber-600">
           <path d="M2.5 6.2 5 8.7l4.5-5" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
@@ -59,6 +60,7 @@ export function SaveTripButton({
         </>
       ) : (
         <>
+          <span className="h-2 w-2 rounded-full bg-orange-300 shadow-[0_0_0_2px_rgba(251,146,60,0.24)]" aria-hidden />
           <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden>
             <path d="M3 1.5h6l1.5 1.5v7.5h-9v-9z" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinejoin="round" />
             <path d="M4.5 1.5v3h3v-3" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinejoin="round" />
