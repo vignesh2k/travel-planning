@@ -13,18 +13,14 @@ export function TripDeskHeader({
   trip,
   readOnly,
   editMode,
-  saving,
   hasUnsavedChanges,
   onToggleEdit,
-  onSave,
 }: {
   trip: TripFull | PublicTrip;
   readOnly: boolean;
   editMode: boolean;
-  saving: boolean;
   hasUnsavedChanges: boolean;
   onToggleEdit: () => void;
-  onSave: () => void;
 }) {
   const health = planHealthForTrip(trip);
   const saved = "is_saved" in trip ? trip.is_saved : true;
@@ -63,20 +59,9 @@ export function TripDeskHeader({
         </div>
         {!readOnly && (
           <div className="shrink-0 flex items-center gap-1.5">
-            {saved && (editMode || hasUnsavedChanges) && (
-              <button
-                type="button"
-                onClick={onSave}
-                disabled={saving || !hasUnsavedChanges}
-                className="rounded-[10px] bg-amber-600 text-white px-3 py-1.5 text-xs font-semibold hover:bg-amber-700 disabled:opacity-45 disabled:hover:bg-amber-600"
-              >
-                {saving ? "Saving" : "Save"}
-              </button>
-            )}
             <button
               type="button"
               onClick={onToggleEdit}
-              disabled={saving}
               className={
                 editMode
                   ? "rounded-[10px] bg-ink-900 text-white px-3 py-1.5 text-xs font-semibold hover:bg-ink-800 disabled:opacity-50"

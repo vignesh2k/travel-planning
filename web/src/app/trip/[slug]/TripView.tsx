@@ -12,8 +12,11 @@ import { ShareMenu } from "@/components/ShareMenu";
 import { TripDateEdit } from "@/components/TripDateEdit";
 import { RefineInput } from "@/components/RefineInput";
 import { TripPanel } from "@/components/TripPanel";
+import { patchTripDocument, saveTrip } from "@/lib/api";
+import { getBrowserToken } from "@/lib/auth.browser";
 import { selectedPlaceNameForFocus } from "@/lib/map-focus";
-import type { Budget, Place, TripFull } from "@/lib/types";
+import { ensurePlanningState } from "@/lib/planning-status";
+import type { Budget, Place, TripDocument, TripFull } from "@/lib/types";
 
 function useIsMobile(): boolean | null {
   const [isMobile, setIsMobile] = useState<boolean | null>(null);
@@ -38,12 +41,49 @@ export function TripView({
 }) {
   const [trip, setTrip] = useState(initial);
   const [saved, setSaved] = useState(initial.is_saved);
+  const [draftDocument, setDraftDocument] = useState<TripDocument>(() => ensurePlanningState(initial.document));
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const isMobile = useIsMobile();
   const [focusPlaces, setFocusPlaces] = useState<Place[] | null>(null);
   const [selectedPlaceName, setSelectedPlaceName] = useState<string | null>(null);
   const [refinePrefill, setRefinePrefill] = useState<string | undefined>(undefined);
   const [refinePrefillKey, setRefinePrefillKey] = useState(0);
-  const tripPanelKey = `${trip.slug}:${trip.document.document_markdown}`;
+
+  function applyServerTrip(updated: TripFull) {
+    setTrip(updated);
+    setSaved(updated.is_saved);
+    setDraftDocument(ensurePlanningState(updated.document));
+    setHasUnsavedChanges(false);
+  }
+
+  function updateDocumentDraft(next: TripDocument) {
+    setDraftDocument(ensurePlanningState(next));
+    setHasUnsavedChanges(true);
+  }
+
+  async function persistDraftDocument(): Promise<TripFull> {
+    const token = await getBrowserToken();
+    if (!token) throw new Error("Not signed in");
+    const updated = await patchTripDocument(trip.slug, draftDocument, token);
+    applyServerTrip(updated);
+    return updated;
+  }
+
+  async function saveDraftToLogbook() {
+    const token = await getBrowserToken();
+    if (!token) throw new Error("Not signed in");
+    if (hasUnsavedChanges) {
+      await patchTripDocument(trip.slug, draftDocument, token);
+    }
+    await saveTrip(trip.slug, token);
+    setSaved(true);
+    setTrip((current) => ({
+      ...current,
+      is_saved: true,
+      document: ensurePlanningState(draftDocument),
+    }));
+    setHasUnsavedChanges(false);
+  }
 
   function pushRefinePrefill(text: string) {
     setRefinePrefill(text);
@@ -98,13 +138,16 @@ export function TripView({
           />
         </div>
         <div className="flex gap-2 items-center">
-          {!saved && (
-            <SaveTripButton
-              slug={trip.slug}
-              initialSaved={saved}
-              onSaved={() => setSaved(true)}
-            />
-          )}
+          <SaveTripButton
+            slug={trip.slug}
+            saved={saved}
+            hasUnsavedChanges={hasUnsavedChanges}
+            onSaved={() => setSaved(true)}
+            onSaveDraft={saveDraftToLogbook}
+            onSaveChanges={async () => {
+              await persistDraftDocument();
+            }}
+          />
           <ShareMenu slug={trip.slug} initialToken={trip.share_token} prominent={saved} />
           {saved && <PdfExportMenu slug={trip.slug} destination={trip.destination} days={trip.days} prominent />}
           {!saved && <PdfExportMenu slug={trip.slug} destination={trip.destination} days={trip.days} />}
@@ -115,20 +158,21 @@ export function TripView({
         <aside className="absolute left-4 top-16 bottom-4 w-[330px] frosted-strong rounded-[18px] overflow-hidden flex flex-col z-10 anim-slide-left">
           <div className="flex-1 overflow-hidden">
             <TripPanel
-              key={tripPanelKey}
               trip={trip}
               budget={budget}
+              document={draftDocument}
+              hasUnsavedChanges={hasUnsavedChanges}
               initialDay={initialDay}
               selectedPlaceName={selectedPlaceName}
               onFocusPlaces={focusOnMap}
               onRefinePrefill={pushRefinePrefill}
-              onTripUpdated={setTrip}
+              onDocumentChange={updateDocumentDraft}
             />
           </div>
           <div className="border-t border-amber-700/10 p-3">
             <RefineInput
               slug={trip.slug}
-              onUpdated={setTrip}
+              onUpdated={applyServerTrip}
               prefill={refinePrefill}
               prefillKey={refinePrefillKey}
             />
@@ -141,19 +185,20 @@ export function TripView({
           <div className="h-full flex flex-col">
             <div className="flex-1 overflow-hidden">
               <TripPanel
-                key={tripPanelKey}
                 trip={trip}
                 budget={budget}
+                document={draftDocument}
+                hasUnsavedChanges={hasUnsavedChanges}
                 selectedPlaceName={selectedPlaceName}
                 onFocusPlaces={focusOnMap}
                 onRefinePrefill={pushRefinePrefill}
-                onTripUpdated={setTrip}
+                onDocumentChange={updateDocumentDraft}
               />
             </div>
             <div className="border-t border-amber-700/10 p-3">
               <RefineInput
                 slug={trip.slug}
-                onUpdated={setTrip}
+                onUpdated={applyServerTrip}
                 prefill={refinePrefill}
                 prefillKey={refinePrefillKey}
               />

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 
-import { fetchHotels, patchTripDocument } from "@/lib/api";
+import { fetchHotels } from "@/lib/api";
 import { getBrowserToken } from "@/lib/auth.browser";
 import { ensurePlanningState } from "@/lib/planning-status";
 import type { Budget, Neighborhood, Place, PublicTrip, TripDocument, TripFull } from "@/lib/types";
@@ -26,7 +26,9 @@ export function TripPanel({
   selectedPlaceName,
   onFocusPlaces,
   onRefinePrefill,
-  onTripUpdated,
+  document: panelDocument,
+  hasUnsavedChanges = false,
+  onDocumentChange,
 }: {
   trip: TripFull | PublicTrip;
   budget: Budget | null;
@@ -35,15 +37,16 @@ export function TripPanel({
   selectedPlaceName?: string | null;
   onFocusPlaces: (places: Place[] | null) => void;
   onRefinePrefill: (text: string) => void;
-  onTripUpdated?: (trip: TripFull) => void;
+  document?: TripDocument;
+  hasUnsavedChanges?: boolean;
+  onDocumentChange?: (document: TripDocument) => void;
 }) {
   const [tab, setTab] = useState<Tab>("Plan");
-  const initialDocument = useMemo(() => ensurePlanningState(trip.document), [trip.document]);
-  const [draftDocument, setDraftDocument] = useState<TripDocument>(initialDocument);
+  const draftDocument = useMemo(
+    () => ensurePlanningState(panelDocument ?? trip.document),
+    [panelDocument, trip.document],
+  );
   const [editMode, setEditMode] = useState(false);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [savingDocument, setSavingDocument] = useState(false);
-  const [documentError, setDocumentError] = useState<string | null>(null);
   const [neighborhoods, setNeighborhoods] = useState<Neighborhood[]>(trip.document.neighborhoods ?? []);
   const [hotelsLoading, setHotelsLoading] = useState(false);
   const viewTrip = useMemo(() => ({ ...trip, document: draftDocument }), [trip, draftDocument]);
@@ -61,47 +64,14 @@ export function TripPanel({
     }
   }
 
-  function updateDocumentDraft(next: TripDocument) {
-    const hydrated = ensurePlanningState(next);
-    setDraftDocument(hydrated);
-    setHasUnsavedChanges(true);
-    setDocumentError(null);
-  }
-
-  async function saveDocument() {
-    const hydrated = ensurePlanningState(draftDocument);
-    if (readOnly) return;
-
-    setSavingDocument(true);
-    setDocumentError(null);
-    try {
-      const token = await getBrowserToken();
-      if (!token) {
-        setDocumentError("Not signed in");
-        return;
-      }
-      const updated = await patchTripDocument(trip.slug, hydrated, token);
-      setDraftDocument(ensurePlanningState(updated.document));
-      setHasUnsavedChanges(false);
-      onTripUpdated?.(updated);
-    } catch (e) {
-      console.error("patchTripDocument failed", e);
-      setDocumentError("Could not save changes");
-    } finally {
-      setSavingDocument(false);
-    }
-  }
-
   return (
     <div className="h-full flex flex-col overflow-hidden">
       <TripDeskHeader
         trip={viewTrip}
         readOnly={readOnly}
         editMode={editMode}
-        saving={savingDocument}
         hasUnsavedChanges={hasUnsavedChanges}
         onToggleEdit={() => setEditMode((v) => !v)}
-        onSave={saveDocument}
       />
       <TripPanelTabs
         active={tab}
@@ -126,13 +96,8 @@ export function TripPanel({
           <PlanHealthPanel
             trip={viewTrip}
             readOnly={readOnly}
-            onDocumentChange={updateDocumentDraft}
+            onDocumentChange={onDocumentChange}
           />
-        )}
-        {documentError && (
-          <div className="rounded-[10px] bg-rose-50 border border-rose-100 px-3 py-2 text-[11px] text-rose-700">
-            {documentError}
-          </div>
         )}
 
         {tab === "Plan" && (
@@ -146,7 +111,7 @@ export function TripPanel({
             selectedPlaceName={selectedPlaceName}
             onFocusPlaces={onFocusPlaces}
             onRefinePrefill={onRefinePrefill}
-            onDocumentChange={updateDocumentDraft}
+            onDocumentChange={onDocumentChange ?? (() => {})}
             onOpenBudgetDay={(n) => {
               setTab("Money");
               // After tab swap, scroll the matching row into view.

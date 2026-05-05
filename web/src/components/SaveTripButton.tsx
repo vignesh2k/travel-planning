@@ -8,21 +8,47 @@ import { getBrowserToken } from "@/lib/auth.browser";
 type Phase = "unsaved" | "saving" | "saved" | "error";
 
 export function SaveTripButton({
-  slug, initialSaved, onSaved,
+  slug,
+  saved,
+  hasUnsavedChanges = false,
+  savingChanges = false,
+  onSaved,
+  onSaveDraft,
+  onSaveChanges,
 }: {
   slug: string;
-  initialSaved: boolean;
+  saved: boolean;
+  hasUnsavedChanges?: boolean;
+  savingChanges?: boolean;
   onSaved?: () => void;
+  onSaveDraft?: () => Promise<void>;
+  onSaveChanges?: () => Promise<void>;
 }) {
-  const [phase, setPhase] = useState<Phase>(initialSaved ? "saved" : "unsaved");
+  const [phase, setPhase] = useState<Phase>(saved ? "saved" : "unsaved");
 
   async function save() {
-    if (phase !== "unsaved") return;
+    if (saved) {
+      if (!hasUnsavedChanges || !onSaveChanges) return;
+      setPhase("saving");
+      try {
+        await onSaveChanges();
+        setPhase("saved");
+      } catch (e) {
+        console.error("save changes failed", e);
+        setPhase("error");
+      }
+      return;
+    }
+    if (phase === "saving") return;
     setPhase("saving");
     try {
-      const token = await getBrowserToken();
-      if (!token) { setPhase("error"); return; }
-      await saveTrip(slug, token);
+      if (onSaveDraft) {
+        await onSaveDraft();
+      } else {
+        const token = await getBrowserToken();
+        if (!token) { setPhase("error"); return; }
+        await saveTrip(slug, token);
+      }
       setPhase("saved");
       onSaved?.();
     } catch (e) {
@@ -31,7 +57,7 @@ export function SaveTripButton({
     }
   }
 
-  if (phase === "saved") {
+  if (saved && !hasUnsavedChanges) {
     return (
       <span
         className="frosted rounded-[10px] px-3 py-1 text-xs text-ink-500 flex items-center gap-1.5 cursor-default"
@@ -46,14 +72,17 @@ export function SaveTripButton({
     );
   }
 
+  const isSaving = phase === "saving" || savingChanges;
+  const isError = phase === "error";
+
   return (
     <button
       onClick={save}
-      disabled={phase === "saving"}
+      disabled={isSaving || (saved && !hasUnsavedChanges)}
       className="rounded-[10px] bg-gradient-to-br from-amber-400 to-amber-600 text-white text-xs px-3 py-1 font-medium shadow-sm hover:shadow-md disabled:opacity-60 flex items-center gap-1.5"
-      title={phase === "error" ? "Couldn't save — try again" : "Save to Logbook"}
+      title={isError ? "Couldn't save — try again" : saved ? "Save itinerary changes" : "Save to Logbook"}
     >
-      {phase === "saving" ? (
+      {isSaving ? (
         <>
           <span className="w-3 h-3 rounded-full border-2 border-white/60 border-t-transparent animate-spin" aria-hidden />
           Saving…
@@ -65,7 +94,7 @@ export function SaveTripButton({
             <path d="M3 1.5h6l1.5 1.5v7.5h-9v-9z" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinejoin="round" />
             <path d="M4.5 1.5v3h3v-3" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinejoin="round" />
           </svg>
-          {phase === "error" ? "Retry save" : "Save"}
+          {isError ? "Retry save" : saved ? "Save changes" : "Save"}
         </>
       )}
     </button>
