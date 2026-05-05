@@ -79,7 +79,11 @@ def _mock_get_then_update(initial: dict[str, Any] | None, updated: dict[str, Any
     table.select.return_value = select_chain
     select_chain.eq.return_value = select_chain
     select_chain.single.return_value = select_chain
-    select_chain.execute.return_value = MagicMock(data=initial)
+    fresh = {**initial, **updated} if initial and updated else initial
+    select_chain.execute.side_effect = [
+        MagicMock(data=initial),
+        MagicMock(data=fresh),
+    ]
 
     update_chain = MagicMock()
     table.update.return_value = update_chain
@@ -89,6 +93,32 @@ def _mock_get_then_update(initial: dict[str, Any] | None, updated: dict[str, Any
     client = MagicMock()
     client.table.return_value = table
     return client, table.update
+
+
+def _mock_get_update_then_get(
+    initial: dict[str, Any] | None,
+    fresh: dict[str, Any] | None,
+    update_return: list[dict[str, Any]] | None = None,
+) -> tuple[MagicMock, MagicMock, MagicMock]:
+    table = MagicMock()
+
+    select_chain = MagicMock()
+    table.select.return_value = select_chain
+    select_chain.eq.return_value = select_chain
+    select_chain.single.return_value = select_chain
+    select_chain.execute.side_effect = [
+        MagicMock(data=initial),
+        MagicMock(data=fresh),
+    ]
+
+    update_chain = MagicMock()
+    table.update.return_value = update_chain
+    update_chain.eq.return_value = update_chain
+    update_chain.execute.return_value = MagicMock(data=update_return or [])
+
+    client = MagicMock()
+    client.table.return_value = table
+    return client, table.update, select_chain.execute
 
 
 def test_patch_trip_document_persists_itinerary_and_planning(monkeypatch) -> None:
@@ -161,7 +191,7 @@ def test_patch_trip_document_succeeds_when_update_returns_no_rows(monkeypatch) -
             }
         ],
     )
-    client, update_call = _mock_get_then_update(_trip_row(), None)
+    client, update_call, _ = _mock_get_update_then_get(_trip_row(), _trip_row(next_document))
     monkeypatch.setattr("api.routes.trips.service_client", lambda: client)
 
     res = TestClient(app).patch(
@@ -174,6 +204,33 @@ def test_patch_trip_document_succeeds_when_update_returns_no_rows(monkeypatch) -
     assert update_call.called
     assert res.json()["is_saved"] is True
     assert res.json()["document"]["itinerary"][0]["bullets"][0]["items"][0] == "No row edit"
+
+
+def test_patch_trip_document_reloads_fresh_trip_after_save(monkeypatch) -> None:
+    next_document = _document(
+        itinerary=[
+            {
+                "number": 1,
+                "title": "Arrival",
+                "bullets": [{"time": "Morning", "items": ["Freshly saved edit"]}],
+            }
+        ],
+    )
+    fresh_row = {**_trip_row(next_document), "share_token": "fresh-token-after-write"}
+    client, update_call, select_execute = _mock_get_update_then_get(_trip_row(), fresh_row)
+    monkeypatch.setattr("api.routes.trips.service_client", lambda: client)
+
+    res = TestClient(app).patch(
+        "/trips/kyoto-2d-doc/document",
+        headers=_headers(),
+        json={"document": next_document},
+    )
+
+    assert res.status_code == 200, res.text
+    assert update_call.called
+    assert select_execute.call_count == 2
+    assert res.json()["share_token"] == "fresh-token-after-write"
+    assert res.json()["document"]["itinerary"][0]["bullets"][0]["items"][0] == "Freshly saved edit"
 
 
 def test_patch_trip_document_adds_default_planning_for_old_documents(monkeypatch) -> None:

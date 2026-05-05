@@ -414,6 +414,9 @@ def patch_trip_document(slug: str, body: TripDocumentPatch, user: CurrentUser) -
         raise HTTPException(status_code=403, detail="Not your trip")
 
     update = {"document": body.document.model_dump(mode="json")}
-    upd = db.table("trips").update(update).eq("slug", slug).execute()
-    row = upd.data[0] if upd.data else update
-    return _trip_full_from_row({**res.data, **row})
+    db.table("trips").update(update).eq("slug", slug).execute()
+
+    fresh = db.table("trips").select("*").eq("slug", slug).single().execute()
+    if not fresh or not fresh.data:
+        raise HTTPException(status_code=500, detail="Trip saved but fresh trip could not be loaded")
+    return _trip_full_from_row(fresh.data)
