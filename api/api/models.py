@@ -1,9 +1,11 @@
 from datetime import date, datetime
+import re
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 CategoryLiteral = Literal["neighbourhood", "restaurant", "photography_spot", "logistics"]
+TimeOfDayLiteral = Literal["Morning", "Afternoon", "Evening"]
 
 _KNOWN_CATEGORIES: set[str] = {"neighbourhood", "restaurant", "photography_spot", "logistics"}
 _CATEGORY_ALIASES: dict[str, str] = {
@@ -79,11 +81,76 @@ class Neighborhood(BaseModel):
     hotels: list[Hotel]
 
 
+class ItineraryBulletGroup(BaseModel):
+    time: TimeOfDayLiteral
+    items: list[str]
+
+
+class ItineraryDay(BaseModel):
+    number: int
+    title: str
+    bullets: list[ItineraryBulletGroup]
+
+
+def _parse_restaurants(markdown: str) -> list[list[str]]:
+    sections = re.split(r"(?=^## )", markdown, flags=re.M)
+    section = next((s for s in sections if re.search(r"^##\s+Vegetarian Restaurants", s, re.I | re.M)), "")
+    rows: list[list[str]] = []
+    for line in section.splitlines():
+        t = line.strip()
+        if not t.startswith("|") or re.fullmatch(r"\|[-:| ]+\|", t):
+            continue
+        cells = [c.strip() for c in t.strip("|").split("|")]
+        if len(cells) >= 2:
+            rows.append(cells)
+    return rows[1:]
+
+
+def _parse_itinerary(markdown: str) -> list[ItineraryDay]:
+    days: list[ItineraryDay] = []
+    day_blocks = [
+        b for b in re.split(r"\n(?=### Day \d+:)", markdown)
+        if b.startswith("### Day ")
+    ]
+    for block in day_blocks:
+        header_match = re.match(r"^### Day (\d+):\s*(.+)", block)
+        if not header_match:
+            continue
+        bullets: list[ItineraryBulletGroup] = []
+        for time in ("Morning", "Afternoon", "Evening"):
+            section_match = re.search(
+                rf"\*\*{time}:\*\*([\s\S]*?)(?=\*\*(?:Morning|Afternoon|Evening):\*\*|\n## |\n### Day \d+:|$)",
+                block,
+            )
+            if not section_match:
+                continue
+            items = [
+                re.sub(r"^[-*]\s+", "", line).strip()
+                for line in section_match.group(1).splitlines()
+            ]
+            clean = [
+                item for item in items
+                if item and not item.startswith("|") and not item.startswith("##") and not item.startswith("###")
+            ]
+            if clean:
+                bullets.append(ItineraryBulletGroup(time=time, items=clean))
+        days.append(
+            ItineraryDay(
+                number=int(header_match.group(1)),
+                title=header_match.group(2).strip(),
+                bullets=bullets,
+            )
+        )
+    return days
+
+
 class TripDocument(BaseModel):
     """JSON shape stored in the `trips.document` jsonb column."""
     document_markdown: str
     places: list[Place]
     neighborhoods: list[Neighborhood] = []
+    restaurants: list[list[str]] = []
+    itinerary: list[ItineraryDay] = []
 
     @field_validator("document_markdown", mode="before")
     @classmethod
@@ -103,6 +170,14 @@ class TripDocument(BaseModel):
                     parts.append(f"## {header}\n\n{body}")
             return "\n\n".join(parts)
         return v
+
+    @model_validator(mode="after")
+    def _derive_structured_sections(self) -> "TripDocument":
+        if not self.restaurants:
+            self.restaurants = _parse_restaurants(self.document_markdown)
+        if not self.itinerary:
+            self.itinerary = _parse_itinerary(self.document_markdown)
+        return self
 
 
 class TripSummary(BaseModel):

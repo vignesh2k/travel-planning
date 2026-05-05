@@ -39,6 +39,40 @@ def test_document_markdown_coerces_dict_without_h2_prefix():
     assert "## Itinerary" in doc.document_markdown
 
 
+def test_trip_document_derives_structured_sections_from_markdown():
+    doc = TripDocument(
+        document_markdown="""## Vegetarian Restaurants
+| Restaurant | Area | Must-Try |
+| --- | --- | --- |
+| Gion Soy | Gion | Tofu lunch set |
+
+## 2-Day Itinerary
+### Day 1: Higashiyama
+**Morning:**
+- Visit Kiyomizu-dera
+- Walk Sannenzaka
+**Afternoon:**
+- Lunch at Gion Soy
+**Evening:**
+- Sunset at Yasaka Pagoda
+
+### Day 2: Arashiyama
+**Morning:**
+- Bamboo Grove early walk
+""",
+        places=[],
+    )
+
+    assert doc.restaurants == [["Gion Soy", "Gion", "Tofu lunch set"]]
+    assert [d.number for d in doc.itinerary] == [1, 2]
+    assert doc.itinerary[0].title == "Higashiyama"
+    assert doc.itinerary[0].bullets[0].time == "Morning"
+    assert doc.itinerary[0].bullets[0].items == [
+        "Visit Kiyomizu-dera",
+        "Walk Sannenzaka",
+    ]
+
+
 # ── User profile ────────────────────────────────────────────────────────────
 
 

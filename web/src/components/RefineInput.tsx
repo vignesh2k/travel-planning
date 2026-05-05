@@ -36,13 +36,14 @@ export function RefineInput({
 
   useEffect(() => {
     if (prefill !== undefined) {
-      setText(prefill);
-      requestAnimationFrame(() => {
+      const frame = requestAnimationFrame(() => {
+        setText(prefill);
         const el = inputRef.current;
         if (!el) return;
         el.focus();
         el.setSelectionRange(prefill.length, prefill.length);
       });
+      return () => cancelAnimationFrame(frame);
     }
   }, [prefill, prefillKey]);
 

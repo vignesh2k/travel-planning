@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 import type { Place } from "@/lib/types";
@@ -27,8 +26,7 @@ export function StreamingOverlay({
   // .atlas-rise mount animation, for example) creates a new containing
   // block for fixed-position descendants and the overlay shrinks to
   // that ancestor's bounds instead of filling the viewport.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  if (typeof document === "undefined") return null;
 
   const pct = asymptoticPct(chars);
   const overlay = (
@@ -56,6 +54,5 @@ export function StreamingOverlay({
     </div>
   );
 
-  if (!mounted || typeof document === "undefined") return null;
   return createPortal(overlay, document.body);
 }

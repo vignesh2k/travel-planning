@@ -34,10 +34,10 @@
   --radius-card: 14px;
   --radius-btn: 10px;
 
-  --font-display: "SF Pro Display", Inter, system-ui, sans-serif;
-  --font-sans: Inter, system-ui, sans-serif;
-  --font-serif: "Instrument Serif", "Times New Roman", Georgia, serif;
-  --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --font-display: var(--font-atlas-sans), system-ui, sans-serif;
+  --font-sans: var(--font-atlas-sans), system-ui, sans-serif;
+  --font-serif: var(--font-atlas-serif), "Times New Roman", Georgia, serif;
+  --font-mono: var(--font-atlas-mono), ui-monospace, Menlo, monospace;
 
   --background-image-cream-gradient: linear-gradient(180deg, #f6efe2 0%, #efe6d3 100%);
 }
@@ -49,7 +49,7 @@
 html, body {
   background: linear-gradient(180deg, #f6efe2 0%, #efe6d3 100%);
   color: #1f1a14;
-  font-family: Inter, "SF Pro Display", system-ui, sans-serif;
+  font-family: var(--font-sans), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 

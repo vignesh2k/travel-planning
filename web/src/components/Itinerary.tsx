@@ -3,10 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { combined } from "@/lib/currency";
-import type { Budget, Place } from "@/lib/types";
-import type { Day } from "./DayCard";
+import type { Budget, ItineraryDay, Place } from "@/lib/types";
 
-const TIME_META: Record<Day["bullets"][number]["time"], { icon: string; tint: string }> = {
+const TIME_META: Record<ItineraryDay["bullets"][number]["time"], { icon: string; tint: string }> = {
   Morning:   { icon: "☀️", tint: "text-amber-600" },
   Afternoon: { icon: "🌤️", tint: "text-amber-700" },
   Evening:   { icon: "🌙", tint: "text-ink-700"   },
@@ -27,7 +26,7 @@ function findPlaceForBullet(bullet: string, places: Place[]): Place | null {
   return best?.p ?? null;
 }
 
-function placesForDay(day: Day, places: Place[]): Place[] {
+function placesForDay(day: ItineraryDay, places: Place[]): Place[] {
   const seen = new Set<string>();
   const out: Place[] = [];
   for (const b of day.bullets) {
@@ -45,9 +44,9 @@ function placesForDay(day: Day, places: Place[]): Place[] {
 /** Pick restaurants likely to be relevant to a given day, by checking whether
  *  the restaurant name or area appears in the day's title or bullets. */
 function restaurantsForDay(
-  day: Day,
+  day: ItineraryDay,
   restaurants: string[][],
-  allDays: Day[],
+  allDays: ItineraryDay[],
 ): string[][] {
   const dayText = (
     day.title + " " + day.bullets.flatMap((b) => b.items).join(" ")
@@ -96,7 +95,7 @@ export function Itinerary({
   onRefinePrefill,
   onOpenBudgetDay,
 }: {
-  days: Day[];
+  days: ItineraryDay[];
   places: Place[];
   restaurants: string[][];
   destination: string;

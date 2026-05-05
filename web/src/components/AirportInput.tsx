@@ -29,11 +29,7 @@ export function AirportInput({
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const wrapperRef = useRef<HTMLDivElement>(null);
-
-  // Sync external value into the visible label when not actively typing.
-  useEffect(() => {
-    if (!open) setQuery(value ? formatLabel(value) : "");
-  }, [value, open]);
+  const displayValue = open ? query : value ? formatLabel(value) : "";
 
   useEffect(() => {
     if (!open) return;
@@ -81,8 +77,12 @@ export function AirportInput({
     <div ref={wrapperRef} className="relative flex flex-col gap-1">
       <span className="text-[10px] text-ink-500">{label}</span>
       <input
-        value={query}
-        onFocus={() => { setOpen(true); setActiveIndex(0); }}
+        value={displayValue}
+        onFocus={() => {
+          setQuery(value ? formatLabel(value) : "");
+          setOpen(true);
+          setActiveIndex(0);
+        }}
         onChange={(e) => {
           setQuery(e.target.value);
           setOpen(true);

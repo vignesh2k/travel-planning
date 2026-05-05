@@ -1,3 +1,5 @@
+import type { ItineraryDay } from "@/lib/types";
+
 export interface Day {
   number: number;
   title: string;
@@ -5,7 +7,9 @@ export interface Day {
   bullets: { time: "Morning" | "Afternoon" | "Evening"; items: string[] }[];
 }
 
-export function DayCard({ day, isCurrent }: { day: Day; isCurrent: boolean }) {
+export function DayCard({ day, isCurrent }: { day: Day | ItineraryDay; isCurrent: boolean }) {
+  const area = "area" in day ? day.area : undefined;
+
   return (
     <div
       className={
@@ -18,7 +22,7 @@ export function DayCard({ day, isCurrent }: { day: Day; isCurrent: boolean }) {
         <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600">
           DAY {day.number}
         </span>
-        {day.area && <span className="text-[10px] text-ink-500">{day.area}</span>}
+        {area && <span className="text-[10px] text-ink-500">{area}</span>}
       </div>
       <div className="text-sm font-semibold text-ink-900 mt-1">{day.title}</div>
       <div className="mt-2 flex flex-col gap-1">

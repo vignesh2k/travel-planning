@@ -1,7 +1,25 @@
 import type { Metadata, Viewport } from "next";
+import { Instrument_Serif, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
+
+const instrumentSerif = Instrument_Serif({
+  subsets: ["latin"],
+  weight: "400",
+  style: ["normal", "italic"],
+  variable: "--font-atlas-serif",
+});
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-atlas-sans",
+});
+
+const jetBrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-atlas-mono",
+});
 
 export const metadata: Metadata = {
   title: "Atlas — your travel companion",
@@ -26,13 +44,10 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <head>
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
-        />
-      </head>
+    <html
+      lang="en"
+      className={`${instrumentSerif.variable} ${inter.variable} ${jetBrainsMono.variable}`}
+    >
       <body>
         {children}
         <ServiceWorkerRegister />

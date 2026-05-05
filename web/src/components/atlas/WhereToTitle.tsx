@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 
 const TEXT_PARTS: { text: string; italic: boolean }[] = [
   { text: "Where to ", italic: false },

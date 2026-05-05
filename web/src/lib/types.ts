@@ -20,10 +20,23 @@ export interface Neighborhood {
   hotels: Hotel[];
 }
 
+export interface ItineraryBulletGroup {
+  time: "Morning" | "Afternoon" | "Evening";
+  items: string[];
+}
+
+export interface ItineraryDay {
+  number: number;
+  title: string;
+  bullets: ItineraryBulletGroup[];
+}
+
 export interface TripDocument {
   document_markdown: string;
   places: Place[];
   neighborhoods: Neighborhood[];
+  restaurants: string[][];
+  itinerary: ItineraryDay[];
 }
 
 export interface TripSummary {

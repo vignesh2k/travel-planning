@@ -7,7 +7,6 @@ import { getBrowserToken } from "@/lib/auth.browser";
 import type { Budget, Neighborhood, Place, PublicTrip, TripFull } from "@/lib/types";
 
 import { BudgetTab } from "./BudgetTab";
-import { type Day } from "./DayCard";
 import { HotelCard } from "./HotelCard";
 import { Itinerary } from "./Itinerary";
 import { TripPanelTabs, type Tab } from "./TripPanelTabs";
@@ -31,8 +30,8 @@ export function TripPanel({
   onRefinePrefill: (text: string) => void;
 }) {
   const [tab, setTab] = useState<Tab>("Itinerary");
-  const days = parseDays(trip.document.document_markdown);
-  const restaurants = parseTable(trip.document.document_markdown, /## Vegetarian Restaurants/i);
+  const days = trip.document.itinerary;
+  const restaurants = trip.document.restaurants;
   const [neighborhoods, setNeighborhoods] = useState<Neighborhood[]>(trip.document.neighborhoods ?? []);
   const [hotelsLoading, setHotelsLoading] = useState(false);
 
@@ -109,49 +108,4 @@ export function TripPanel({
       </div>
     </div>
   );
-}
-
-function parseDays(markdown: string): Day[] {
-  const days: Day[] = [];
-  const dayBlocks = markdown.split(/\n(?=### Day \d+:)/g).filter((b) => b.startsWith("### Day "));
-  for (const block of dayBlocks) {
-    const headerMatch = block.match(/^### Day (\d+):\s*(.+)/);
-    if (!headerMatch) continue;
-    const number = parseInt(headerMatch[1], 10);
-    const title = headerMatch[2].trim();
-    const bullets: Day["bullets"] = [];
-    for (const time of ["Morning", "Afternoon", "Evening"] as const) {
-      // Stop at the next time-of-day marker, the next day heading, the next
-      // top-level section heading, or end of string. Without the `\n## ` and
-      // `\n### Day` stops, the Evening regex on the last day greedily eats
-      // everything that follows (e.g. the `## Logistics` table).
-      const re = new RegExp(
-        `\\*\\*${time}:\\*\\*([\\s\\S]*?)(?=\\*\\*(?:Morning|Afternoon|Evening):\\*\\*|\\n## |\\n### Day \\d+:|$)`,
-      );
-      const m = block.match(re);
-      if (m) {
-        const items = m[1]
-          .split("\n")
-          .map((l) => l.replace(/^[-*]\s+/, "").trim())
-          .filter((l) => l && !l.startsWith("|") && !l.startsWith("##") && !l.startsWith("###"));
-        if (items.length) bullets.push({ time, items });
-      }
-    }
-    days.push({ number, title, bullets });
-  }
-  return days;
-}
-
-function parseTable(markdown: string, headerRe: RegExp): string[][] {
-  const sections = markdown.split(/(?=^## )/m);
-  const sec = sections.find((s) => headerRe.test(s));
-  if (!sec) return [];
-  const rows: string[][] = [];
-  for (const line of sec.split("\n")) {
-    const t = line.trim();
-    if (!t.startsWith("|") || /^\|[-:| ]+\|$/.test(t)) continue;
-    const cells = t.replace(/^\||\|$/g, "").split("|").map((c) => c.trim());
-    if (cells.length >= 2) rows.push(cells);
-  }
-  return rows.slice(1);
 }

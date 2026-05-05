@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { saveProfile } from "@/lib/api";
 import { getBrowserToken } from "@/lib/auth.browser";
@@ -31,8 +31,13 @@ export function ProfileForm({ initial }: { initial: UserProfile | null }) {
   const [customInterest, setCustomInterest] = useState("");
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [saving, setSaving] = useState(false);
-  const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const savedTimerRef = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (savedTimerRef.current) window.clearTimeout(savedTimerRef.current);
+  }, []);
 
   function toggle(tag: string) {
     setInterests((prev) =>
@@ -65,7 +70,11 @@ export function ProfileForm({ initial }: { initial: UserProfile | null }) {
         },
         token,
       );
-      setSavedAt(Date.now());
+      setSaved(true);
+      if (savedTimerRef.current) window.clearTimeout(savedTimerRef.current);
+      savedTimerRef.current = window.setTimeout(() => {
+        setSaved(false);
+      }, 3000);
       router.refresh();
     } catch (e) {
       console.error("save profile failed", e);
@@ -178,7 +187,7 @@ export function ProfileForm({ initial }: { initial: UserProfile | null }) {
         >
           {saving ? "Saving…" : "Save preferences"}
         </button>
-        {savedAt && Date.now() - savedAt < 3000 && (
+        {saved && (
           <span className="text-xs text-amber-700">Saved ✓</span>
         )}
         {error && <span className="text-xs text-rose-600">{error}</span>}
