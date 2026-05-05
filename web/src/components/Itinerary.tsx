@@ -242,7 +242,7 @@ export function Itinerary({
                 };
                 return (
                   <li
-                    key={`${b.time}-${i}-${item}`}
+                    key={`${b.time}-${i}`}
                     className="relative"
                   >
                     {editMode ? (
@@ -252,7 +252,10 @@ export function Itinerary({
                         status={status}
                         onFocusPlaces={onFocusPlaces}
                         onCycleStatus={cycleStatus}
-                        onUpdate={(value) => {
+                        onChange={(value) => {
+                          onDocumentChange(updateItineraryItem(tripDocument, active.number, b.time, i, value));
+                        }}
+                        onCommit={(value) => {
                           const trimmed = value.trim();
                           onDocumentChange(
                             trimmed
@@ -364,7 +367,8 @@ function ActivityEditorRow({
   status,
   onFocusPlaces,
   onCycleStatus,
-  onUpdate,
+  onChange,
+  onCommit,
   onRemove,
 }: {
   item: string;
@@ -372,15 +376,11 @@ function ActivityEditorRow({
   status?: PlanningStatusValue;
   onFocusPlaces: (places: Place[] | null) => void;
   onCycleStatus: () => void;
-  onUpdate: (value: string) => void;
+  onChange: (value: string) => void;
+  onCommit: (value: string) => void;
   onRemove: () => void;
 }) {
-  const [draft, setDraft] = useState(item);
   const clickable = place && place.lat !== null && place.lng !== null;
-
-  function commit() {
-    if (draft !== item) onUpdate(draft);
-  }
 
   return (
     <div className="rounded-[12px] bg-white/75 border border-amber-700/10 p-2 flex flex-col gap-2">
@@ -395,10 +395,10 @@ function ActivityEditorRow({
           {clickable ? CATEGORY_EMOJI[place.category] : "•"}
         </button>
         <textarea
-          value={draft}
+          value={item}
           rows={2}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={commit}
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={(e) => onCommit(e.currentTarget.value)}
           className="min-w-0 flex-1 resize-none rounded-[9px] border border-amber-700/10 bg-white/80 px-2.5 py-2 text-[12px] leading-snug text-ink-900 outline-none focus:border-amber-600/40 focus:bg-white"
         />
       </div>

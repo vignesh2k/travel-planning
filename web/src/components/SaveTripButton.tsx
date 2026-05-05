@@ -59,6 +59,7 @@ export function SaveTripButton({
 
   const isSaving = phase === "saving" || savingChanges;
   const isError = phase === "error";
+  const isDraft = !saved || hasUnsavedChanges;
   const disabled = isSaving || (saved && !hasUnsavedChanges);
   const label = isError ? "Retry save" : saved && hasUnsavedChanges ? "Save changes" : "Save";
 
@@ -66,12 +67,12 @@ export function SaveTripButton({
     <div className="flex items-center gap-1.5">
       <span
         className={
-          saved
-            ? "rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-semibold text-emerald-700"
-            : "rounded-full bg-orange-50 border border-orange-200 px-2 py-0.5 text-[10px] font-semibold text-orange-700"
+          isDraft
+            ? "rounded-full bg-orange-50 border border-orange-200 px-2 py-0.5 text-[10px] font-semibold text-orange-700"
+            : "rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-semibold text-emerald-700"
         }
       >
-        {saved ? "Saved" : "Draft"}
+        {isDraft ? "Draft" : "Saved"}
       </span>
       <button
         onClick={save}
