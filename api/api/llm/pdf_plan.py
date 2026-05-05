@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from api.llm.client import make_client, strip_code_fences
-from api.models import PdfDay, PdfPlan
+from api.models import PdfCoverSection, PdfDay, PdfPlan
 
 PDF_PLAN_MODEL = "deepseek/deepseek-v4-flash:online"
 
@@ -335,10 +335,18 @@ def stream_pdf_plan(
         return
 
     days_sorted = [completed[n] for n in sorted(completed)]
+    route = [d.get("title", f"Day {d.get('number', '?')}") for d in days_sorted]
+    subtitle = _build_pdf_subtitle(total_days, start_date_iso)
     plan = PdfPlan(
         destination=destination,
-        subtitle=f"{total_days} days · curated by Atlas",
-        route=[d.get("title", f"Day {d.get('number', '?')}") for d in days_sorted],
+        subtitle=subtitle,
+        route=route,
+        cover_sections=_build_cover_sections(
+            subtitle=subtitle,
+            travel_style=travel_style,
+            route=route,
+            hotel_names=hotel_names or [],
+        ),
         days=[PdfDay(**d) for d in days_sorted],
         costs=costs,
     )
@@ -379,3 +387,52 @@ def _build_weekday_labels(total_days: int, start_date_iso: str | None) -> list[s
         f"Day {i + 1} · {(start + timedelta(days=i)).strftime('%a %-d %b')}"
         for i in range(total_days)
     ]
+
+
+def _build_pdf_subtitle(total_days: int, start_date_iso: str | None) -> str:
+    if not start_date_iso:
+        return f"{total_days} days · curated by Atlas"
+
+    from datetime import date, timedelta
+
+    try:
+        start = date.fromisoformat(start_date_iso)
+    except ValueError:
+        return f"{total_days} days · curated by Atlas"
+
+    end = start + timedelta(days=total_days - 1)
+    if start == end:
+        date_range = start.strftime("%-d %B %Y")
+    elif start.year == end.year and start.month == end.month:
+        date_range = f"{start.strftime('%-d')}–{end.strftime('%-d %B %Y')}"
+    elif start.year == end.year:
+        date_range = f"{start.strftime('%-d %B')}–{end.strftime('%-d %B %Y')}"
+    else:
+        date_range = f"{start.strftime('%-d %B %Y')}–{end.strftime('%-d %B %Y')}"
+    return f"{date_range} · {total_days} days"
+
+
+def _build_cover_sections(
+    *,
+    subtitle: str,
+    travel_style: str,
+    route: list[str],
+    hotel_names: list[str],
+) -> list[PdfCoverSection]:
+    sections = [PdfCoverSection(label="ITINERARY", lines=[subtitle])]
+
+    clean_style = travel_style.strip()
+    if clean_style:
+        sections.append(PdfCoverSection(label="TRAVEL STYLE", lines=[clean_style[:180]]))
+
+    clean_hotels = [name.strip() for name in hotel_names if name and name.strip()]
+    if clean_hotels:
+        sections.append(PdfCoverSection(label="ACCOMMODATION", lines=clean_hotels[:4]))
+
+    if route:
+        route_line = " → ".join(route[:6])
+        if len(route) > 6:
+            route_line += f" → … → {route[-1]}"
+        sections.append(PdfCoverSection(label="ROUTE", lines=[route_line]))
+
+    return sections

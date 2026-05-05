@@ -258,10 +258,16 @@ class PdfCosts(BaseModel):
     total_gbp: int = Field(..., ge=0)
 
 
+class PdfCoverSection(BaseModel):
+    label: str
+    lines: list[str]
+
+
 class PdfPlan(BaseModel):
     destination: str
     subtitle: str
     route: list[str] = []
+    cover_sections: list[PdfCoverSection] = []
     days: list[PdfDay]
     costs: PdfCosts | None = None
 

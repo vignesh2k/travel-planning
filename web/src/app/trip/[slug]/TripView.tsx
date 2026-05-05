@@ -12,6 +12,7 @@ import { ShareMenu } from "@/components/ShareMenu";
 import { TripDateEdit } from "@/components/TripDateEdit";
 import { RefineInput } from "@/components/RefineInput";
 import { TripPanel } from "@/components/TripPanel";
+import { selectedPlaceNameForFocus } from "@/lib/map-focus";
 import type { Budget, Place, TripFull } from "@/lib/types";
 
 function useIsMobile(): boolean | null {
@@ -50,7 +51,7 @@ export function TripView({
 
   const focusOnMap = useCallback((places: Place[] | null) => {
     setFocusPlaces(places);
-    if (places?.length === 1) setSelectedPlaceName(places[0].name);
+    setSelectedPlaceName(selectedPlaceNameForFocus(places));
   }, []);
 
   const handlePlaceClick = useCallback((place: Place) => {
