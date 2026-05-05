@@ -14,13 +14,17 @@ export function TripDeskHeader({
   readOnly,
   editMode,
   saving,
+  hasUnsavedChanges,
   onToggleEdit,
+  onSave,
 }: {
   trip: TripFull | PublicTrip;
   readOnly: boolean;
   editMode: boolean;
   saving: boolean;
+  hasUnsavedChanges: boolean;
   onToggleEdit: () => void;
+  onSave: () => void;
 }) {
   const health = planHealthForTrip(trip);
   const saved = "is_saved" in trip ? trip.is_saved : true;
@@ -50,21 +54,38 @@ export function TripDeskHeader({
                 Draft
               </span>
             )}
+            {hasUnsavedChanges && !readOnly && (
+              <span className="rounded-full bg-rose-50 text-rose-700 border border-rose-100 px-2 py-0.5">
+                Unsaved
+              </span>
+            )}
           </div>
         </div>
         {!readOnly && (
-          <button
-            type="button"
-            onClick={onToggleEdit}
-            disabled={saving}
-            className={
-              editMode
-                ? "shrink-0 rounded-[10px] bg-ink-900 text-white px-3 py-1.5 text-xs font-semibold hover:bg-ink-800 disabled:opacity-50"
-                : "shrink-0 rounded-[10px] bg-white/80 border border-amber-700/10 px-3 py-1.5 text-xs font-semibold text-ink-900 hover:bg-white disabled:opacity-50"
-            }
-          >
-            {saving ? "Saving" : editMode ? "Done" : "Edit"}
-          </button>
+          <div className="shrink-0 flex items-center gap-1.5">
+            {(editMode || hasUnsavedChanges) && (
+              <button
+                type="button"
+                onClick={onSave}
+                disabled={saving || !hasUnsavedChanges}
+                className="rounded-[10px] bg-amber-600 text-white px-3 py-1.5 text-xs font-semibold hover:bg-amber-700 disabled:opacity-45 disabled:hover:bg-amber-600"
+              >
+                {saving ? "Saving" : "Save"}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onToggleEdit}
+              disabled={saving}
+              className={
+                editMode
+                  ? "rounded-[10px] bg-ink-900 text-white px-3 py-1.5 text-xs font-semibold hover:bg-ink-800 disabled:opacity-50"
+                  : "rounded-[10px] bg-white/80 border border-amber-700/10 px-3 py-1.5 text-xs font-semibold text-ink-900 hover:bg-white disabled:opacity-50"
+              }
+            >
+              {editMode ? "Done" : "Edit"}
+            </button>
+          </div>
         )}
       </div>
     </section>

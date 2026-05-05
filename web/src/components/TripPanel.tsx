@@ -38,13 +38,15 @@ export function TripPanel({
   onTripUpdated?: (trip: TripFull) => void;
 }) {
   const [tab, setTab] = useState<Tab>("Plan");
-  const tripDocument = useMemo(() => ensurePlanningState(trip.document), [trip.document]);
+  const initialDocument = useMemo(() => ensurePlanningState(trip.document), [trip.document]);
+  const [draftDocument, setDraftDocument] = useState<TripDocument>(initialDocument);
   const [editMode, setEditMode] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [savingDocument, setSavingDocument] = useState(false);
   const [documentError, setDocumentError] = useState<string | null>(null);
   const [neighborhoods, setNeighborhoods] = useState<Neighborhood[]>(trip.document.neighborhoods ?? []);
   const [hotelsLoading, setHotelsLoading] = useState(false);
-  const viewTrip = useMemo(() => ({ ...trip, document: tripDocument }), [trip, tripDocument]);
+  const viewTrip = useMemo(() => ({ ...trip, document: draftDocument }), [trip, draftDocument]);
 
   async function loadHotels() {
     if (neighborhoods.length || hotelsLoading) return;
@@ -59,8 +61,15 @@ export function TripPanel({
     }
   }
 
-  async function saveDocument(next: TripDocument) {
+  function updateDocumentDraft(next: TripDocument) {
     const hydrated = ensurePlanningState(next);
+    setDraftDocument(hydrated);
+    setHasUnsavedChanges(true);
+    setDocumentError(null);
+  }
+
+  async function saveDocument() {
+    const hydrated = ensurePlanningState(draftDocument);
     if (readOnly) return;
 
     setSavingDocument(true);
@@ -71,8 +80,9 @@ export function TripPanel({
         setDocumentError("Not signed in");
         return;
       }
-      onTripUpdated?.({ ...(trip as TripFull), document: hydrated });
       const updated = await patchTripDocument(trip.slug, hydrated, token);
+      setDraftDocument(ensurePlanningState(updated.document));
+      setHasUnsavedChanges(false);
       onTripUpdated?.(updated);
     } catch (e) {
       console.error("patchTripDocument failed", e);
@@ -89,7 +99,9 @@ export function TripPanel({
         readOnly={readOnly}
         editMode={editMode}
         saving={savingDocument}
+        hasUnsavedChanges={hasUnsavedChanges}
         onToggleEdit={() => setEditMode((v) => !v)}
+        onSave={saveDocument}
       />
       <TripPanelTabs
         active={tab}
@@ -114,7 +126,7 @@ export function TripPanel({
           <PlanHealthPanel
             trip={viewTrip}
             readOnly={readOnly}
-            onDocumentChange={saveDocument}
+            onDocumentChange={updateDocumentDraft}
           />
         )}
         {documentError && (
@@ -125,7 +137,7 @@ export function TripPanel({
 
         {tab === "Plan" && (
           <Itinerary
-            document={tripDocument}
+            document={draftDocument}
             destination={trip.destination}
             budget={budget}
             readOnly={readOnly}
@@ -134,7 +146,7 @@ export function TripPanel({
             selectedPlaceName={selectedPlaceName}
             onFocusPlaces={onFocusPlaces}
             onRefinePrefill={onRefinePrefill}
-            onDocumentChange={saveDocument}
+            onDocumentChange={updateDocumentDraft}
             onOpenBudgetDay={(n) => {
               setTab("Money");
               // After tab swap, scroll the matching row into view.

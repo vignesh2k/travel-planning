@@ -43,6 +43,7 @@ export function TripView({
   const [selectedPlaceName, setSelectedPlaceName] = useState<string | null>(null);
   const [refinePrefill, setRefinePrefill] = useState<string | undefined>(undefined);
   const [refinePrefillKey, setRefinePrefillKey] = useState(0);
+  const tripPanelKey = `${trip.slug}:${trip.document.document_markdown}`;
 
   function pushRefinePrefill(text: string) {
     setRefinePrefill(text);
@@ -114,6 +115,7 @@ export function TripView({
         <aside className="absolute left-4 top-16 bottom-4 w-[330px] frosted-strong rounded-[18px] overflow-hidden flex flex-col z-10 anim-slide-left">
           <div className="flex-1 overflow-hidden">
             <TripPanel
+              key={tripPanelKey}
               trip={trip}
               budget={budget}
               initialDay={initialDay}
@@ -139,6 +141,7 @@ export function TripView({
           <div className="h-full flex flex-col">
             <div className="flex-1 overflow-hidden">
               <TripPanel
+                key={tripPanelKey}
                 trip={trip}
                 budget={budget}
                 selectedPlaceName={selectedPlaceName}
