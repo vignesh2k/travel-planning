@@ -151,6 +151,31 @@ def test_patch_trip_document_preserves_saved_state_when_update_returns_partial_r
     assert res.json()["document"]["itinerary"][0]["bullets"][0]["items"][0] == "Saved edit"
 
 
+def test_patch_trip_document_succeeds_when_update_returns_no_rows(monkeypatch) -> None:
+    next_document = _document(
+        itinerary=[
+            {
+                "number": 1,
+                "title": "Arrival",
+                "bullets": [{"time": "Morning", "items": ["No row edit"]}],
+            }
+        ],
+    )
+    client, update_call = _mock_get_then_update(_trip_row(), None)
+    monkeypatch.setattr("api.routes.trips.service_client", lambda: client)
+
+    res = TestClient(app).patch(
+        "/trips/kyoto-2d-doc/document",
+        headers=_headers(),
+        json={"document": next_document},
+    )
+
+    assert res.status_code == 200, res.text
+    assert update_call.called
+    assert res.json()["is_saved"] is True
+    assert res.json()["document"]["itinerary"][0]["bullets"][0]["items"][0] == "No row edit"
+
+
 def test_patch_trip_document_adds_default_planning_for_old_documents(monkeypatch) -> None:
     old_document = {
         "document_markdown": "## Overview\n\nKyoto.",

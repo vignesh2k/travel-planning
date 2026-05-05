@@ -415,8 +415,5 @@ def patch_trip_document(slug: str, body: TripDocumentPatch, user: CurrentUser) -
 
     update = {"document": body.document.model_dump(mode="json")}
     upd = db.table("trips").update(update).eq("slug", slug).execute()
-    if not upd.data:
-        raise HTTPException(status_code=500, detail="update returned no row")
-
-    row = upd.data[0]
+    row = upd.data[0] if upd.data else update
     return _trip_full_from_row({**res.data, **row})
