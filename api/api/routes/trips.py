@@ -94,6 +94,13 @@ def _persist_budget(trip_id: str, estimate: BudgetEstimateRaw) -> None:
     ).execute()
 
 
+def _trip_full_from_row(row: dict[str, Any]) -> TripFull:
+    row_data = {**row}
+    doc_raw = row_data.pop("document")
+    doc = doc_raw if isinstance(doc_raw, TripDocument) else TripDocument(**doc_raw)
+    return TripFull(**row_data, document=doc)
+
+
 @router.post("/trips", response_model=TripFull)
 def create_trip(brief: TripBriefIn, user: CurrentUser) -> TripFull:
     _purge_drafts_for(user["sub"])
@@ -394,9 +401,7 @@ def patch_trip(slug: str, body: TripPatch, user: CurrentUser) -> TripFull:
         raise HTTPException(status_code=500, detail="update returned no row")
 
     row = upd.data[0]
-    inserted_data = {**row}
-    doc_dict = inserted_data.pop("document")
-    return TripFull(**inserted_data, document=TripDocument(**doc_dict))
+    return _trip_full_from_row({**res.data, **row})
 
 
 @router.patch("/trips/{slug}/document", response_model=TripFull)
@@ -414,6 +419,4 @@ def patch_trip_document(slug: str, body: TripDocumentPatch, user: CurrentUser) -
         raise HTTPException(status_code=500, detail="update returned no row")
 
     row = upd.data[0]
-    inserted_data = {**row}
-    doc_dict = inserted_data.pop("document")
-    return TripFull(**inserted_data, document=TripDocument(**doc_dict))
+    return _trip_full_from_row({**res.data, **row})
