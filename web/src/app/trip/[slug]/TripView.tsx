@@ -90,7 +90,11 @@ export function TripView({
         <div className="text-sm text-ink-700 font-medium flex items-center gap-2">
           <span>{trip.destination} · {trip.days} days</span>
           <span className="text-ink-300">·</span>
-          <TripDateEdit slug={trip.slug} initial={trip.start_date} />
+          <TripDateEdit
+            slug={trip.slug}
+            initial={trip.start_date}
+            onUpdated={(startDate) => setTrip((current) => ({ ...current, start_date: startDate }))}
+          />
         </div>
         <div className="flex gap-2 items-center">
           {!saved && (
@@ -116,6 +120,7 @@ export function TripView({
               selectedPlaceName={selectedPlaceName}
               onFocusPlaces={focusOnMap}
               onRefinePrefill={pushRefinePrefill}
+              onTripUpdated={setTrip}
             />
           </div>
           <div className="border-t border-amber-700/10 p-3">
@@ -139,6 +144,7 @@ export function TripView({
                 selectedPlaceName={selectedPlaceName}
                 onFocusPlaces={focusOnMap}
                 onRefinePrefill={pushRefinePrefill}
+                onTripUpdated={setTrip}
               />
             </div>
             <div className="border-t border-amber-700/10 p-3">

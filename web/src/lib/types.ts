@@ -31,12 +31,22 @@ export interface ItineraryDay {
   bullets: ItineraryBulletGroup[];
 }
 
+export type PlanningStatusValue = "idea" | "maybe" | "booked" | "paid" | "skip" | "needs_booking";
+
+export interface TripPlanningState {
+  statuses: Record<string, PlanningStatusValue>;
+  notes: Record<string, string>;
+  dismissed_health_checks: string[];
+  last_editor_version: number;
+}
+
 export interface TripDocument {
   document_markdown: string;
   places: Place[];
   neighborhoods: Neighborhood[];
   restaurants: string[][];
   itinerary: ItineraryDay[];
+  planning?: TripPlanningState;
 }
 
 export interface TripSummary {

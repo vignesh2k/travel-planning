@@ -11,6 +11,7 @@ import { PinInput } from "@/components/atlas/PinInput";
 import { SideRail } from "@/components/atlas/SideRail";
 import { WanderingStrokes } from "@/components/atlas/WanderingStrokes";
 import { WhereToTitle } from "@/components/atlas/WhereToTitle";
+import { SampleOutputStrip } from "@/components/SampleOutputStrip";
 import { listTrips } from "@/lib/api";
 import { findActiveTrip } from "@/lib/active-trip";
 import { getServerToken } from "@/lib/auth";
@@ -89,6 +90,8 @@ export default async function Home() {
           <div className="atlas-rise atlas-rise-3">
             <PinInput />
           </div>
+
+          <SampleOutputStrip />
 
           {active && (
             <div className="atlas-rise atlas-rise-3 mt-5 flex justify-center">

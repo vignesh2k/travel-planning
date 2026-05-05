@@ -6,6 +6,7 @@ import type {
   PublicTrip,
   ShareOut,
   TripBriefIn,
+  TripDocument,
   TripFull,
   TripSummary,
   UserProfile,
@@ -156,5 +157,19 @@ export async function patchTrip(
     token,
   );
   if (!res.ok) throw new Error(`patchTrip ${res.status}`);
+  return res.json();
+}
+
+export async function patchTripDocument(
+  slug: string,
+  document: TripDocument,
+  token: string,
+): Promise<TripFull> {
+  const res = await authedFetch(
+    `/trips/${slug}/document`,
+    { method: "PATCH", body: JSON.stringify({ document }) },
+    token,
+  );
+  if (!res.ok) throw new Error(`patchTripDocument ${res.status}`);
   return res.json();
 }

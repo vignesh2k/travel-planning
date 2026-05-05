@@ -17,6 +17,7 @@ from api.models import (
     Place,
     TripBriefIn,
     TripDocument,
+    TripDocumentPatch,
     TripFull,
     TripPatch,
     TripSummary,
@@ -388,6 +389,26 @@ def patch_trip(slug: str, body: TripPatch, user: CurrentUser) -> TripFull:
     update = {
         "start_date": body.start_date.isoformat() if body.start_date else None,
     }
+    upd = db.table("trips").update(update).eq("slug", slug).execute()
+    if not upd.data:
+        raise HTTPException(status_code=500, detail="update returned no row")
+
+    row = upd.data[0]
+    inserted_data = {**row}
+    doc_dict = inserted_data.pop("document")
+    return TripFull(**inserted_data, document=TripDocument(**doc_dict))
+
+
+@router.patch("/trips/{slug}/document", response_model=TripFull)
+def patch_trip_document(slug: str, body: TripDocumentPatch, user: CurrentUser) -> TripFull:
+    db = service_client()
+    res = db.table("trips").select("*").eq("slug", slug).single().execute()
+    if not res or not res.data:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    if res.data["user_id"] != user["sub"]:
+        raise HTTPException(status_code=403, detail="Not your trip")
+
+    update = {"document": body.document.model_dump(mode="json")}
     upd = db.table("trips").update(update).eq("slug", slug).execute()
     if not upd.data:
         raise HTTPException(status_code=500, detail="update returned no row")

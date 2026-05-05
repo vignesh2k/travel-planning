@@ -3,8 +3,17 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { combined } from "@/lib/currency";
+import {
+  addItineraryItem,
+  moveItineraryItem,
+  removeItineraryItem,
+  updateItineraryItem,
+} from "@/lib/itinerary-editing";
+import { activityId, nextPlanningStatus, setActivityStatus } from "@/lib/planning-status";
 import { placeForText, placesForDay } from "@/lib/trip-insights";
-import type { Budget, ItineraryDay, Place } from "@/lib/types";
+import type { Budget, ItineraryDay, Place, PlanningStatusValue, TripDocument } from "@/lib/types";
+
+import { StatusChip } from "./StatusChip";
 
 const TIME_META: Record<ItineraryDay["bullets"][number]["time"], { icon: string; tint: string }> = {
   Morning:   { icon: "☀️", tint: "text-amber-600" },
@@ -56,28 +65,34 @@ function restaurantsForDay(
 }
 
 export function Itinerary({
-  days,
-  places,
-  restaurants,
+  document: tripDocument,
   destination,
   budget,
+  readOnly,
+  editMode,
   initialDay,
   selectedPlaceName,
   onFocusPlaces,
   onRefinePrefill,
+  onDocumentChange,
   onOpenBudgetDay,
 }: {
-  days: ItineraryDay[];
-  places: Place[];
-  restaurants: string[][];
+  document: TripDocument;
   destination: string;
   budget: Budget | null;
+  readOnly: boolean;
+  editMode: boolean;
   initialDay?: number;
   selectedPlaceName?: string | null;
   onFocusPlaces: (places: Place[] | null) => void;
   onRefinePrefill: (text: string) => void;
+  onDocumentChange: (document: TripDocument) => void;
   onOpenBudgetDay: (dayNumber: number) => void;
 }) {
+  const days = useMemo(() => tripDocument.itinerary ?? [], [tripDocument.itinerary]);
+  const places = useMemo(() => tripDocument.places ?? [], [tripDocument.places]);
+  const restaurants = useMemo(() => tripDocument.restaurants ?? [], [tripDocument.restaurants]);
+  const planning = tripDocument.planning;
   const fallbackNum = days[0]?.number ?? 1;
   const seed =
     initialDay !== undefined && days.length > 0
@@ -170,17 +185,20 @@ export function Itinerary({
               </button>
             );
           })()}
-          <button
-            onClick={() => onRefinePrefill(`Refine Day ${active.number}: `)}
-            className="text-[10px] text-ink-500 hover:text-amber-600 px-2 py-1 rounded-md"
-            title="Open the refine input prefilled for this day"
-          >
-            ✨ Refine
-          </button>
+          {!readOnly && (
+            <button
+              onClick={() => onRefinePrefill(`Refine Day ${active.number}: `)}
+              className="text-[10px] text-ink-500 hover:text-amber-600 px-2 py-1 rounded-md"
+              title="Open the refine input prefilled for this day"
+            >
+              Refine
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 pb-1">
+      {!readOnly && (
+        <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 pb-1">
         {[
           ["Slower", `Refine Day ${active.number}: make the day slower with fewer stops and more breathing room.`],
           ["Less touristy", `Refine Day ${active.number}: make this less touristy and more local.`],
@@ -196,7 +214,8 @@ export function Itinerary({
             {label}
           </button>
         ))}
-      </div>
+        </div>
+      )}
 
       {/* Time-of-day sections */}
       <div className="flex flex-col gap-3">
@@ -211,46 +230,79 @@ export function Itinerary({
                 const place = placeForText(item, places);
                 const clickable = place && place.lat !== null && place.lng !== null;
                 const selected = place?.name === selectedPlaceName;
+                const id = activityId(active.number, b.time, i);
+                const status = planning?.statuses[id];
+                const cycleStatus = () => {
+                  onDocumentChange(setActivityStatus(tripDocument, id, nextPlanningStatus(status)));
+                };
                 return (
-                  <li key={i}>
-                    <button
-                      id={place ? placeDomId(place.name) : undefined}
-                      onClick={() => clickable && onFocusPlaces([place])}
-                      onMouseEnter={() => clickable && onFocusPlaces([place])}
-                      onMouseLeave={() => {
-                        const dayPlaces = placesForDay(active, places);
-                        onFocusPlaces(dayPlaces.length > 0 ? dayPlaces : null);
-                      }}
-                      disabled={!clickable}
-                      className={
-                        clickable
-                          ? "w-full text-left rounded-[12px] border px-3 py-2 text-[12px] text-ink-900 leading-snug hover:bg-white/95 hover:border-amber-600/30 hover:shadow-sm flex items-start gap-2"
-                          : "w-full text-left rounded-[12px] bg-white/40 border border-amber-700/10 px-3 py-2 text-[12px] text-ink-700 leading-snug flex items-start gap-2 cursor-default"
-                      }
-                      style={
-                        selected
-                          ? {
-                              background: "rgba(201,100,66,0.10)",
-                              borderColor: "rgba(201,100,66,0.45)",
-                              boxShadow: "0 6px 18px -14px rgba(31,26,20,0.45)",
-                            }
-                          : clickable
-                            ? {
-                                background: "rgba(255,255,255,0.70)",
-                                borderColor: "rgba(168,95,37,0.10)",
-                              }
-                            : undefined
-                      }
-                    >
-                      <span className="text-[14px] leading-none mt-0.5 shrink-0" aria-hidden>
-                        {clickable ? CATEGORY_EMOJI[place.category] : "•"}
-                      </span>
-                      <span className="flex-1">{item}</span>
-                    </button>
+                  <li key={`${b.time}-${i}-${item}`}>
+                    {editMode ? (
+                      <ActivityEditorRow
+                        item={item}
+                        place={place}
+                        status={status}
+                        index={i}
+                        itemCount={b.items.length}
+                        onFocusPlaces={onFocusPlaces}
+                        onCycleStatus={cycleStatus}
+                        onUpdate={(value) => {
+                          const trimmed = value.trim();
+                          onDocumentChange(
+                            trimmed
+                              ? updateItineraryItem(tripDocument, active.number, b.time, i, trimmed)
+                              : removeItineraryItem(tripDocument, active.number, b.time, i),
+                          );
+                        }}
+                        onMove={(direction) => onDocumentChange(moveItineraryItem(tripDocument, active.number, b.time, i, direction))}
+                        onRemove={() => onDocumentChange(removeItineraryItem(tripDocument, active.number, b.time, i))}
+                      />
+                    ) : (
+                      <div
+                        className={
+                          selected
+                            ? "rounded-[12px] border flex items-start gap-2 bg-[rgba(201,100,66,0.10)] border-[rgba(201,100,66,0.45)] shadow-sm"
+                            : clickable
+                              ? "rounded-[12px] border flex items-start gap-2 bg-white/70 border-amber-700/10 hover:bg-white/95 hover:border-amber-600/30 hover:shadow-sm"
+                              : "rounded-[12px] border flex items-start gap-2 bg-white/40 border-amber-700/10"
+                        }
+                      >
+                        <button
+                          id={place ? placeDomId(place.name) : undefined}
+                          onClick={() => clickable && onFocusPlaces([place])}
+                          onMouseEnter={() => clickable && onFocusPlaces([place])}
+                          onMouseLeave={() => {
+                            const dayPlaces = placesForDay(active, places);
+                            onFocusPlaces(dayPlaces.length > 0 ? dayPlaces : null);
+                          }}
+                          disabled={!clickable}
+                          className="min-w-0 flex-1 text-left px-3 py-2 text-[12px] text-ink-900 leading-snug flex items-start gap-2 disabled:cursor-default"
+                        >
+                          <span className="text-[14px] leading-none mt-0.5 shrink-0" aria-hidden>
+                            {clickable ? CATEGORY_EMOJI[place.category] : "•"}
+                          </span>
+                          <span className="flex-1">{item}</span>
+                        </button>
+                        {status && (
+                          <div className="shrink-0 pr-2 py-2">
+                            <StatusChip value={status} compact />
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </li>
                 );
               })}
             </ul>
+            {editMode && (
+              <button
+                type="button"
+                onClick={() => onDocumentChange(addItineraryItem(tripDocument, active.number, b.time))}
+                className="rounded-[10px] border border-dashed border-amber-700/20 bg-white/45 px-3 py-2 text-left text-[11px] font-medium text-amber-800 hover:bg-white/80"
+              >
+                Add {b.time.toLowerCase()} item
+              </button>
+            )}
           </section>
         ))}
 
@@ -300,6 +352,88 @@ export const CATEGORY_EMOJI: Record<Place["category"], string> = {
   photography_spot: "📷",
   logistics: "🧭",
 };
+
+function ActivityEditorRow({
+  item,
+  place,
+  status,
+  index,
+  itemCount,
+  onFocusPlaces,
+  onCycleStatus,
+  onUpdate,
+  onMove,
+  onRemove,
+}: {
+  item: string;
+  place: Place | null;
+  status?: PlanningStatusValue;
+  index: number;
+  itemCount: number;
+  onFocusPlaces: (places: Place[] | null) => void;
+  onCycleStatus: () => void;
+  onUpdate: (value: string) => void;
+  onMove: (direction: -1 | 1) => void;
+  onRemove: () => void;
+}) {
+  const [draft, setDraft] = useState(item);
+  const clickable = place && place.lat !== null && place.lng !== null;
+
+  function commit() {
+    if (draft !== item) onUpdate(draft);
+  }
+
+  return (
+    <div className="rounded-[12px] bg-white/75 border border-amber-700/10 p-2 flex flex-col gap-2">
+      <div className="flex items-start gap-2">
+        <button
+          type="button"
+          onClick={() => clickable && onFocusPlaces([place])}
+          disabled={!clickable}
+          className="mt-1 text-[14px] leading-none shrink-0 disabled:opacity-50"
+          title={clickable ? "Focus map" : undefined}
+        >
+          {clickable ? CATEGORY_EMOJI[place.category] : "•"}
+        </button>
+        <textarea
+          value={draft}
+          rows={2}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          className="min-w-0 flex-1 resize-none rounded-[9px] border border-amber-700/10 bg-white/80 px-2.5 py-2 text-[12px] leading-snug text-ink-900 outline-none focus:border-amber-600/40 focus:bg-white"
+        />
+      </div>
+      <div className="flex items-center gap-1.5 pl-6">
+        <StatusChip value={status ?? "idea"} onClick={onCycleStatus} compact />
+        <button
+          type="button"
+          onClick={() => onMove(-1)}
+          disabled={index === 0}
+          className="rounded-full bg-white/80 border border-amber-700/10 px-2 py-0.5 text-[10px] text-ink-600 hover:text-ink-900 disabled:opacity-35"
+          title="Move up"
+        >
+          ↑
+        </button>
+        <button
+          type="button"
+          onClick={() => onMove(1)}
+          disabled={index >= itemCount - 1}
+          className="rounded-full bg-white/80 border border-amber-700/10 px-2 py-0.5 text-[10px] text-ink-600 hover:text-ink-900 disabled:opacity-35"
+          title="Move down"
+        >
+          ↓
+        </button>
+        <button
+          type="button"
+          onClick={onRemove}
+          className="ml-auto rounded-full bg-rose-50 border border-rose-100 px-2 py-0.5 text-[10px] text-rose-600 hover:bg-rose-100"
+        >
+          Remove
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function placeDomId(name: string): string {
   return `itinerary-place-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
