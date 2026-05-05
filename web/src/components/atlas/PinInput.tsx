@@ -2,13 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 
 import { AirportInput } from "@/components/AirportInput";
-import { StreamingOverlay } from "@/components/StreamingOverlay";
 import { airportByCode } from "@/lib/airports";
-import { getBrowserToken } from "@/lib/auth.browser";
-import { streamTrip } from "@/lib/streamingTrip";
 import type { Place } from "@/lib/types";
+
+const StreamingOverlay = dynamic(
+  () => import("@/components/StreamingOverlay").then((mod) => mod.StreamingOverlay),
+  { ssr: false },
+);
 
 const SUGGESTIONS: { coord: string; label: string; prompt: string }[] = [
   { coord: "38.7° N", label: "Lisbon, slow weekend", prompt: "A long weekend in Lisbon" },
@@ -69,6 +72,10 @@ export function PinInput() {
     setChars(0);
     setPlaces([]);
     try {
+      const [{ getBrowserToken }, { streamTrip }] = await Promise.all([
+        import("@/lib/auth.browser"),
+        import("@/lib/streamingTrip"),
+      ]);
       const token = await getBrowserToken();
       if (!token) {
         router.push("/auth/signin");

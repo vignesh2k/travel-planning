@@ -3,8 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { deleteTrip } from "@/lib/api";
-import { getBrowserToken } from "@/lib/auth.browser";
 import type { TripSummary } from "@/lib/types";
 
 const MONTHS = [
@@ -54,6 +52,10 @@ export function Logbook({ trips: initial }: { trips: TripSummary[] }) {
   async function doDelete(slug: string) {
     setBusy(slug);
     try {
+      const [{ getBrowserToken }, { deleteTrip }] = await Promise.all([
+        import("@/lib/auth.browser"),
+        import("@/lib/api"),
+      ]);
       const token = await getBrowserToken();
       if (!token) return;
       await deleteTrip(slug, token);

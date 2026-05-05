@@ -14,15 +14,20 @@ import { WhereToTitle } from "@/components/atlas/WhereToTitle";
 import { SampleOutputStrip } from "@/components/SampleOutputStrip";
 import { listTrips } from "@/lib/api";
 import { findActiveTrip } from "@/lib/active-trip";
-import { getServerToken } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function Home() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const [
+    { data: { user } },
+    { data: { session } },
+  ] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase.auth.getSession(),
+  ]);
   if (!user) redirect("/auth/signin");
 
-  const token = await getServerToken();
+  const token = session?.access_token ?? null;
   const trips = token ? await listTrips(token).catch(() => []) : [];
   const active = findActiveTrip(trips);
 

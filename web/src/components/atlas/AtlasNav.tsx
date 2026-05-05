@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { BrandIcon } from "@/components/BrandMark";
-import { createClient } from "@/lib/supabase/client";
 
 export function AtlasNav({ email }: { email: string }) {
   const router = useRouter();
@@ -15,6 +14,7 @@ export function AtlasNav({ email }: { email: string }) {
     if (busy) return;
     setBusy(true);
     try {
+      const { createClient } = await import("@/lib/supabase/client");
       const supabase = createClient();
       await supabase.auth.signOut();
       router.replace("/auth/signin");
