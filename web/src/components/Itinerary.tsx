@@ -1,17 +1,25 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { type PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import { combined } from "@/lib/currency";
 import {
   addItineraryItem,
   moveItineraryItem,
   removeItineraryItem,
+  reorderItineraryItem,
   updateItineraryItem,
 } from "@/lib/itinerary-editing";
 import { activityId, nextPlanningStatus, setActivityStatus } from "@/lib/planning-status";
 import { placeForText, placesForDay } from "@/lib/trip-insights";
-import type { Budget, ItineraryDay, Place, PlanningStatusValue, TripDocument } from "@/lib/types";
+import type {
+  Budget,
+  ItineraryBulletGroup,
+  ItineraryDay,
+  Place,
+  PlanningStatusValue,
+  TripDocument,
+} from "@/lib/types";
 
 import { StatusChip } from "./StatusChip";
 
@@ -20,6 +28,16 @@ const TIME_META: Record<ItineraryDay["bullets"][number]["time"], { icon: string;
   Afternoon: { icon: "🌤️", tint: "text-amber-700" },
   Evening:   { icon: "🌙", tint: "text-ink-700"   },
 };
+
+interface DragState {
+  time: ItineraryBulletGroup["time"];
+  sourceIndex: number;
+  currentIndex: number;
+  startY: number;
+  pointerOffset: number;
+  rowHeight: number;
+  items: string[];
+}
 
 /** Pick restaurants likely to be relevant to a given day, by checking whether
  *  the restaurant name or area appears in the day's title or bullets. */
@@ -100,6 +118,9 @@ export function Itinerary({
       : fallbackNum;
   const [activeNum, setActiveNum] = useState<number>(seed);
   const active = useMemo(() => days.find((d) => d.number === activeNum) ?? days[0], [days, activeNum]);
+  const [dragState, setDragState] = useState<DragState | null>(null);
+  const dragRef = useRef<DragState | null>(null);
+  const isDragging = dragState !== null;
 
   useEffect(() => {
     if (!selectedPlaceName) return;
@@ -131,6 +152,91 @@ export function Itinerary({
     () => (active ? restaurantsForDay(active, restaurants, days) : []),
     [active, restaurants, days],
   );
+
+  function setDrag(next: DragState | null) {
+    dragRef.current = next;
+    setDragState(next);
+  }
+
+  function startDrag(
+    time: ItineraryBulletGroup["time"],
+    sourceIndex: number,
+    items: string[],
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) {
+    if (!editMode || readOnly || items.length < 2) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const row = event.currentTarget.closest("[data-activity-row]") as HTMLElement | null;
+    const rowHeight = Math.max((row?.getBoundingClientRect().height ?? 54) + 8, 48);
+    setDrag({
+      time,
+      sourceIndex,
+      currentIndex: sourceIndex,
+      startY: event.clientY,
+      pointerOffset: 0,
+      rowHeight,
+      items: [...items],
+    });
+  }
+
+  useEffect(() => {
+    if (!isDragging || !active) return;
+
+    function onMove(event: PointerEvent) {
+      const state = dragRef.current;
+      if (!state) return;
+      const pointerOffset = event.clientY - state.startY;
+      const rawOffset = Math.round(pointerOffset / state.rowHeight);
+      const targetIndex = Math.min(Math.max(state.sourceIndex + rawOffset, 0), state.items.length - 1);
+      setDrag({ ...state, currentIndex: targetIndex, pointerOffset });
+    }
+
+    function onUp() {
+      const state = dragRef.current;
+      if (state && state.currentIndex !== state.sourceIndex) {
+        onDocumentChange(
+          reorderItineraryItem(
+            tripDocument,
+            active.number,
+            state.time,
+            state.sourceIndex,
+            state.currentIndex,
+          ),
+        );
+      }
+      setDrag(null);
+    }
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp, { once: true });
+    window.addEventListener("pointercancel", onUp, { once: true });
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
+  }, [active, isDragging, onDocumentChange, tripDocument]);
+
+  function dragOffsetFor(time: ItineraryBulletGroup["time"], index: number): number {
+    if (!dragState || dragState.time !== time) return 0;
+    if (index === dragState.sourceIndex) return dragState.pointerOffset;
+    if (
+      dragState.sourceIndex < dragState.currentIndex &&
+      index > dragState.sourceIndex &&
+      index <= dragState.currentIndex
+    ) {
+      return -dragState.rowHeight;
+    }
+    if (
+      dragState.sourceIndex > dragState.currentIndex &&
+      index >= dragState.currentIndex &&
+      index < dragState.sourceIndex
+    ) {
+      return dragState.rowHeight;
+    }
+    return 0;
+  }
 
   if (!active) {
     return <p className="text-xs text-ink-500 p-2">No itinerary yet.</p>;
@@ -232,11 +338,18 @@ export function Itinerary({
                 const selected = place?.name === selectedPlaceName;
                 const id = activityId(active.number, b.time, i);
                 const status = planning?.statuses[id];
+                const isDragged = dragState?.time === b.time && dragState.sourceIndex === i;
+                const dragOffset = dragOffsetFor(b.time, i);
                 const cycleStatus = () => {
                   onDocumentChange(setActivityStatus(tripDocument, id, nextPlanningStatus(status)));
                 };
                 return (
-                  <li key={`${b.time}-${i}-${item}`}>
+                  <li
+                    key={`${b.time}-${i}-${item}`}
+                    className={isDragged ? "relative z-20" : "relative transition-transform duration-150 ease-out"}
+                    data-activity-row
+                    style={{ transform: dragOffset ? `translateY(${dragOffset}px)` : undefined }}
+                  >
                     {editMode ? (
                       <ActivityEditorRow
                         item={item}
@@ -244,7 +357,9 @@ export function Itinerary({
                         status={status}
                         index={i}
                         itemCount={b.items.length}
+                        isDragging={isDragged}
                         onFocusPlaces={onFocusPlaces}
+                        onDragStart={(event) => startDrag(b.time, i, b.items, event)}
                         onCycleStatus={cycleStatus}
                         onUpdate={(value) => {
                           const trimmed = value.trim();
@@ -359,7 +474,9 @@ function ActivityEditorRow({
   status,
   index,
   itemCount,
+  isDragging,
   onFocusPlaces,
+  onDragStart,
   onCycleStatus,
   onUpdate,
   onMove,
@@ -370,7 +487,9 @@ function ActivityEditorRow({
   status?: PlanningStatusValue;
   index: number;
   itemCount: number;
+  isDragging: boolean;
   onFocusPlaces: (places: Place[] | null) => void;
+  onDragStart: (event: ReactPointerEvent<HTMLButtonElement>) => void;
   onCycleStatus: () => void;
   onUpdate: (value: string) => void;
   onMove: (direction: -1 | 1) => void;
@@ -384,7 +503,13 @@ function ActivityEditorRow({
   }
 
   return (
-    <div className="rounded-[12px] bg-white/75 border border-amber-700/10 p-2 flex flex-col gap-2">
+    <div
+      className={
+        isDragging
+          ? "rounded-[12px] bg-white border border-amber-600/30 p-2 flex flex-col gap-2 shadow-xl scale-[1.025] z-10 relative cursor-grabbing transition-all duration-150"
+          : "rounded-[12px] bg-white/75 border border-amber-700/10 p-2 flex flex-col gap-2 transition-all duration-150"
+      }
+    >
       <div className="flex items-start gap-2">
         <button
           type="button"
@@ -404,6 +529,16 @@ function ActivityEditorRow({
         />
       </div>
       <div className="flex items-center gap-1.5 pl-6">
+        <button
+          type="button"
+          onPointerDown={onDragStart}
+          disabled={itemCount < 2}
+          className="rounded-full bg-white/80 border border-amber-700/10 px-2 py-0.5 text-[10px] text-ink-600 hover:text-ink-900 disabled:opacity-35 cursor-grab active:cursor-grabbing"
+          style={{ touchAction: "none" }}
+          title="Drag to reorder"
+        >
+          Drag
+        </button>
         <StatusChip value={status ?? "idea"} onClick={onCycleStatus} compact />
         <button
           type="button"

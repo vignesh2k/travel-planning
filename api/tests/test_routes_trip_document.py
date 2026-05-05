@@ -145,6 +145,53 @@ def test_patch_trip_document_adds_default_planning_for_old_documents(monkeypatch
     assert update_call.call_args.args[0]["document"]["planning"]["last_editor_version"] == 1
 
 
+def test_patch_trip_document_normalizes_legacy_document_shapes(monkeypatch) -> None:
+    legacy_document = {
+        "document_markdown": {"Overview": "Kyoto."},
+        "places": [
+            {
+                "name": "Mountain path",
+                "category": "hiking",
+                "description": None,
+                "lat": "35.0",
+                "lng": None,
+            }
+        ],
+        "neighborhoods": None,
+        "restaurants": [["Cafe", None, 4]],
+        "itinerary": [
+            {
+                "number": "1",
+                "title": None,
+                "bullets": [
+                    {"time": "Morning", "items": ["Coffee", 7, None]},
+                    {"time": "Lunch", "items": ["Invalid time is dropped"]},
+                ],
+            }
+        ],
+        "planning": None,
+    }
+    updated = _trip_row(_document())
+    client, update_call = _mock_get_then_update(_trip_row(legacy_document), updated)
+    monkeypatch.setattr("api.routes.trips.service_client", lambda: client)
+
+    res = TestClient(app).patch(
+        "/trips/kyoto-2d-doc/document",
+        headers=_headers(),
+        json={"document": legacy_document},
+    )
+
+    assert res.status_code == 200, res.text
+    saved_doc = update_call.call_args.args[0]["document"]
+    assert saved_doc["document_markdown"] == "## Overview\n\nKyoto."
+    assert saved_doc["places"][0]["category"] == "logistics"
+    assert saved_doc["places"][0]["description"] == ""
+    assert saved_doc["restaurants"] == [["Cafe", "", "4"]]
+    assert saved_doc["itinerary"][0]["title"] == "Day 1"
+    assert saved_doc["itinerary"][0]["bullets"] == [{"time": "Morning", "items": ["Coffee", "7"]}]
+    assert saved_doc["planning"]["last_editor_version"] == 1
+
+
 def test_patch_trip_document_403_when_not_owner(monkeypatch) -> None:
     client, _ = _mock_get_then_update(_trip_row(owner="someone-else"), _trip_row(owner="someone-else"))
     monkeypatch.setattr("api.routes.trips.service_client", lambda: client)

@@ -29,6 +29,11 @@ class Place(BaseModel):
     lat: float | None = None
     lng: float | None = None
 
+    @field_validator("description", mode="before")
+    @classmethod
+    def _coerce_description(cls, v: Any) -> str:
+        return "" if v is None else str(v)
+
     @field_validator("category", mode="before")
     @classmethod
     def _coerce_category(cls, v: Any) -> str:
@@ -178,6 +183,64 @@ class TripDocument(BaseModel):
                     parts.append(f"## {header}\n\n{body}")
             return "\n\n".join(parts)
         return v
+
+    @field_validator("neighborhoods", mode="before")
+    @classmethod
+    def _coerce_neighborhoods(cls, v: Any) -> Any:
+        return [] if v is None else v
+
+    @field_validator("restaurants", mode="before")
+    @classmethod
+    def _coerce_restaurants(cls, v: Any) -> list[list[str]]:
+        if not isinstance(v, list):
+            return []
+        rows: list[list[str]] = []
+        for row in v:
+            if not isinstance(row, list):
+                continue
+            rows.append(["" if cell is None else str(cell) for cell in row])
+        return rows
+
+    @field_validator("itinerary", mode="before")
+    @classmethod
+    def _coerce_itinerary(cls, v: Any) -> list[dict[str, Any]]:
+        if not isinstance(v, list):
+            return []
+        days: list[dict[str, Any]] = []
+        for index, raw_day in enumerate(v, start=1):
+            if not isinstance(raw_day, dict):
+                continue
+            try:
+                number = int(raw_day.get("number") or index)
+            except (TypeError, ValueError):
+                number = index
+            title = raw_day.get("title")
+            bullets: list[dict[str, Any]] = []
+            for raw_group in raw_day.get("bullets") or []:
+                if not isinstance(raw_group, dict):
+                    continue
+                time = raw_group.get("time")
+                if time not in ("Morning", "Afternoon", "Evening"):
+                    continue
+                items = [
+                    str(item)
+                    for item in (raw_group.get("items") or [])
+                    if item is not None and str(item).strip()
+                ]
+                bullets.append({"time": time, "items": items})
+            days.append(
+                {
+                    "number": number,
+                    "title": title if isinstance(title, str) and title.strip() else f"Day {number}",
+                    "bullets": bullets,
+                }
+            )
+        return days
+
+    @field_validator("planning", mode="before")
+    @classmethod
+    def _coerce_planning(cls, v: Any) -> Any:
+        return {} if v is None else v
 
     @model_validator(mode="after")
     def _derive_structured_sections(self) -> "TripDocument":
