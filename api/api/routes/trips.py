@@ -369,19 +369,23 @@ def delete_trip(slug: str, user: CurrentUser) -> dict[str, bool]:
     return {"ok": True}
 
 
-@router.post("/trips/{slug}/save")
-def save_trip(slug: str, user: CurrentUser) -> dict[str, bool]:
+@router.post("/trips/{slug}/save", response_model=TripFull)
+def save_trip(slug: str, user: CurrentUser) -> TripFull:
     """Promote a draft to the Logbook. Idempotent — clicking Save twice
     is fine."""
     db = service_client()
-    res = db.table("trips").select("user_id, is_saved").eq("slug", slug).single().execute()
+    res = db.table("trips").select("*").eq("slug", slug).single().execute()
     if not res.data:
         raise HTTPException(status_code=404, detail="Trip not found")
     if res.data["user_id"] != user["sub"]:
         raise HTTPException(status_code=403, detail="Not your trip")
     if not res.data.get("is_saved"):
         db.table("trips").update({"is_saved": True}).eq("slug", slug).execute()
-    return {"ok": True}
+        fresh = db.table("trips").select("*").eq("slug", slug).single().execute()
+        if not fresh or not fresh.data:
+            raise HTTPException(status_code=500, detail="Trip saved but fresh trip could not be loaded")
+        return _trip_full_from_row(fresh.data)
+    return _trip_full_from_row(res.data)
 
 
 @router.patch("/trips/{slug}", response_model=TripFull)

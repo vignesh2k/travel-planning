@@ -548,7 +548,32 @@ def test_patch_trip_requires_auth() -> None:
 # ── POST /trips/:slug/save ──────────────────────────────────────────────────
 
 
-def _mock_save_chain(initial: dict | None) -> tuple[MagicMock, MagicMock]:
+def _save_trip_row(owner: str, *, is_saved: bool) -> dict[str, Any]:
+    return {
+        "id": "save-trip-1",
+        "slug": "kyoto-7d-aaa",
+        "user_id": owner,
+        "destination": "Kyoto",
+        "days": 7,
+        "travel_style": "veg",
+        "start_date": None,
+        "airport_entry": None,
+        "airport_exit": None,
+        "document": {
+            "document_markdown": "## Overview\n\nKyoto.",
+            "places": [],
+            "neighborhoods": [],
+            "restaurants": [],
+            "itinerary": [],
+        },
+        "places": [],
+        "share_token": None,
+        "is_saved": is_saved,
+        "created_at": "2026-05-01T00:00:00+00:00",
+    }
+
+
+def _mock_save_chain(initial: dict | None, fresh: dict | None = None) -> tuple[MagicMock, MagicMock]:
     """Returns (client, update_call) where update_call is the mock for
     .table().update({...}).eq().execute() so tests can assert on it."""
     table = MagicMock()
@@ -556,7 +581,13 @@ def _mock_save_chain(initial: dict | None) -> tuple[MagicMock, MagicMock]:
     table.select.return_value = select_chain
     select_chain.eq.return_value = select_chain
     select_chain.single.return_value = select_chain
-    select_chain.execute.return_value = MagicMock(data=initial)
+    if fresh is None:
+        select_chain.execute.return_value = MagicMock(data=initial)
+    else:
+        select_chain.execute.side_effect = [
+            MagicMock(data=initial),
+            MagicMock(data=fresh),
+        ]
 
     update_call = table.update
     update_call.return_value.eq.return_value.execute.return_value = MagicMock(data=[{"ok": True}])
@@ -568,20 +599,27 @@ def _mock_save_chain(initial: dict | None) -> tuple[MagicMock, MagicMock]:
 
 def test_save_trip_promotes_draft(monkeypatch) -> None:
     OWNER = "save-owner"
-    client, update_call = _mock_save_chain({"user_id": OWNER, "is_saved": False})
+    client, update_call = _mock_save_chain(
+        {"user_id": OWNER, "is_saved": False},
+        _save_trip_row(OWNER, is_saved=True),
+    )
     monkeypatch.setattr("api.routes.trips.service_client", lambda: client)
 
     headers = {"Authorization": f"Bearer {_token(OWNER)}"}
     res = TestClient(app).post("/trips/kyoto-7d-aaa/save", headers=headers)
 
     assert res.status_code == 200
-    assert res.json() == {"ok": True}
+    assert res.json()["is_saved"] is True
+    assert res.json()["slug"] == "kyoto-7d-aaa"
     update_call.assert_called_once_with({"is_saved": True})
 
 
 def test_save_trip_idempotent_on_already_saved(monkeypatch) -> None:
     OWNER = "save-owner"
-    client, update_call = _mock_save_chain({"user_id": OWNER, "is_saved": True})
+    client, update_call = _mock_save_chain(
+        _save_trip_row(OWNER, is_saved=True),
+        _save_trip_row(OWNER, is_saved=True),
+    )
     monkeypatch.setattr("api.routes.trips.service_client", lambda: client)
 
     headers = {"Authorization": f"Bearer {_token(OWNER)}"}

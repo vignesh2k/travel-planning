@@ -1,64 +1,20 @@
 "use client";
 
-import { useState } from "react";
-
-import { saveTrip } from "@/lib/api";
-import { getBrowserToken } from "@/lib/auth.browser";
-
-type Phase = "unsaved" | "saving" | "saved" | "error";
-
 export function SaveTripButton({
-  slug,
   saved,
   hasUnsavedChanges = false,
-  savingChanges = false,
-  onSaved,
-  onSaveDraft,
-  onSaveChanges,
+  saving = false,
+  error = null,
+  onSave,
 }: {
-  slug: string;
   saved: boolean;
   hasUnsavedChanges?: boolean;
-  savingChanges?: boolean;
-  onSaved?: () => void;
-  onSaveDraft?: () => Promise<void>;
-  onSaveChanges?: () => Promise<void>;
+  saving?: boolean;
+  error?: string | null;
+  onSave: () => void;
 }) {
-  const [phase, setPhase] = useState<Phase>(saved ? "saved" : "unsaved");
-
-  async function save() {
-    if (saved) {
-      if (!hasUnsavedChanges || !onSaveChanges) return;
-      setPhase("saving");
-      try {
-        await onSaveChanges();
-        setPhase("saved");
-      } catch (e) {
-        console.error("save changes failed", e);
-        setPhase("error");
-      }
-      return;
-    }
-    if (phase === "saving") return;
-    setPhase("saving");
-    try {
-      if (onSaveDraft) {
-        await onSaveDraft();
-      } else {
-        const token = await getBrowserToken();
-        if (!token) { setPhase("error"); return; }
-        await saveTrip(slug, token);
-      }
-      setPhase("saved");
-      onSaved?.();
-    } catch (e) {
-      console.error("saveTrip failed", e);
-      setPhase("error");
-    }
-  }
-
-  const isSaving = phase === "saving" || savingChanges;
-  const isError = phase === "error";
+  const isSaving = saving;
+  const isError = Boolean(error);
   const isDraft = !saved || hasUnsavedChanges;
   const disabled = isSaving || (saved && !hasUnsavedChanges);
   const label = isError ? "Retry save" : saved && hasUnsavedChanges ? "Save changes" : "Save";
@@ -75,14 +31,14 @@ export function SaveTripButton({
         {isDraft ? "Draft" : "Saved"}
       </span>
       <button
-        onClick={save}
+        onClick={onSave}
         disabled={disabled}
         className={
           disabled
             ? "rounded-[10px] bg-white/65 border border-amber-700/10 text-ink-400 text-xs px-3 py-1 font-medium flex items-center gap-1.5 cursor-default"
             : "rounded-[10px] bg-gradient-to-br from-amber-400 to-amber-600 text-white text-xs px-3 py-1 font-medium shadow-sm hover:shadow-md flex items-center gap-1.5"
         }
-        title={isError ? "Couldn't save — try again" : saved ? "Save itinerary changes" : "Save to Logbook"}
+        title={isError ? error ?? "Could not save. Try again." : saved ? "Save itinerary changes" : "Save to Logbook"}
       >
         {isSaving ? (
           <>

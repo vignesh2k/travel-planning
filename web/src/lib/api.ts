@@ -26,6 +26,11 @@ async function authedFetch(path: string, init: RequestInit, token: string): Prom
   });
 }
 
+async function apiError(res: Response, action: string): Promise<Error> {
+  const text = await res.text().catch(() => "");
+  return new Error(text ? `${action} ${res.status}: ${text}` : `${action} ${res.status}`);
+}
+
 export async function listTrips(token: string): Promise<TripSummary[]> {
   const res = await authedFetch("/trips", { method: "GET" }, token);
   if (!res.ok) throw new Error(`listTrips ${res.status}`);
@@ -69,9 +74,10 @@ export async function deleteTrip(slug: string, token: string): Promise<void> {
   if (!res.ok) throw new Error(`deleteTrip ${res.status}`);
 }
 
-export async function saveTrip(slug: string, token: string): Promise<void> {
+export async function saveTrip(slug: string, token: string): Promise<TripFull> {
   const res = await authedFetch(`/trips/${slug}/save`, { method: "POST" }, token);
-  if (!res.ok) throw new Error(`saveTrip ${res.status}`);
+  if (!res.ok) throw await apiError(res, "saveTrip");
+  return res.json();
 }
 
 export async function getProfile(token: string): Promise<UserProfile | null> {
@@ -170,6 +176,6 @@ export async function patchTripDocument(
     { method: "PATCH", body: JSON.stringify({ document }) },
     token,
   );
-  if (!res.ok) throw new Error(`patchTripDocument ${res.status}`);
+  if (!res.ok) throw await apiError(res, "patchTripDocument");
   return res.json();
 }

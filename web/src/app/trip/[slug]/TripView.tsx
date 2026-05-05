@@ -43,6 +43,8 @@ export function TripView({
   const [saved, setSaved] = useState(initial.is_saved);
   const [draftDocument, setDraftDocument] = useState<TripDocument>(() => ensurePlanningState(initial.document));
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [savingTrip, setSavingTrip] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const isMobile = useIsMobile();
   const [focusPlaces, setFocusPlaces] = useState<Place[] | null>(null);
   const [selectedPlaceName, setSelectedPlaceName] = useState<string | null>(null);
@@ -59,30 +61,32 @@ export function TripView({
   function updateDocumentDraft(next: TripDocument) {
     setDraftDocument(ensurePlanningState(next));
     setHasUnsavedChanges(true);
+    setSaveError(null);
   }
 
-  async function persistDraftDocument(): Promise<TripFull> {
-    const token = await getBrowserToken();
-    if (!token) throw new Error("Not signed in");
-    const updated = await patchTripDocument(trip.slug, draftDocument, token);
-    applyServerTrip(updated);
-    return updated;
-  }
+  async function saveCurrentTrip() {
+    if (savingTrip || (saved && !hasUnsavedChanges)) return;
+    setSavingTrip(true);
+    setSaveError(null);
+    try {
+      const token = await getBrowserToken();
+      if (!token) throw new Error("Not signed in");
 
-  async function saveDraftToLogbook() {
-    const token = await getBrowserToken();
-    if (!token) throw new Error("Not signed in");
-    if (hasUnsavedChanges) {
-      await patchTripDocument(trip.slug, draftDocument, token);
+      let updated = trip;
+      if (hasUnsavedChanges) {
+        updated = await patchTripDocument(trip.slug, draftDocument, token);
+      }
+      if (!updated.is_saved) {
+        updated = await saveTrip(trip.slug, token);
+      }
+      applyServerTrip(updated);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not save changes";
+      console.error("trip save failed", error);
+      setSaveError(message);
+    } finally {
+      setSavingTrip(false);
     }
-    await saveTrip(trip.slug, token);
-    setSaved(true);
-    setTrip((current) => ({
-      ...current,
-      is_saved: true,
-      document: ensurePlanningState(draftDocument),
-    }));
-    setHasUnsavedChanges(false);
   }
 
   function pushRefinePrefill(text: string) {
@@ -139,14 +143,11 @@ export function TripView({
         </div>
         <div className="flex gap-2 items-center">
           <SaveTripButton
-            slug={trip.slug}
             saved={saved}
             hasUnsavedChanges={hasUnsavedChanges}
-            onSaved={() => setSaved(true)}
-            onSaveDraft={saveDraftToLogbook}
-            onSaveChanges={async () => {
-              await persistDraftDocument();
-            }}
+            saving={savingTrip}
+            error={saveError}
+            onSave={saveCurrentTrip}
           />
           <ShareMenu slug={trip.slug} initialToken={trip.share_token} prominent={saved} />
           {saved && <PdfExportMenu slug={trip.slug} destination={trip.destination} days={trip.days} prominent />}
