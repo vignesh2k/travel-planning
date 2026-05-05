@@ -5,7 +5,8 @@ web view. Sections are user-toggleable: schedule is always produced;
 food spots, photo spots, and per-day tips are conditional.
 
 Each day is one parallel LLM call so the modal can show real progress.
-DeepSeek v4-flash with web search (:online) for richer prose + fresh facts.
+DeepSeek v4-flash for fast, low-cost generation. The enriched variant keeps
+web search available for a future opt-in "fresh research" mode.
 """
 
 import concurrent.futures
@@ -18,7 +19,8 @@ from typing import Any
 from api.llm.client import make_client, strip_code_fences
 from api.models import PdfCoverSection, PdfDay, PdfPlan
 
-PDF_PLAN_MODEL = "deepseek/deepseek-v4-flash:online"
+PDF_PLAN_MODEL = "deepseek/deepseek-v4-flash"
+PDF_PLAN_MODEL_ENRICHED = "deepseek/deepseek-v4-flash:online"
 
 
 @dataclass
