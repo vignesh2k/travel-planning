@@ -1,14 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
-import { fetchHotels } from "@/lib/api";
+import { fetchHotels, patchTripDocument } from "@/lib/api";
 import { getBrowserToken } from "@/lib/auth.browser";
-import type { Budget, Neighborhood, Place, PublicTrip, TripFull } from "@/lib/types";
+import { ensurePlanningState } from "@/lib/planning-status";
+import type { Budget, Neighborhood, Place, PublicTrip, TripDocument, TripFull } from "@/lib/types";
 
 import { BudgetTab } from "./BudgetTab";
 import { HotelCard } from "./HotelCard";
 import { Itinerary } from "./Itinerary";
+import { PlanHealthPanel } from "./PlanHealthPanel";
+import { TripDeskHeader } from "./TripDeskHeader";
 import { TripPanelTabs, type Tab } from "./TripPanelTabs";
 import { TripSummaryHeader } from "./TripSummaryHeader";
 
@@ -23,6 +26,7 @@ export function TripPanel({
   selectedPlaceName,
   onFocusPlaces,
   onRefinePrefill,
+  onTripUpdated,
 }: {
   trip: TripFull | PublicTrip;
   budget: Budget | null;
@@ -31,12 +35,16 @@ export function TripPanel({
   selectedPlaceName?: string | null;
   onFocusPlaces: (places: Place[] | null) => void;
   onRefinePrefill: (text: string) => void;
+  onTripUpdated?: (trip: TripFull) => void;
 }) {
   const [tab, setTab] = useState<Tab>("Plan");
-  const days = trip.document.itinerary;
-  const restaurants = trip.document.restaurants;
+  const tripDocument = useMemo(() => ensurePlanningState(trip.document), [trip.document]);
+  const [editMode, setEditMode] = useState(false);
+  const [savingDocument, setSavingDocument] = useState(false);
+  const [documentError, setDocumentError] = useState<string | null>(null);
   const [neighborhoods, setNeighborhoods] = useState<Neighborhood[]>(trip.document.neighborhoods ?? []);
   const [hotelsLoading, setHotelsLoading] = useState(false);
+  const viewTrip = useMemo(() => ({ ...trip, document: tripDocument }), [trip, tripDocument]);
 
   async function loadHotels() {
     if (neighborhoods.length || hotelsLoading) return;
@@ -51,8 +59,38 @@ export function TripPanel({
     }
   }
 
+  async function saveDocument(next: TripDocument) {
+    const hydrated = ensurePlanningState(next);
+    if (readOnly) return;
+
+    setSavingDocument(true);
+    setDocumentError(null);
+    try {
+      const token = await getBrowserToken();
+      if (!token) {
+        setDocumentError("Not signed in");
+        return;
+      }
+      onTripUpdated?.({ ...(trip as TripFull), document: hydrated });
+      const updated = await patchTripDocument(trip.slug, hydrated, token);
+      onTripUpdated?.(updated);
+    } catch (e) {
+      console.error("patchTripDocument failed", e);
+      setDocumentError("Could not save changes");
+    } finally {
+      setSavingDocument(false);
+    }
+  }
+
   return (
     <div className="h-full flex flex-col overflow-hidden">
+      <TripDeskHeader
+        trip={viewTrip}
+        readOnly={readOnly}
+        editMode={editMode}
+        saving={savingDocument}
+        onToggleEdit={() => setEditMode((v) => !v)}
+      />
       <TripPanelTabs
         active={tab}
         tabs={readOnly ? READONLY_TABS : FULL_TABS}
@@ -64,7 +102,7 @@ export function TripPanel({
       />
       <div className="flex-1 p-3 overflow-auto flex flex-col gap-2">
         <TripSummaryHeader
-          trip={trip}
+          trip={viewTrip}
           budget={budget}
           readOnly={readOnly}
           onFocusPlaces={onFocusPlaces}
@@ -72,18 +110,31 @@ export function TripPanel({
             if (!readOnly) setTab("Money");
           }}
         />
+        {tab === "Plan" && (
+          <PlanHealthPanel
+            trip={viewTrip}
+            readOnly={readOnly}
+            onDocumentChange={saveDocument}
+          />
+        )}
+        {documentError && (
+          <div className="rounded-[10px] bg-rose-50 border border-rose-100 px-3 py-2 text-[11px] text-rose-700">
+            {documentError}
+          </div>
+        )}
 
         {tab === "Plan" && (
           <Itinerary
-            days={days}
-            places={trip.document.places}
-            restaurants={restaurants}
+            document={tripDocument}
             destination={trip.destination}
             budget={budget}
+            readOnly={readOnly}
+            editMode={editMode}
             initialDay={initialDay}
             selectedPlaceName={selectedPlaceName}
             onFocusPlaces={onFocusPlaces}
             onRefinePrefill={onRefinePrefill}
+            onDocumentChange={saveDocument}
             onOpenBudgetDay={(n) => {
               setTab("Money");
               // After tab swap, scroll the matching row into view.

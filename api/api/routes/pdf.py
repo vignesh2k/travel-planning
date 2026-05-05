@@ -42,6 +42,7 @@ class PdfBuildIn(BaseModel):
     photos: bool = True
     tips: bool = True
     costs: bool = True
+    style: str = "reference"
 
 
 @router.post("/trips/{slug}/pdf/build")

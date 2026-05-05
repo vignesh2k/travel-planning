@@ -17,10 +17,11 @@ function formatDate(iso: string | null): string {
 }
 
 export function TripDateEdit({
-  slug, initial,
+  slug, initial, onUpdated,
 }: {
   slug: string;
   initial: string | null;
+  onUpdated?: (startDate: string | null) => void;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -49,6 +50,7 @@ export function TripDateEdit({
       const updated = await patchTrip(slug, { start_date: next }, token);
       setCurrent(updated.start_date);
       setValue(updated.start_date ?? "");
+      onUpdated?.(updated.start_date);
       setOpen(false);
       router.refresh();
     } catch (e) {

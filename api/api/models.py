@@ -92,6 +92,13 @@ class ItineraryDay(BaseModel):
     bullets: list[ItineraryBulletGroup]
 
 
+class TripPlanningState(BaseModel):
+    statuses: dict[str, str] = Field(default_factory=dict)
+    notes: dict[str, str] = Field(default_factory=dict)
+    dismissed_health_checks: list[str] = Field(default_factory=list)
+    last_editor_version: int = 1
+
+
 def _parse_restaurants(markdown: str) -> list[list[str]]:
     sections = re.split(r"(?=^## )", markdown, flags=re.M)
     section = next((s for s in sections if re.search(r"^##\s+Vegetarian Restaurants", s, re.I | re.M)), "")
@@ -151,6 +158,7 @@ class TripDocument(BaseModel):
     neighborhoods: list[Neighborhood] = []
     restaurants: list[list[str]] = []
     itinerary: list[ItineraryDay] = []
+    planning: TripPlanningState = Field(default_factory=TripPlanningState)
 
     @field_validator("document_markdown", mode="before")
     @classmethod
@@ -205,6 +213,11 @@ class TripFull(TripSummary):
 class TripPatch(BaseModel):
     """Partial-update fields for an existing trip. v1 supports start_date only."""
     start_date: date | None = None
+
+
+class TripDocumentPatch(BaseModel):
+    """Replacement document payload for authenticated in-place itinerary edits."""
+    document: TripDocument
 
 
 class RefineIn(BaseModel):

@@ -22,6 +22,13 @@ const SECTION_OPTIONS = [
 ] as const;
 
 type SectionKey = (typeof SECTION_OPTIONS)[number]["key"];
+const STYLE_OPTIONS = [
+  { key: "reference", label: "Reference" },
+  { key: "compact", label: "Compact" },
+  { key: "pretty", label: "Editorial" },
+] as const;
+
+type StyleKey = (typeof STYLE_OPTIONS)[number]["key"];
 
 export function PdfExportMenu({
   slug,
@@ -42,6 +49,7 @@ export function PdfExportMenu({
     tips: true,
     costs: true,
   });
+  const [style, setStyle] = useState<StyleKey>("reference");
   const [stages, setStages] = useState<Stage[]>([]);
   const [error, setError] = useState<string | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -96,7 +104,7 @@ export function PdfExportMenu({
           {
             method: "POST",
             headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-            body: JSON.stringify(picked),
+            body: JSON.stringify({ ...picked, style }),
           },
         );
       } catch (e) {
@@ -153,7 +161,7 @@ export function PdfExportMenu({
         }
       }
     })();
-  }, [phase, picked, slug, destination]);
+  }, [phase, picked, slug, destination, style]);
 
   function reset() {
     setPhase("menu");
@@ -189,6 +197,22 @@ export function PdfExportMenu({
             <div className="p-3 flex flex-col gap-2">
               <div className="text-[10px] font-semibold uppercase tracking-wider text-ink-500">
                 Include in PDF
+              </div>
+              <div className="grid grid-cols-3 gap-1 rounded-[10px] bg-white/55 border border-amber-700/10 p-1">
+                {STYLE_OPTIONS.map((option) => (
+                  <button
+                    key={option.key}
+                    type="button"
+                    onClick={() => setStyle(option.key)}
+                    className={
+                      style === option.key
+                        ? "rounded-[8px] bg-ink-900 text-white px-2 py-1 text-[10px] font-semibold"
+                        : "rounded-[8px] px-2 py-1 text-[10px] font-medium text-ink-600 hover:bg-white/80"
+                    }
+                  >
+                    {option.label}
+                  </button>
+                ))}
               </div>
               {SECTION_OPTIONS.map((s) => (
                 <label
