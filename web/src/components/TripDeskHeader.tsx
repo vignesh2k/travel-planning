@@ -63,7 +63,7 @@ export function TripDeskHeader({
         </div>
         {!readOnly && (
           <div className="shrink-0 flex items-center gap-1.5">
-            {(editMode || hasUnsavedChanges) && (
+            {saved && (editMode || hasUnsavedChanges) && (
               <button
                 type="button"
                 onClick={onSave}
