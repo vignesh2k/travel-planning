@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 import type { Place } from "@/lib/types";
@@ -22,11 +23,9 @@ export function StreamingOverlay({
   chars: number;
   places: Place[];
 }) {
-  // Portal to <body>. Without this, an ancestor with `transform` (the
-  // .atlas-rise mount animation, for example) creates a new containing
-  // block for fixed-position descendants and the overlay shrinks to
-  // that ancestor's bounds instead of filling the viewport.
-  if (typeof document === "undefined") return null;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
 
   const pct = asymptoticPct(chars);
   const overlay = (
