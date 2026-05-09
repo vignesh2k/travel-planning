@@ -1,4 +1,5 @@
 import type { ItineraryDay } from "@/lib/types";
+import React from "react";
 
 export interface Day {
   number: number;
@@ -7,7 +8,13 @@ export interface Day {
   bullets: { time: "Morning" | "Afternoon" | "Evening"; items: string[] }[];
 }
 
-export function DayCard({ day, isCurrent }: { day: Day | ItineraryDay; isCurrent: boolean }) {
+export const DayCard = React.memo(function DayCard({
+  day,
+  isCurrent,
+}: {
+  day: Day | ItineraryDay;
+  isCurrent: boolean;
+}) {
   const area = "area" in day ? day.area : undefined;
 
   return (
@@ -34,4 +41,4 @@ export function DayCard({ day, isCurrent }: { day: Day | ItineraryDay; isCurrent
       </div>
     </div>
   );
-}
+});

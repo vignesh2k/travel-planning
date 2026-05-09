@@ -26,6 +26,7 @@ const STYLE_URL = "https://tiles.openfreemap.org/styles/positron";
 interface MapMarker {
   marker: maplibregl.Marker;
   place: Place & { lat: number; lng: number };
+  dot: HTMLElement;
 }
 
 export function Map({
@@ -46,6 +47,15 @@ export function Map({
   const closeTimerRef = useRef<number | undefined>(undefined);
   const routeLabelsRef = useRef<maplibregl.Marker[]>([]);
 
+  // Refs to latest callbacks/values so marker creation effect doesn't
+  // re-run when they change.
+  const onPlaceClickRef = useRef(onPlaceClick);
+  const selectedRef = useRef(selectedPlaceName);
+
+  useEffect(() => { onPlaceClickRef.current = onPlaceClick; }, [onPlaceClick]);
+  useEffect(() => { selectedRef.current = selectedPlaceName; }, [selectedPlaceName]);
+
+  // ── Initialise map (once) ────────────────────────────────────────────────
   useEffect(() => {
     if (!containerRef.current) return;
     const map = new maplibregl.Map({
@@ -56,11 +66,6 @@ export function Map({
     });
     mapRef.current = map;
 
-    // One shared hover popup re-used across all markers. Anchored
-    // explicitly to "bottom" so the body always grows UP from the dot
-    // (no auto-flip that could overlap the marker), with a generous
-    // 18px offset for clear visual separation. closeOnMove=false so
-    // panning the map while reading doesn't dismiss it.
     const popup = new maplibregl.Popup({
       offset: 18,
       anchor: "bottom",
@@ -73,19 +78,17 @@ export function Map({
     popupRef.current = popup;
 
     map.on("load", () => {
-      // Route source (always present; data swapped on focusPlaces change).
       map.addSource("atlas-route", {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
       });
-      // HTML markers float above any GL layer, so the dots stay clickable.
       map.addLayer({
         id: "atlas-route-line",
         type: "line",
         source: "atlas-route",
         layout: { "line-cap": "round", "line-join": "round" },
         paint: {
-          "line-color": "#b45309",      // amber-700
+          "line-color": "#b45309",
           "line-opacity": 0.5,
           "line-width": 3,
           "line-dasharray": [2, 2],
@@ -104,7 +107,7 @@ export function Map({
     };
   }, []);
 
-  // Re-render markers when the place list changes.
+  // ── Create / destroy markers only when places change ──────────────────────
   useEffect(() => {
     const map = mapRef.current;
     const popup = popupRef.current;
@@ -115,7 +118,8 @@ export function Map({
       markersRef.current = [];
 
       const geocoded = places.filter(
-        (p): p is Place & { lat: number; lng: number } => p.lat !== null && p.lng !== null,
+        (p): p is Place & { lat: number; lng: number } =>
+          p.lat !== null && p.lng !== null,
       );
 
       const cancelClose = () => {
@@ -127,31 +131,26 @@ export function Map({
       const scheduleClose = () => {
         cancelClose();
         closeTimerRef.current = window.setTimeout(() => {
-          // Reset the inner-dot scale on every marker. Importantly we
-          // touch the inner dot, NEVER the marker root (which holds
-          // maplibre's `translate(...)` for positioning).
           for (const m of markersRef.current) {
-            const dot = m.marker.getElement().firstElementChild as HTMLElement | null;
-            if (dot) {
-              dot.style.transform = "scale(1)";
-              dot.style.boxShadow = "0 2px 4px rgba(0,0,0,0.2)";
-            }
+            m.dot.style.transform = "scale(1)";
+            m.dot.style.boxShadow = "0 2px 4px rgba(0,0,0,0.2)";
           }
           popup.remove();
         }, 250);
       };
 
-      const showFor = (p: Place & { lat: number; lng: number }, dot: HTMLElement) => {
+      const showFor = (
+        p: Place & { lat: number; lng: number },
+        dot: HTMLElement,
+      ) => {
         cancelClose();
         for (const m of markersRef.current) {
-          const otherDot = m.marker.getElement().firstElementChild as HTMLElement | null;
-          if (!otherDot) continue;
-          if (otherDot === dot) {
-            otherDot.style.transform = "scale(1.4)";
-            otherDot.style.boxShadow = "0 4px 10px rgba(0,0,0,0.35)";
+          if (m.dot === dot) {
+            m.dot.style.transform = "scale(1.4)";
+            m.dot.style.boxShadow = "0 4px 10px rgba(0,0,0,0.35)";
           } else {
-            otherDot.style.transform = "scale(1)";
-            otherDot.style.boxShadow = "0 2px 4px rgba(0,0,0,0.2)";
+            m.dot.style.transform = "scale(1)";
+            m.dot.style.boxShadow = "0 2px 4px rgba(0,0,0,0.2)";
           }
         }
         popup
@@ -175,9 +174,6 @@ export function Map({
       };
 
       for (const p of geocoded) {
-        // The marker ROOT must remain "pristine" — maplibre rewrites its
-        // transform to position it. We render the visual dot as a CHILD
-        // and animate scale on the child instead.
         const root = document.createElement("div");
         root.style.width = "14px";
         root.style.height = "14px";
@@ -190,22 +186,26 @@ export function Map({
         dot.style.background = CATEGORY_COLOR[p.category];
         dot.style.border = "2px solid #fff";
         dot.style.boxSizing = "border-box";
-        dot.style.boxShadow = p.name === selectedPlaceName
-          ? "0 0 0 5px rgba(201,100,66,0.20), 0 4px 12px rgba(0,0,0,0.30)"
-          : "0 2px 4px rgba(0,0,0,0.2)";
-        dot.style.transform = p.name === selectedPlaceName ? "scale(1.35)" : "scale(1)";
+        dot.style.boxShadow =
+          p.name === selectedRef.current
+            ? "0 0 0 5px rgba(201,100,66,0.20), 0 4px 12px rgba(0,0,0,0.30)"
+            : "0 2px 4px rgba(0,0,0,0.2)";
+        dot.style.transform =
+          p.name === selectedRef.current ? "scale(1.35)" : "scale(1)";
         dot.style.transition = "transform 120ms ease, box-shadow 120ms ease";
         dot.style.transformOrigin = "center";
         root.appendChild(dot);
 
         root.addEventListener("mouseenter", () => showFor(p, dot));
         root.addEventListener("mouseleave", scheduleClose);
-        root.addEventListener("click", () => onPlaceClick?.(p));
+        root.addEventListener("click", () =>
+          onPlaceClickRef.current?.(p),
+        );
 
         const marker = new maplibregl.Marker({ element: root })
           .setLngLat([p.lng, p.lat])
           .addTo(map);
-        markersRef.current.push({ marker, place: p });
+        markersRef.current.push({ marker, place: p, dot });
       }
 
       // Initial fit if no explicit focus set yet.
@@ -219,9 +219,23 @@ export function Map({
     if (map.isStyleLoaded()) apply();
     else map.once("load", apply);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [places, selectedPlaceName, onPlaceClick]);
+  }, [places]);
 
-  // Refit when focusPlaces changes.
+  // ── Update marker visuals when selection changes (no DOM recreation) ─────
+  useEffect(() => {
+    for (const m of markersRef.current) {
+      if (selectedPlaceName && m.place.name === selectedPlaceName) {
+        m.dot.style.transform = "scale(1.35)";
+        m.dot.style.boxShadow =
+          "0 0 0 5px rgba(201,100,66,0.20), 0 4px 12px rgba(0,0,0,0.30)";
+      } else {
+        m.dot.style.transform = "scale(1)";
+        m.dot.style.boxShadow = "0 2px 4px rgba(0,0,0,0.2)";
+      }
+    }
+  }, [selectedPlaceName]);
+
+  // ── Refit when focusPlaces changes ──────────────────────────────────────
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -229,12 +243,17 @@ export function Map({
 
     const apply = () => {
       const geocoded = focusPlaces.filter(
-        (p): p is Place & { lat: number; lng: number } => p.lat !== null && p.lng !== null,
+        (p): p is Place & { lat: number; lng: number } =>
+          p.lat !== null && p.lng !== null,
       );
       if (geocoded.length === 0) return;
 
       if (geocoded.length === 1) {
-        map.flyTo({ center: [geocoded[0].lng, geocoded[0].lat], zoom: 15, duration: 700 });
+        map.flyTo({
+          center: [geocoded[0].lng, geocoded[0].lat],
+          zoom: 15,
+          duration: 700,
+        });
         return;
       }
 
@@ -247,7 +266,7 @@ export function Map({
     else map.once("load", apply);
   }, [focusPlaces]);
 
-  // Update the route line whenever the active focus changes.
+  // ── Update the route line whenever the active focus changes ─────────────
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -265,7 +284,6 @@ export function Map({
           p.lat !== null && p.lng !== null,
       );
 
-      // Always clear prior start/end labels before deciding what to draw.
       for (const m of routeLabelsRef.current) m.remove();
       routeLabelsRef.current = [];
 
@@ -274,8 +292,7 @@ export function Map({
         return;
       }
 
-      // Optimistic: render straight-line geometry immediately so the
-      // user sees SOMETHING while OSRM is in flight.
+      // Optimistic straight-line while OSRM is in flight.
       const straight: GeoJSON.FeatureCollection = {
         type: "FeatureCollection",
         features: [
@@ -291,8 +308,6 @@ export function Map({
       };
       source.setData(straight);
 
-      // Stop labels above each focused stop. marker.offset
-      // (NOT a CSS transform on the root) — see web/AGENTS.md.
       for (const [i, point] of points.entries()) {
         const el = document.createElement("div");
         const isEnd = i === points.length - 1;
@@ -308,14 +323,10 @@ export function Map({
         routeLabelsRef.current.push(marker);
       }
 
-      // Upgrade: ask OSRM for a road-following polyline. Walking by
-      // default; switch to driving if any segment is too far to walk
-      // (e.g. a day-trip to another town). If OSRM fails, the optimistic
-      // straight line stays.
       const profile = pickProfile(points);
       const route = await fetchRoute(points, profile, ac.signal);
       if (ac.signal.aborted) return;
-      if (!route) return; // OSRM down or returned no route — keep straight.
+      if (!route) return;
       const stillCurrent = map.getSource("atlas-route") as
         | maplibregl.GeoJSONSource
         | undefined;

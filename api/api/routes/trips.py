@@ -1,7 +1,7 @@
 import concurrent.futures
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 
 from api.auth import CurrentUser
 from api.db import service_client
@@ -94,6 +94,21 @@ def _persist_budget(trip_id: str, estimate: BudgetEstimateRaw) -> None:
     ).execute()
 
 
+def _async_persist_budget(
+    trip_id: str,
+    destination: str,
+    days: int,
+    travel_style: str,
+) -> None:
+    """Background-task wrapper for budget persistence. Called via
+    FastAPI BackgroundTasks so the HTTP response doesn't wait."""
+    try:
+        estimate = budget_estimate(destination, days, travel_style)
+        _persist_budget(trip_id, estimate)
+    except Exception as e:
+        print(f"[trips._async_persist_budget] failed: {e}")
+
+
 def _trip_full_from_row(row: dict[str, Any]) -> TripFull:
     row_data = {**row}
     doc_raw = row_data.pop("document")
@@ -102,7 +117,11 @@ def _trip_full_from_row(row: dict[str, Any]) -> TripFull:
 
 
 @router.post("/trips", response_model=TripFull)
-def create_trip(brief: TripBriefIn, user: CurrentUser) -> TripFull:
+def create_trip(
+    brief: TripBriefIn,
+    user: CurrentUser,
+    background_tasks: BackgroundTasks,
+) -> TripFull:
     _purge_drafts_for(user["sub"])
     parsed = parse_brief(brief)
     combined_style = _combine_style(user["sub"], parsed.travel_style)
@@ -115,8 +134,6 @@ def create_trip(brief: TripBriefIn, user: CurrentUser) -> TripFull:
         if p.get("category") in GEOCODE_PRIORITY else len(GEOCODE_PRIORITY),
     )
     capped = raw_places[:GEOCODE_CAP]
-    # Parallel geocode — each call is independent and IO-bound (~150ms
-    # round-trip to Google). Fan out, preserve order via index.
     with concurrent.futures.ThreadPoolExecutor(
         max_workers=min(len(capped), 8) or 1,
     ) as ex:
@@ -147,18 +164,22 @@ def create_trip(brief: TripBriefIn, user: CurrentUser) -> TripFull:
         "airport_entry": parsed.airport_entry,
         "airport_exit": parsed.airport_exit,
         "document": document.model_dump(mode="json"),
-        "places": [],  # legacy column, unused
+        "places": [],
         "centroid_lat": cent_lat,
         "centroid_lng": cent_lng,
     }
     res = service_client().table("trips").insert(row).execute()
     inserted = res.data[0]
 
-    try:
-        estimate = budget_estimate(parsed.destination, parsed.days, combined_style)
-        _persist_budget(inserted["id"], estimate)
-    except Exception as e:
-        print(f"[trips.create] budget persist failed: {e}")
+    # Kick budget estimation off in the background so the trip response
+    # returns immediately. Budget is best-effort; failures are logged.
+    background_tasks.add_task(
+        _async_persist_budget,
+        inserted["id"],
+        parsed.destination,
+        parsed.days,
+        combined_style,
+    )
 
     inserted_data = {**inserted}
     doc_dict = inserted_data.pop("document")
@@ -381,10 +402,10 @@ def save_trip(slug: str, user: CurrentUser) -> TripFull:
         raise HTTPException(status_code=403, detail="Not your trip")
     if not res.data.get("is_saved"):
         db.table("trips").update({"is_saved": True}).eq("slug", slug).execute()
-        fresh = db.table("trips").select("*").eq("slug", slug).single().execute()
-        if not fresh or not fresh.data:
-            raise HTTPException(status_code=500, detail="Trip saved but fresh trip could not be loaded")
-        return _trip_full_from_row(fresh.data)
+        # Avoid a second round-trip: merge the updated flag into the row
+        # we already hold. The DB write succeeded; the in-memory merge is safe.
+        updated = {**res.data, "is_saved": True}
+        return _trip_full_from_row(updated)
     return _trip_full_from_row(res.data)
 
 
@@ -420,7 +441,6 @@ def patch_trip_document(slug: str, body: TripDocumentPatch, user: CurrentUser) -
     update = {"document": body.document.model_dump(mode="json")}
     db.table("trips").update(update).eq("slug", slug).execute()
 
-    fresh = db.table("trips").select("*").eq("slug", slug).single().execute()
-    if not fresh or not fresh.data:
-        raise HTTPException(status_code=500, detail="Trip saved but fresh trip could not be loaded")
-    return _trip_full_from_row(fresh.data)
+    # Merge the updated document into the existing row to save a round-trip.
+    updated = {**res.data, "document": update["document"]}
+    return _trip_full_from_row(updated)

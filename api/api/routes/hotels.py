@@ -18,7 +18,7 @@ class HotelsIn(BaseModel):
 @router.post("/trips/{slug}/hotels", response_model=list[Neighborhood])
 def trip_hotels(slug: str, body: HotelsIn, user: CurrentUser) -> list[Neighborhood]:
     db = service_client()
-    res = db.table("trips").select("*").eq("slug", slug).single().execute()
+    res = db.table("trips").select("id, user_id, destination, days, start_date, document").eq("slug", slug).single().execute()
     if not res.data:
         raise HTTPException(status_code=404, detail="Trip not found")
     row = res.data

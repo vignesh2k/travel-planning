@@ -1,4 +1,7 @@
+import hashlib
 import json
+import threading
+import time
 from collections.abc import Iterator
 from typing import Any
 
@@ -13,6 +16,36 @@ SYSTEM_PROMPT = (
     "For restaurants prefer dedicated vegetarian/vegan spots or places with great "
     "vegetarian menus. Output valid JSON only — no markdown fences, no preamble."
 )
+
+# In-process TTL cache for research results. Keyed by hash of
+# (destination, trip_length, travel_style). Thread-safe.
+_RESEARCH_CACHE: dict[str, tuple[dict, float]] = {}
+_RESEARCH_CACHE_LOCK = threading.Lock()
+_RESEARCH_TTL_SECONDS = 24 * 60 * 60  # 24h
+
+
+def _cache_key(destination: str, trip_length: int, travel_style: str) -> str:
+    payload = f"{destination.strip().lower()}|{trip_length}|{travel_style.strip().lower()}"
+    return hashlib.sha256(payload.encode()).hexdigest()[:16]
+
+
+def _get_cached(destination: str, trip_length: int, travel_style: str) -> dict | None:
+    key = _cache_key(destination, trip_length, travel_style)
+    with _RESEARCH_CACHE_LOCK:
+        entry = _RESEARCH_CACHE.get(key)
+        if entry is None:
+            return None
+        result, inserted_at = entry
+        if time.time() - inserted_at > _RESEARCH_TTL_SECONDS:
+            _RESEARCH_CACHE.pop(key, None)
+            return None
+        return result
+
+
+def _set_cached(destination: str, trip_length: int, travel_style: str, result: dict) -> None:
+    key = _cache_key(destination, trip_length, travel_style)
+    with _RESEARCH_CACHE_LOCK:
+        _RESEARCH_CACHE[key] = (result, time.time())
 
 
 def _user_prompt(destination: str, trip_length: int, travel_style: str) -> str:
@@ -91,6 +124,10 @@ def _parse_json_with_salvage(raw: str) -> dict:
 
 
 def get_travel_research(destination: str, trip_length: int, travel_style: str) -> dict:
+    cached = _get_cached(destination, trip_length, travel_style)
+    if cached is not None:
+        return cached
+
     client = make_client()
     response = client.chat.completions.create(
         model=RESEARCH_MODEL,
@@ -101,7 +138,9 @@ def get_travel_research(destination: str, trip_length: int, travel_style: str) -
         ],
     )
     raw = _extract_json(response.choices[0].message.content)
-    return _parse_json_with_salvage(raw)
+    result = _parse_json_with_salvage(raw)
+    _set_cached(destination, trip_length, travel_style, result)
+    return result
 
 
 def stream_travel_research(
@@ -114,6 +153,11 @@ def stream_travel_research(
       - ("result",   parsed_dict)     once at the end with the full parsed JSON
       - ("error",    message)         if the response can't be parsed as JSON
     """
+    cached = _get_cached(destination, trip_length, travel_style)
+    if cached is not None:
+        yield ("result", cached)
+        return
+
     client = make_client()
     stream = client.chat.completions.create(
         model=RESEARCH_MODEL,
@@ -148,4 +192,5 @@ def stream_travel_research(
     except json.JSONDecodeError as e:
         yield ("error", f"Could not parse research response: {e}; len={len(accumulated)}")
         return
+    _set_cached(destination, trip_length, travel_style, parsed)
     yield ("result", parsed)
