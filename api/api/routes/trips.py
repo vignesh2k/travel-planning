@@ -2,6 +2,7 @@ import concurrent.futures
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
+from postgrest.exceptions import APIError
 
 from api.auth import CurrentUser
 from api.db import service_client
@@ -362,10 +363,15 @@ def list_trips(user: CurrentUser) -> list[TripSummary]:
 
 @router.get("/trips/{slug}", response_model=TripFull)
 def get_trip(slug: str, user: CurrentUser) -> TripFull:
-    res = (
-        service_client().table("trips")
-        .select("*").eq("slug", slug).single().execute()
-    )
+    try:
+        res = (
+            service_client().table("trips")
+            .select("*").eq("slug", slug).single().execute()
+        )
+    except APIError as e:
+        if getattr(e, "code", None) == "PGRST116":
+            raise HTTPException(status_code=404, detail="Trip not found") from e
+        raise
     if not res.data:
         raise HTTPException(status_code=404, detail="Trip not found")
     row = res.data

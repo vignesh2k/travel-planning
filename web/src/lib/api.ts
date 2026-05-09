@@ -15,6 +15,16 @@ import type {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE!;
 
+export class ApiRequestError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiRequestError";
+    this.status = status;
+  }
+}
+
 async function authedFetch(path: string, init: RequestInit, token: string): Promise<Response> {
   return fetch(`${API_BASE}${path}`, {
     ...init,
@@ -28,7 +38,10 @@ async function authedFetch(path: string, init: RequestInit, token: string): Prom
 
 async function apiError(res: Response, action: string): Promise<Error> {
   const text = await res.text().catch(() => "");
-  return new Error(text ? `${action} ${res.status}: ${text}` : `${action} ${res.status}`);
+  return new ApiRequestError(
+    text ? `${action} ${res.status}: ${text}` : `${action} ${res.status}`,
+    res.status,
+  );
 }
 
 export async function listTrips(token: string): Promise<TripSummary[]> {
@@ -39,7 +52,7 @@ export async function listTrips(token: string): Promise<TripSummary[]> {
 
 export async function getTrip(slug: string, token: string): Promise<TripFull> {
   const res = await authedFetch(`/trips/${slug}`, { method: "GET" }, token);
-  if (!res.ok) throw new Error(`getTrip ${res.status}`);
+  if (!res.ok) throw await apiError(res, "getTrip");
   return res.json();
 }
 

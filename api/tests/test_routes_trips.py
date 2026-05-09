@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi.testclient import TestClient
 from jose import jwt
+from postgrest.exceptions import APIError
 
 from api.config import get_settings
 from api.main import app
@@ -144,6 +145,28 @@ def test_get_trip_by_slug_returns_full_trip(monkeypatch) -> None:
     res = TestClient(app).get("/trips/kyoto-7d-aaa", headers=headers)
     assert res.status_code == 200
     assert res.json()["slug"] == "kyoto-7d-aaa"
+
+
+def test_get_trip_returns_404_when_supabase_single_finds_no_rows(monkeypatch, auth_headers) -> None:
+    chain = MagicMock()
+    chain.select.return_value = chain
+    chain.eq.return_value = chain
+    chain.single.return_value = chain
+    chain.execute.side_effect = APIError(
+        {
+            "message": "JSON object requested, multiple (or no) rows returned",
+            "code": "PGRST116",
+            "details": "The result contains 0 rows",
+            "hint": None,
+        }
+    )
+    client = MagicMock()
+    client.table.return_value = chain
+    monkeypatch.setattr("api.routes.trips.service_client", lambda: client)
+
+    res = TestClient(app).get("/trips/missing-slug", headers=auth_headers)
+
+    assert res.status_code == 404
 
 
 def test_get_trip_403_when_not_owner(monkeypatch) -> None:
