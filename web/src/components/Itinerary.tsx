@@ -104,25 +104,34 @@ export function Itinerary({
       ? Math.min(Math.max(initialDay, 1), days.length)
       : fallbackNum;
   const [activeNum, setActiveNum] = useState<number>(seed);
+  const lastSelectedPlaceNameRef = useRef<string | null>(null);
   const active = useMemo(() => days.find((d) => d.number === activeNum) ?? days[0], [days, activeNum]);
 
   useEffect(() => {
-    if (!selectedPlaceName) return;
+    if (!selectedPlaceName) {
+      lastSelectedPlaceNameRef.current = null;
+      return;
+    }
+    if (lastSelectedPlaceNameRef.current === selectedPlaceName) return;
+    lastSelectedPlaceNameRef.current = selectedPlaceName;
+
     const targetDay = days.find((day) =>
       day.bullets.some((group) =>
         group.items.some((item) => placeForText(item, places)?.name === selectedPlaceName),
       ),
     );
     const frame = requestAnimationFrame(() => {
-      if (targetDay && targetDay.number !== activeNum) {
-        setActiveNum(targetDay.number);
+      if (targetDay) {
+        setActiveNum((current) =>
+          current === targetDay.number ? current : targetDay.number,
+        );
       }
       document
         .getElementById(placeDomId(selectedPlaceName))
         ?.scrollIntoView({ behavior: "smooth", block: "center" });
     });
     return () => cancelAnimationFrame(frame);
-  }, [activeNum, days, places, selectedPlaceName]);
+  }, [days, places, selectedPlaceName]);
 
   // When the active day changes, refocus the map.
   useEffect(() => {
