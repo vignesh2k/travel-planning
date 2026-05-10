@@ -18,14 +18,22 @@ import { TripSummaryHeader } from "./TripSummaryHeader";
 const FULL_TABS: readonly Tab[] = ["Plan", "Stay", "Money"] as const;
 const READONLY_TABS: readonly Tab[] = ["Plan", "Stay"] as const;
 
+function ignoreFocusPlaces(places: Place[] | null) {
+  void places;
+}
+
+function ignoreRefinePrefill(text: string) {
+  void text;
+}
+
 export function TripPanel({
   trip,
   budget,
   readOnly = false,
   initialDay,
   selectedPlaceName,
-  onFocusPlaces,
-  onRefinePrefill,
+  onFocusPlaces = ignoreFocusPlaces,
+  onRefinePrefill = ignoreRefinePrefill,
   document: panelDocument,
   hasUnsavedChanges = false,
   onDocumentChange,
@@ -35,8 +43,8 @@ export function TripPanel({
   readOnly?: boolean;
   initialDay?: number;
   selectedPlaceName?: string | null;
-  onFocusPlaces: (places: Place[] | null) => void;
-  onRefinePrefill: (text: string) => void;
+  onFocusPlaces?: (places: Place[] | null) => void;
+  onRefinePrefill?: (text: string) => void;
   document?: TripDocument;
   hasUnsavedChanges?: boolean;
   onDocumentChange?: (document: TripDocument) => void;

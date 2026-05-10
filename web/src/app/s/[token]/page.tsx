@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
 import { TripPanel } from "@/components/TripPanel";
 import { getTrip } from "@/lib/api";
@@ -50,8 +49,6 @@ export default async function SharedTripPage({
           trip={trip}
           budget={null}
           initialDay={initialDay}
-          onFocusPlaces={() => {}}
-          onRefinePrefill={() => {}}
         />
       </div>
     </main>

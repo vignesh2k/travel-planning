@@ -69,8 +69,6 @@ export function TripClientRecovery({
             trip={trip}
             budget={budget}
             initialDay={initialDay}
-            onFocusPlaces={() => {}}
-            onRefinePrefill={() => {}}
           />
         </div>
       </main>

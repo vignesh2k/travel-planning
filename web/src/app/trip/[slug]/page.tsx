@@ -87,8 +87,6 @@ export default async function TripPage({
           trip={trip}
           budget={budget}
           initialDay={initialDay}
-          onFocusPlaces={() => {}}
-          onRefinePrefill={() => {}}
         />
       </div>
     </main>
