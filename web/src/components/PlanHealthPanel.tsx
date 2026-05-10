@@ -1,13 +1,39 @@
 "use client";
 
 import type { PublicTrip, TripDocument, TripFull } from "@/lib/types";
+import { planningReadinessForDocument } from "@/lib/planning-status";
 import { dismissHealthCheck, planHealthForTrip } from "@/lib/trip-health";
+import { StatusChip } from "./StatusChip";
 
 const SEVERITY_CLASS = {
   good: "bg-emerald-100 text-emerald-700 border-emerald-200",
   watch: "bg-amber-100 text-amber-800 border-amber-200",
   risk: "bg-rose-100 text-rose-700 border-rose-200",
 };
+
+const METRIC_CLASS = {
+  confirmed: "bg-emerald-50 text-emerald-800 border-emerald-100",
+  booking: "bg-rose-50 text-rose-800 border-rose-100",
+  maybe: "bg-amber-50 text-amber-900 border-amber-100",
+  ideas: "bg-slate-50 text-slate-700 border-slate-200",
+};
+
+function ReadinessMetric({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone: keyof typeof METRIC_CLASS;
+}) {
+  return (
+    <div className={`rounded-[10px] border px-2 py-2 ${METRIC_CLASS[tone]}`}>
+      <div className="text-sm font-semibold leading-none">{value}</div>
+      <div className="mt-1 text-[9px] font-semibold uppercase leading-tight">{label}</div>
+    </div>
+  );
+}
 
 export function PlanHealthPanel({
   trip,
@@ -19,13 +45,15 @@ export function PlanHealthPanel({
   onDocumentChange?: (document: TripDocument) => void;
 }) {
   const summary = planHealthForTrip(trip);
+  const readiness = planningReadinessForDocument(trip.document);
+  const openItems = readiness.openItems.slice(0, 3);
 
   return (
-    <section className="frosted rounded-[14px] p-3 flex flex-col gap-2">
+    <section className="frosted rounded-[14px] p-3 flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
         <div>
           <div className="text-[10px] font-semibold uppercase tracking-wider text-ink-500">
-            Plan health
+            Plan readiness
           </div>
           <div className="text-sm font-semibold text-ink-900 mt-0.5">
             {summary.severity === "good" ? "Ready to travel" : summary.severity === "watch" ? "Worth a pass" : "Needs attention"}
@@ -34,6 +62,48 @@ export function PlanHealthPanel({
         <div className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${SEVERITY_CLASS[summary.severity]}`}>
           {summary.score}%
         </div>
+      </div>
+
+      <div className="grid grid-cols-4 gap-1.5">
+        <ReadinessMetric label="Confirmed" value={readiness.confirmed} tone="confirmed" />
+        <ReadinessMetric label="To book" value={readiness.needsBooking} tone="booking" />
+        <ReadinessMetric label="Maybe" value={readiness.maybe} tone="maybe" />
+        <ReadinessMetric label="Ideas" value={readiness.ideas} tone="ideas" />
+      </div>
+
+      <div className="border-t border-amber-700/10 pt-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-ink-500">
+            Open decisions
+          </div>
+          <div className="text-[10px] text-ink-400">
+            {openItems.length} of {readiness.openItems.length}
+          </div>
+        </div>
+        {openItems.length > 0 ? (
+          <div className="mt-2 flex flex-col gap-1.5">
+            {openItems.map((item) => (
+              <div key={item.id} className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="text-[10px] font-medium text-ink-500">
+                    Day {item.dayNumber} - {item.time}
+                  </div>
+                  <div className="truncate text-[11px] font-medium text-ink-900">
+                    {item.text}
+                  </div>
+                  {item.note && (
+                    <div className="truncate text-[10px] text-ink-500">{item.note}</div>
+                  )}
+                </div>
+                <StatusChip value={item.status} compact />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-2 text-[11px] leading-4 text-ink-600">
+            No bookings or maybes are marked as open.
+          </div>
+        )}
       </div>
 
       {summary.checks.length === 0 ? (

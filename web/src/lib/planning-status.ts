@@ -18,6 +18,28 @@ export const STATUS_META: Record<PlanningStatusValue, { label: string; tone: str
   skip: { label: "Skip", tone: "zinc" },
 };
 
+export interface PlanningReadinessItem {
+  id: string;
+  dayNumber: number;
+  time: string;
+  itemIndex: number;
+  text: string;
+  status: PlanningStatusValue;
+  note?: string;
+}
+
+export interface PlanningReadinessSummary {
+  total: number;
+  confirmed: number;
+  booked: number;
+  paid: number;
+  needsBooking: number;
+  maybe: number;
+  ideas: number;
+  skipped: number;
+  openItems: PlanningReadinessItem[];
+}
+
 export function defaultPlanningState(): TripPlanningState {
   return {
     statuses: {},
@@ -44,6 +66,53 @@ export function ensurePlanningState(document: TripDocument): TripDocument {
 
 export function activityId(dayNumber: number, time: string, itemIndex: number): string {
   return `day-${dayNumber}-${time.toLowerCase()}-${itemIndex}`;
+}
+
+export function planningReadinessForDocument(document: TripDocument): PlanningReadinessSummary {
+  const next = ensurePlanningState(document);
+  const summary: PlanningReadinessSummary = {
+    total: 0,
+    confirmed: 0,
+    booked: 0,
+    paid: 0,
+    needsBooking: 0,
+    maybe: 0,
+    ideas: 0,
+    skipped: 0,
+    openItems: [],
+  };
+
+  for (const day of next.itinerary) {
+    for (const group of day.bullets) {
+      group.items.forEach((text, itemIndex) => {
+        const id = activityId(day.number, group.time, itemIndex);
+        const status = next.planning?.statuses[id] ?? "idea";
+        const note = next.planning?.notes[id];
+
+        summary.total += 1;
+        if (status === "booked") summary.booked += 1;
+        if (status === "paid") summary.paid += 1;
+        if (status === "needs_booking") summary.needsBooking += 1;
+        if (status === "maybe") summary.maybe += 1;
+        if (status === "idea") summary.ideas += 1;
+        if (status === "skip") summary.skipped += 1;
+        if (status === "booked" || status === "paid") summary.confirmed += 1;
+        if (status === "needs_booking" || status === "maybe") {
+          summary.openItems.push({
+            id,
+            dayNumber: day.number,
+            time: group.time,
+            itemIndex,
+            text,
+            status,
+            note,
+          });
+        }
+      });
+    }
+  }
+
+  return summary;
 }
 
 export function nextPlanningStatus(current?: PlanningStatusValue): PlanningStatusValue {

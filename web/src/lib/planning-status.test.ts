@@ -5,6 +5,7 @@ import {
   activityId,
   ensurePlanningState,
   nextPlanningStatus,
+  planningReadinessForDocument,
   setActivityNote,
   setActivityStatus,
 } from "./planning-status.ts";
@@ -45,4 +46,39 @@ test("setActivityNote removes empty notes", () => {
   const cleared = setActivityNote(withNote, "day-1-morning-0", "");
   assert.equal(withNote.planning?.notes["day-1-morning-0"], "Reserve by Friday");
   assert.equal(cleared.planning?.notes["day-1-morning-0"], undefined);
+});
+
+test("planningReadinessForDocument summarizes itinerary status in render order", () => {
+  const summary = planningReadinessForDocument({
+    ...document,
+    itinerary: [
+      {
+        number: 1,
+        title: "Arrival",
+        bullets: [
+          { time: "Morning", items: ["Book museum", "Coffee stop"] },
+          { time: "Afternoon", items: ["Harbour walk"] },
+          { time: "Evening", items: ["Dinner"] },
+        ],
+      },
+    ],
+    planning: {
+      statuses: {
+        "day-1-morning-0": "needs_booking",
+        "day-1-afternoon-0": "booked",
+        "day-1-evening-0": "paid",
+      },
+      notes: { "day-1-morning-0": "Reserve timed entry" },
+      dismissed_health_checks: [],
+      last_editor_version: 1,
+    },
+  });
+
+  assert.equal(summary.total, 4);
+  assert.equal(summary.confirmed, 2);
+  assert.equal(summary.needsBooking, 1);
+  assert.equal(summary.maybe, 0);
+  assert.equal(summary.ideas, 1);
+  assert.deepEqual(summary.openItems.map((item) => item.text), ["Book museum"]);
+  assert.equal(summary.openItems[0].note, "Reserve timed entry");
 });
