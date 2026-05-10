@@ -6,6 +6,7 @@ const SERVER_ROUTE_FILES = [
   "web/src/app/trip/[slug]/page.tsx",
   "web/src/app/s/[token]/page.tsx",
 ];
+const TRIP_WORKSPACE_FILE = "web/src/components/TripWorkspace.tsx";
 
 test("server routes do not pass callback props into TripPanel", async () => {
   for (const file of SERVER_ROUTE_FILES) {
@@ -35,4 +36,14 @@ test("trip server routes mount the map workspace", async () => {
       `${file} should not bypass the map workspace with TripPanel directly`,
     );
   }
+});
+
+test("trip workspace only mounts the portal sheet on mobile", async () => {
+  const source = await readFile(TRIP_WORKSPACE_FILE, "utf8");
+
+  assert.match(
+    source,
+    /\{isMobile && \(\s*<MobileSheet>/,
+    "MobileSheet portals outside its parent, so it must be conditionally mounted",
+  );
 });

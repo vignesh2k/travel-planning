@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { selectedPlaceNameForFocus } from "@/lib/map-focus";
 import type { Budget, Place, PublicTrip, TripFull } from "@/lib/types";
@@ -10,6 +10,20 @@ import { MobileSheet } from "./MobileSheet";
 import { TripPanel } from "./TripPanel";
 
 type WorkspaceTrip = TripFull | PublicTrip;
+
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 767px)");
+    const update = () => setIsMobile(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+
+  return isMobile;
+}
 
 export function TripWorkspace({
   trip,
@@ -25,6 +39,7 @@ export function TripWorkspace({
   const places = useMemo(() => trip.document.places ?? [], [trip.document.places]);
   const [focusPlaces, setFocusPlaces] = useState<Place[] | null>(null);
   const [selectedPlaceName, setSelectedPlaceName] = useState<string | null>(null);
+  const isMobile = useIsMobile();
 
   function focus(next: Place[] | null) {
     setFocusPlaces(next);
@@ -62,9 +77,9 @@ export function TripWorkspace({
       <div className="absolute inset-y-4 right-4 z-20 hidden w-[min(440px,calc(100vw-2rem))] overflow-hidden rounded-[18px] border border-amber-700/10 bg-white/80 shadow-2xl backdrop-blur-md md:flex">
         {panel}
       </div>
-      <div className="md:hidden">
+      {isMobile && (
         <MobileSheet>{panel}</MobileSheet>
-      </div>
+      )}
     </div>
   );
 }
