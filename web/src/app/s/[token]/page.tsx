@@ -32,26 +32,11 @@ export default async function SharedTripPage({
   const initialDay = day ? parseInt(day, 10) : undefined;
 
   return (
-    <main className="min-h-screen flex flex-col">
-      <header className="px-4 py-3 border-b border-amber-700/10 flex items-center justify-between">
-        <Link href="/" className="text-sm font-medium text-ink-900 hover:text-amber-600">
-          ← Atlas
-        </Link>
-        <span className="text-sm text-ink-600 truncate max-w-[200px]">
-          {trip.destination}
-        </span>
-        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 border border-amber-200">
-          Shared
-        </span>
-      </header>
-      <div className="flex-1 overflow-hidden">
-        <TripWorkspace
-          trip={trip}
-          budget={null}
-          initialDay={initialDay}
-          readOnly
-        />
-      </div>
-    </main>
+    <TripWorkspace
+      trip={trip}
+      budget={null}
+      initialDay={initialDay}
+      readOnly
+    />
   );
 }

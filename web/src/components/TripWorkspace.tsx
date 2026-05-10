@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 
 import { patchTripDocument, saveTrip } from "@/lib/api";
 import { getBrowserToken } from "@/lib/auth.browser";
@@ -125,7 +126,7 @@ function TripWorkspaceContent({
 
   const saved = !isPrivateTrip(currentTrip) || currentTrip.is_saved;
   const actions = !readOnly && isPrivateTrip(currentTrip) ? (
-    <div className="flex items-center gap-1.5">
+    <>
       <SaveTripButton
         saved={saved}
         hasUnsavedChanges={hasUnsavedChanges}
@@ -140,8 +141,13 @@ function TripWorkspaceContent({
         prominent
       />
       <ShareMenu slug={currentTrip.slug} initialToken={currentTrip.share_token} />
-    </div>
+    </>
   ) : undefined;
+  const navMeta = readOnly ? (
+    <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+      Shared
+    </span>
+  ) : null;
 
   const panel = (
     <TripPanel
@@ -152,30 +158,43 @@ function TripWorkspaceContent({
       selectedPlaceName={selectedPlaceName}
       onFocusPlaces={focus}
       document={draftDocument}
-      hasUnsavedChanges={hasUnsavedChanges}
       onDocumentChange={updateDocument}
-      actions={actions}
     />
   );
 
   return (
-    <div className="relative h-[calc(100dvh-49px)] min-h-[520px] overflow-hidden bg-[var(--color-paper-cream)]">
-      <Map
-        places={places}
-        focusPlaces={focusPlaces}
-        selectedPlaceName={selectedPlaceName}
-        onPlaceClick={selectPlace}
-      />
-      <div
-        className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(255,250,242,0.10),rgba(255,250,242,0.46)_68%,rgba(255,250,242,0.78))]"
-        aria-hidden
-      />
-      <div className="absolute inset-y-4 right-4 z-20 hidden w-[min(440px,calc(100vw-2rem))] overflow-hidden rounded-[18px] border border-amber-700/10 bg-white/80 shadow-2xl backdrop-blur-md md:flex">
-        {panel}
+    <div className="flex h-dvh min-h-[520px] flex-col bg-[var(--color-paper-cream)]">
+      <header className="z-30 flex min-h-14 items-center justify-between gap-3 border-b border-amber-700/10 bg-white/70 px-4 py-2 backdrop-blur-md">
+        <Link href="/" className="shrink-0 text-sm font-medium text-ink-900 hover:text-amber-600">
+          Atlas
+        </Link>
+        <div className="min-w-0 flex-1 text-center text-sm font-medium text-ink-700">
+          <span className="block truncate">{currentTrip.destination}</span>
+        </div>
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+          {actions}
+          {navMeta}
+        </div>
+      </header>
+
+      <div className="relative min-h-0 flex-1 overflow-hidden">
+        <Map
+          places={places}
+          focusPlaces={focusPlaces}
+          selectedPlaceName={selectedPlaceName}
+          onPlaceClick={selectPlace}
+        />
+        <div
+          className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(255,250,242,0.10),rgba(255,250,242,0.46)_68%,rgba(255,250,242,0.78))]"
+          aria-hidden
+        />
+        <div className="absolute inset-y-4 right-4 z-20 hidden w-[min(440px,calc(100vw-2rem))] overflow-hidden rounded-[18px] border border-amber-700/10 bg-white/80 shadow-2xl backdrop-blur-md md:flex">
+          {panel}
+        </div>
+        {isMobile && (
+          <MobileSheet>{panel}</MobileSheet>
+        )}
       </div>
-      {isMobile && (
-        <MobileSheet>{panel}</MobileSheet>
-      )}
     </div>
   );
 }

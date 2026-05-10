@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { ReactNode } from "react";
 
 import { fetchHotels } from "@/lib/api";
 import { getBrowserToken } from "@/lib/auth.browser";
@@ -36,9 +35,7 @@ export function TripPanel({
   onFocusPlaces = ignoreFocusPlaces,
   onRefinePrefill = ignoreRefinePrefill,
   document: panelDocument,
-  hasUnsavedChanges = false,
   onDocumentChange,
-  actions,
 }: {
   trip: TripFull | PublicTrip;
   budget: Budget | null;
@@ -48,9 +45,7 @@ export function TripPanel({
   onFocusPlaces?: (places: Place[] | null) => void;
   onRefinePrefill?: (text: string) => void;
   document?: TripDocument;
-  hasUnsavedChanges?: boolean;
   onDocumentChange?: (document: TripDocument) => void;
-  actions?: ReactNode;
 }) {
   const [tab, setTab] = useState<Tab>("Plan");
   const draftDocument = useMemo(
@@ -81,8 +76,6 @@ export function TripPanel({
         trip={viewTrip}
         readOnly={readOnly}
         editMode={editMode}
-        hasUnsavedChanges={hasUnsavedChanges}
-        actions={actions}
         onToggleEdit={() => setEditMode((v) => !v)}
       />
       <TripPanelTabs
