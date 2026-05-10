@@ -29,6 +29,13 @@ interface MapMarker {
   dot: HTMLElement;
 }
 
+function setMarkerVisual(marker: MapMarker, selected: boolean) {
+  marker.dot.style.transform = selected ? "scale(1.35)" : "scale(1)";
+  marker.dot.style.boxShadow = selected
+    ? "0 0 0 5px rgba(201,100,66,0.20), 0 4px 12px rgba(0,0,0,0.30)"
+    : "0 2px 4px rgba(0,0,0,0.2)";
+}
+
 export function Map({
   places,
   focusPlaces,
@@ -223,15 +230,12 @@ export function Map({
 
   // ── Update marker visuals when selection changes (no DOM recreation) ─────
   useEffect(() => {
-    for (const m of markersRef.current) {
-      if (selectedPlaceName && m.place.name === selectedPlaceName) {
-        m.dot.style.transform = "scale(1.35)";
-        m.dot.style.boxShadow =
-          "0 0 0 5px rgba(201,100,66,0.20), 0 4px 12px rgba(0,0,0,0.30)";
-      } else {
-        m.dot.style.transform = "scale(1)";
-        m.dot.style.boxShadow = "0 2px 4px rgba(0,0,0,0.2)";
-      }
+    const markers = markersRef.current;
+    for (const marker of markers) {
+      setMarkerVisual(
+        marker,
+        Boolean(selectedPlaceName && marker.place.name === selectedPlaceName),
+      );
     }
   }, [selectedPlaceName]);
 

@@ -24,18 +24,20 @@ export function UserMenu({ email }: { email: string }) {
   }
 
   return (
-    <div className="flex items-center gap-3">
-      <span className="text-xs text-ink-500">{email}</span>
+    <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+      <span className="hidden max-w-[180px] truncate text-xs text-ink-500 sm:inline">
+        {email}
+      </span>
       <Link
         href="/profile"
-        className="text-xs text-ink-500 hover:text-ink-900"
+        className="shrink-0 text-xs text-ink-500 hover:text-ink-900"
       >
         Preferences
       </Link>
       <button
         onClick={signOut}
         disabled={busy}
-        className="text-xs text-ink-500 hover:text-ink-900 disabled:opacity-60"
+        className="shrink-0 text-xs text-ink-500 hover:text-ink-900 disabled:opacity-60"
       >
         {busy ? "…" : "Log out"}
       </button>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { BrandIcon } from "@/components/BrandMark";
 import { TripWorkspace } from "@/components/TripWorkspace";
 import { ApiRequestError, getBudget, getTrip } from "@/lib/api";
 import { getServerToken } from "@/lib/auth";
@@ -10,9 +11,15 @@ import { TripClientRecovery } from "./TripClientRecovery";
 
 function TripNotFound() {
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center text-center px-6">
-      <h1 className="text-2xl font-medium text-ink-900">Trip not found</h1>
-      <Link href="/" className="text-sm text-amber-600 hover:underline mt-4">
+    <main className="min-h-screen flex flex-col items-center justify-center gap-4 bg-[var(--color-paper-cream)] px-6 text-center">
+      <BrandIcon className="h-12 w-12" />
+      <div>
+        <h1 className="font-display text-2xl font-semibold text-ink-900">Trip not found</h1>
+        <p className="mt-2 max-w-sm text-sm leading-6 text-ink-500">
+          This trip may have been deleted or belongs to another account.
+        </p>
+      </div>
+      <Link href="/" className="rounded-[10px] bg-ink-900 px-4 py-2 text-sm font-semibold text-white hover:bg-ink-800">
         Back to Atlas
       </Link>
     </main>

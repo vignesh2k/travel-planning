@@ -20,12 +20,12 @@ export function SaveTripButton({
   const label = isError ? "Retry save" : saved && hasUnsavedChanges ? "Save changes" : "Save";
 
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex shrink-0 items-center gap-1.5">
       <span
         className={
           isDraft
-            ? "rounded-full bg-orange-50 border border-orange-200 px-2 py-0.5 text-[10px] font-semibold text-orange-700"
-            : "rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-semibold text-emerald-700"
+            ? "shrink-0 rounded-full bg-orange-50 border border-orange-200 px-2 py-0.5 text-[10px] font-semibold text-orange-700"
+            : "shrink-0 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-semibold text-emerald-700"
         }
       >
         {isDraft ? "Draft" : "Saved"}
@@ -35,14 +35,14 @@ export function SaveTripButton({
         disabled={disabled}
         className={
           disabled
-            ? "rounded-[10px] bg-white/65 border border-amber-700/10 text-ink-400 text-xs px-3 py-1 font-medium flex items-center gap-1.5 cursor-default"
-            : "rounded-[10px] bg-gradient-to-br from-amber-400 to-amber-600 text-white text-xs px-3 py-1 font-medium shadow-sm hover:shadow-md flex items-center gap-1.5"
+            ? "inline-flex shrink-0 items-center gap-1.5 rounded-[10px] bg-white/65 border border-amber-700/10 text-ink-400 text-xs px-3 py-1 font-medium cursor-default"
+            : "inline-flex shrink-0 items-center gap-1.5 rounded-[10px] bg-gradient-to-br from-amber-400 to-amber-600 text-white text-xs px-3 py-1 font-medium shadow-sm hover:shadow-md"
         }
         title={isError ? error ?? "Could not save. Try again." : saved ? "Save itinerary changes" : "Save to Logbook"}
       >
         {isSaving ? (
           <>
-            <span className="w-3 h-3 rounded-full border-2 border-current/60 border-t-transparent animate-spin" aria-hidden />
+            <span className="w-3 h-3 shrink-0 rounded-full border-2 border-current/60 border-t-transparent animate-spin" aria-hidden />
             Saving…
           </>
         ) : (

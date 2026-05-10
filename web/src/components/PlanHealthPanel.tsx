@@ -140,40 +140,40 @@ export function PlanHealthPanel({
               return (
                 <div
                   key={item.id}
-                  className="flex w-full items-center gap-2 rounded-[9px] hover:bg-white/70"
+                  className="flex w-full flex-col gap-1 rounded-[9px] px-1 py-1 hover:bg-white/70"
                 >
-                  <button
-                    type="button"
-                    onClick={() => onOpenDecision?.(item)}
-                    className="min-w-0 flex-1 py-1 text-left focus:outline-none focus:ring-2 focus:ring-amber-500/35"
-                  >
-                    <div className="text-[10px] font-medium text-ink-500">
-                      Day {item.dayNumber} - {item.time}
-                    </div>
-                    <div className="truncate text-[11px] font-medium text-ink-900">
-                      {item.text}
-                    </div>
-                    {item.note && (
-                      <div className="truncate text-[10px] text-ink-500">{item.note}</div>
-                    )}
-                  </button>
-                  <div className="flex shrink-0 items-center gap-1">
-                    <StatusChip value={item.status} compact />
-                    {canAct && (
-                      <div className="flex items-center gap-1">
-                        {actions.map((action) => (
-                          <button
-                            key={action.status}
-                            type="button"
-                            onClick={() => onDocumentChange(setActivityStatus(trip.document, item.id, action.status))}
-                            className="rounded-full border border-amber-700/10 bg-white/80 px-2 py-0.5 text-[10px] font-medium text-ink-600 hover:bg-white hover:text-ink-900"
-                          >
-                            {action.label}
-                          </button>
-                        ))}
+                  <div className="flex items-start gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onOpenDecision?.(item)}
+                      className="min-w-0 flex-1 text-left focus:outline-none focus:ring-2 focus:ring-amber-500/35"
+                    >
+                      <div className="text-[10px] font-medium text-ink-500">
+                        Day {item.dayNumber} - {item.time}
                       </div>
-                    )}
+                      <div className="truncate text-[11px] font-medium text-ink-900">
+                        {item.text}
+                      </div>
+                      {item.note && (
+                        <div className="truncate text-[10px] text-ink-500">{item.note}</div>
+                      )}
+                    </button>
+                    <StatusChip value={item.status} compact />
                   </div>
+                  {canAct && (
+                    <div className="flex flex-wrap items-center gap-1">
+                      {actions.map((action) => (
+                        <button
+                          key={action.status}
+                          type="button"
+                          onClick={() => onDocumentChange(setActivityStatus(trip.document, item.id, action.status))}
+                          className="rounded-full border border-amber-700/10 bg-white/80 px-2 py-0.5 text-[10px] font-medium text-ink-600 hover:bg-white hover:text-ink-900"
+                        >
+                          {action.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}

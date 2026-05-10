@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+
+import { BrandIcon } from "@/components/BrandMark";
 import { createClient } from "@/lib/supabase/client";
 
 function GoogleG({ className }: { className?: string }) {
@@ -56,46 +58,31 @@ export default function SignInPage() {
 
   if (checking) {
     return (
-      <main className="flex items-center justify-center min-h-screen">
-        <p className="text-sm text-gray-400">Loading...</p>
+      <main className="flex min-h-screen items-center justify-center bg-[var(--color-paper-cream)] px-6 text-center">
+        <div className="flex flex-col items-center gap-3">
+          <BrandIcon className="h-10 w-10" />
+          <p className="text-sm font-medium text-ink-500">Checking your session...</p>
+        </div>
       </main>
     );
   }
 
   return (
-    <main
-      className="flex flex-col items-center justify-center min-h-screen"
-      style={{ background: "var(--color-paper-cream)" }}
-    >
-      <div className="flex flex-col items-center gap-6 px-6">
-        <h1
-          style={{
-            fontFamily: "var(--font-sans)",
-            fontSize: 28,
-            fontWeight: 600,
-            color: "var(--color-paper-ink)",
-          }}
-        >
-          Atlas
-        </h1>
-        <p
-          style={{
-            fontFamily: "var(--font-sans)",
-            fontSize: 14,
-            color: "var(--color-paper-ink-3)",
-            textAlign: "center",
-          }}
-        >
+    <main className="flex min-h-screen flex-col items-center justify-center bg-[var(--color-paper-cream)] px-6">
+      <div className="flex w-full max-w-sm flex-col items-center gap-5 text-center">
+        <BrandIcon className="h-12 w-12" />
+        <div>
+          <h1 className="font-display text-3xl font-semibold tracking-tight text-ink-900">
+            Atlas
+          </h1>
+          <p className="mt-2 text-sm leading-6 text-ink-500">
           Sign in to start planning your next journey.
-        </p>
+          </p>
+        </div>
         <button
           onClick={signIn}
           disabled={loading}
-          className="rounded-[12px] px-5 py-3 text-sm font-semibold text-white hover:shadow-lg shadow-md transition-shadow flex items-center gap-3 disabled:opacity-60"
-          style={{
-            background:
-              "linear-gradient(135deg, var(--color-terracotta-400) 0%, var(--color-terracotta-500) 100%)",
-          }}
+          className="inline-flex min-h-11 items-center justify-center gap-3 rounded-[12px] bg-gradient-to-br from-amber-400 to-amber-600 px-5 py-3 text-sm font-semibold text-white shadow-md transition-shadow hover:shadow-lg disabled:opacity-60"
         >
           <GoogleG className="w-5 h-5" />
           {loading ? "Signing in…" : "Sign in with Google"}

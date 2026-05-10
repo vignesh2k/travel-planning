@@ -165,14 +165,14 @@ function TripWorkspaceContent({
 
   return (
     <div className="flex h-dvh min-h-[520px] flex-col bg-[var(--color-paper-cream)]">
-      <header className="z-30 flex min-h-14 items-center justify-between gap-3 border-b border-amber-700/10 bg-white/70 px-4 py-2 backdrop-blur-md">
+      <header className="z-30 grid min-h-14 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-2 border-b border-amber-700/10 bg-white/75 px-3 py-2 backdrop-blur-md sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:px-4">
         <Link href="/" className="contents" aria-label="Atlas home">
           <BrandMark />
         </Link>
-        <div className="min-w-0 flex-1 text-center text-sm font-medium text-ink-700">
+        <div className="min-w-0 text-right text-sm font-medium text-ink-700 sm:text-center">
           <span className="block truncate">{currentTrip.destination}</span>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+        <div className="col-span-2 flex min-w-0 items-center justify-end gap-1.5 overflow-x-auto pb-0.5 sm:col-span-1 sm:overflow-visible sm:pb-0">
           {actions}
           {navMeta}
         </div>

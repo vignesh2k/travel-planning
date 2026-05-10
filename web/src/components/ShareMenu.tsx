@@ -79,16 +79,16 @@ export function ShareMenu({
   }
 
   return (
-    <div ref={wrapperRef} className="relative">
+    <div ref={wrapperRef} className="relative shrink-0">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={
           token
-            ? "rounded-[10px] bg-amber-100 text-amber-800 text-xs font-semibold px-3 py-1.5 hover:bg-amber-200"
+            ? "inline-flex shrink-0 items-center rounded-[10px] bg-amber-100 text-amber-800 text-xs font-semibold px-3 py-1.5 hover:bg-amber-200"
             : prominent
-              ? "rounded-[10px] bg-ink-900 text-white text-xs font-semibold px-3 py-1.5 shadow-sm hover:shadow-md"
-            : "rounded-[10px] bg-white/70 text-ink-700 text-xs px-3 py-1.5 border border-amber-700/12 hover:bg-white/90"
+              ? "inline-flex shrink-0 items-center rounded-[10px] bg-ink-900 text-white text-xs font-semibold px-3 py-1.5 shadow-sm hover:shadow-md"
+            : "inline-flex shrink-0 items-center rounded-[10px] bg-white/70 text-ink-700 text-xs px-3 py-1.5 border border-amber-700/12 hover:bg-white/90"
         }
         title={token ? "Public link active — manage" : "Share this trip"}
       >
@@ -96,7 +96,7 @@ export function ShareMenu({
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-[320px] frosted-strong rounded-[14px] p-4 shadow-lg z-30 flex flex-col gap-3">
+        <div className="absolute right-0 top-full mt-2 w-[min(320px,calc(100vw-2rem))] frosted-strong rounded-[14px] p-4 shadow-lg z-30 flex flex-col gap-3">
           {!token && (
             <>
               <p className="text-xs text-ink-700">
@@ -124,7 +124,7 @@ export function ShareMenu({
                 onFocus={(e) => e.currentTarget.select()}
                 className="w-full rounded-[8px] bg-white/85 border border-amber-700/12 px-2 py-1.5 text-xs text-ink-900 outline-none focus:border-amber-600/40"
               />
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={copy}
@@ -145,7 +145,7 @@ export function ShareMenu({
                   type="button"
                   onClick={stop}
                   disabled={phase === "busy"}
-                  className="text-xs text-rose-500 hover:text-rose-700 ml-auto disabled:opacity-50"
+                  className="text-xs text-rose-500 hover:text-rose-700 sm:ml-auto disabled:opacity-50"
                 >
                   Stop sharing
                 </button>

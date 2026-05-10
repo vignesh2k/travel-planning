@@ -23,7 +23,7 @@ const SECTION_OPTIONS = [
 
 type SectionKey = (typeof SECTION_OPTIONS)[number]["key"];
 const STYLE_OPTIONS = [
-  { key: "reference", label: "Reference" },
+  { key: "reference", label: "Classic" },
   { key: "compact", label: "Compact" },
   { key: "pretty", label: "Editorial" },
 ] as const;
@@ -183,8 +183,8 @@ export function PdfExportMenu({
         }}
         className={
           prominent
-            ? "rounded-[10px] bg-white/85 border border-amber-700/12 px-3 py-1.5 text-xs font-semibold text-ink-900 hover:bg-white flex items-center gap-1"
-            : "frosted rounded-[10px] px-3 py-1 text-xs hover:bg-white/85 flex items-center gap-1"
+            ? "inline-flex shrink-0 items-center gap-1 rounded-[10px] border border-amber-700/12 bg-white/85 px-3 py-1.5 text-xs font-semibold text-ink-900 hover:bg-white"
+            : "frosted inline-flex shrink-0 items-center gap-1 rounded-[10px] px-3 py-1 text-xs hover:bg-white/85"
         }
       >
         Guide PDF
@@ -192,11 +192,14 @@ export function PdfExportMenu({
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1.5 frosted-strong rounded-[12px] z-30 w-72 max-h-[70vh] flex flex-col overflow-hidden anim-fade-in">
+        <div className="absolute right-0 top-full mt-1.5 z-30 flex max-h-[70vh] w-[min(320px,calc(100vw-2rem))] flex-col overflow-hidden rounded-[12px] frosted-strong anim-fade-in">
           {phase === "menu" && (
-            <div className="p-3 flex flex-col gap-2">
-              <div className="text-[10px] font-semibold uppercase tracking-wider text-ink-500">
-                Include in PDF
+            <div className="p-3 flex flex-col gap-3">
+              <div>
+                <div className="text-xs font-semibold text-ink-900">Guide PDF</div>
+                <div className="mt-0.5 text-[10px] leading-4 text-ink-500">
+                  Build a polished final guide with the sections you need.
+                </div>
               </div>
               <div className="grid grid-cols-3 gap-1 rounded-[10px] bg-white/55 border border-amber-700/10 p-1">
                 {STYLE_OPTIONS.map((option) => (
@@ -217,7 +220,7 @@ export function PdfExportMenu({
               {SECTION_OPTIONS.map((s) => (
                 <label
                   key={s.key}
-                  className="flex items-center gap-2 text-xs text-ink-900 cursor-pointer rounded-md px-1 py-0.5 hover:bg-white/70"
+                  className="flex min-h-7 cursor-pointer items-center gap-2 rounded-md px-1.5 py-0.5 text-xs text-ink-900 hover:bg-white/70"
                 >
                   <input
                     type="checkbox"
@@ -230,9 +233,9 @@ export function PdfExportMenu({
               ))}
               <button
                 onClick={start}
-                className="mt-1 rounded-[8px] bg-gradient-to-br from-amber-400 to-amber-600 text-white text-xs py-2 font-medium hover:shadow-md"
+                className="mt-1 rounded-[8px] bg-gradient-to-br from-amber-400 to-amber-600 py-2 text-xs font-semibold text-white hover:shadow-md"
               >
-                Build PDF
+                Build guide
               </button>
               <p className="text-[10px] text-ink-500 leading-snug">
                 Day-by-day schedule is always included. Each section adds ~5-15s of generation time.

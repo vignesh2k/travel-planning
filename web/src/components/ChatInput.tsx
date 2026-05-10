@@ -66,8 +66,8 @@ export function ChatInput({
         placeholder={placeholder}
         disabled={pending}
       />
-      <div className="flex items-center justify-between mt-2">
-        <div className="flex gap-1.5">
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-wrap gap-1.5">
           <DatesPill
             value={startDate}
             onChange={setStartDate}
@@ -86,7 +86,7 @@ export function ChatInput({
         <button
           type="submit"
           disabled={!text.trim() || pending}
-          className="w-8 h-8 rounded-[10px] bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-md disabled:opacity-40 hover:shadow-lg"
+          className="w-8 h-8 shrink-0 rounded-[10px] bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-md disabled:opacity-40 hover:shadow-lg"
         >
           {pending ? "…" : "↑"}
         </button>
@@ -110,8 +110,8 @@ function PillButton({
       disabled={disabled}
       className={
         active
-          ? "rounded-full bg-amber-600 text-white text-[11px] font-semibold px-2.5 py-1 hover:bg-amber-700 disabled:opacity-50"
-          : "rounded-full bg-white/60 text-ink-700 text-[11px] px-2.5 py-1 border border-amber-700/12 hover:bg-white/85 disabled:opacity-50"
+          ? "inline-flex shrink-0 items-center rounded-full bg-amber-600 text-white text-[11px] font-semibold px-2.5 py-1 hover:bg-amber-700 disabled:opacity-50"
+          : "inline-flex shrink-0 items-center rounded-full bg-white/60 text-ink-700 text-[11px] px-2.5 py-1 border border-amber-700/12 hover:bg-white/85 disabled:opacity-50"
       }
     >
       {children}
@@ -149,7 +149,7 @@ function DatesPill({
         📅 {value ? formatShortDate(value) : "Dates"}
       </PillButton>
       {open && (
-        <div className="absolute left-0 top-full mt-2 w-[240px] frosted-strong rounded-[12px] p-3 shadow-lg z-30 flex flex-col gap-2">
+        <div className="absolute left-0 top-full mt-2 w-[min(240px,calc(100vw-2rem))] frosted-strong rounded-[12px] p-3 shadow-lg z-30 flex flex-col gap-2">
           <div className="text-[10px] uppercase tracking-wider text-amber-700">
             Trip start date
           </div>
@@ -226,7 +226,7 @@ function AirportsPill({
         ✈️ {summary}
       </PillButton>
       {open && (
-        <div className="absolute left-0 top-full mt-2 w-[300px] frosted-strong rounded-[12px] p-3 shadow-lg z-30 flex flex-col gap-3">
+        <div className="absolute left-0 top-full mt-2 w-[min(300px,calc(100vw-2rem))] frosted-strong rounded-[12px] p-3 shadow-lg z-30 flex flex-col gap-3">
           <div className="text-[10px] uppercase tracking-wider text-amber-700">
             Airports
           </div>

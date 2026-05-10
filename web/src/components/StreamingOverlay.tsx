@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 
 import type { Place } from "@/lib/types";
@@ -14,6 +14,18 @@ function asymptoticPct(chars: number): number {
   return Math.round(100 * (1 - Math.exp(-chars / K)));
 }
 
+function subscribeToClientMount() {
+  return () => {};
+}
+
+function getClientSnapshot() {
+  return true;
+}
+
+function getServerSnapshot() {
+  return false;
+}
+
 export function StreamingOverlay({
   status,
   chars,
@@ -23,8 +35,11 @@ export function StreamingOverlay({
   chars: number;
   places: Place[];
 }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useSyncExternalStore(
+    subscribeToClientMount,
+    getClientSnapshot,
+    getServerSnapshot,
+  );
   if (!mounted) return null;
 
   const pct = asymptoticPct(chars);
