@@ -1,7 +1,12 @@
 "use client";
 
 import type { PublicTrip, TripDocument, TripFull } from "@/lib/types";
-import { planningReadinessForDocument, type PlanningReadinessItem } from "@/lib/planning-status";
+import {
+  decisionQuickActionsForStatus,
+  planningReadinessForDocument,
+  setActivityStatus,
+  type PlanningReadinessItem,
+} from "@/lib/planning-status";
 import { dismissHealthCheck, planHealthForTrip } from "@/lib/trip-health";
 import { StatusChip } from "./StatusChip";
 
@@ -84,27 +89,50 @@ export function PlanHealthPanel({
         </div>
         {openItems.length > 0 ? (
           <div className="mt-2 flex flex-col gap-1.5">
-            {openItems.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => onOpenDecision?.(item)}
-                className="flex w-full items-center gap-2 rounded-[9px] text-left hover:bg-white/70 focus:outline-none focus:ring-2 focus:ring-amber-500/35"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="text-[10px] font-medium text-ink-500">
-                    Day {item.dayNumber} - {item.time}
+            {openItems.map((item) => {
+              const actions = decisionQuickActionsForStatus(item.status);
+              const canAct = !readOnly && onDocumentChange && actions.length > 0;
+
+              return (
+                <div
+                  key={item.id}
+                  className="flex w-full items-center gap-2 rounded-[9px] hover:bg-white/70"
+                >
+                  <button
+                    type="button"
+                    onClick={() => onOpenDecision?.(item)}
+                    className="min-w-0 flex-1 py-1 text-left focus:outline-none focus:ring-2 focus:ring-amber-500/35"
+                  >
+                    <div className="text-[10px] font-medium text-ink-500">
+                      Day {item.dayNumber} - {item.time}
+                    </div>
+                    <div className="truncate text-[11px] font-medium text-ink-900">
+                      {item.text}
+                    </div>
+                    {item.note && (
+                      <div className="truncate text-[10px] text-ink-500">{item.note}</div>
+                    )}
+                  </button>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <StatusChip value={item.status} compact />
+                    {canAct && (
+                      <div className="flex items-center gap-1">
+                        {actions.map((action) => (
+                          <button
+                            key={action.status}
+                            type="button"
+                            onClick={() => onDocumentChange(setActivityStatus(trip.document, item.id, action.status))}
+                            className="rounded-full border border-amber-700/10 bg-white/80 px-2 py-0.5 text-[10px] font-medium text-ink-600 hover:bg-white hover:text-ink-900"
+                          >
+                            {action.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <div className="truncate text-[11px] font-medium text-ink-900">
-                    {item.text}
-                  </div>
-                  {item.note && (
-                    <div className="truncate text-[10px] text-ink-500">{item.note}</div>
-                  )}
                 </div>
-                <StatusChip value={item.status} compact />
-              </button>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="mt-2 text-[11px] leading-4 text-ink-600">

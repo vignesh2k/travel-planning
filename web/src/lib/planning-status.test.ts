@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   activityId,
+  decisionQuickActionsForStatus,
   ensurePlanningState,
   nextPlanningStatus,
   planningReadinessForDocument,
@@ -34,6 +35,18 @@ test("nextPlanningStatus cycles through the workflow states", () => {
   assert.equal(nextPlanningStatus(), "idea");
   assert.equal(nextPlanningStatus("idea"), "maybe");
   assert.equal(nextPlanningStatus("skip"), "idea");
+});
+
+test("decisionQuickActionsForStatus offers status actions that clear open decisions", () => {
+  assert.deepEqual(decisionQuickActionsForStatus("needs_booking"), [
+    { label: "Booked", status: "booked" },
+    { label: "Skip", status: "skip" },
+  ]);
+  assert.deepEqual(decisionQuickActionsForStatus("maybe"), [
+    { label: "Keep", status: "idea" },
+    { label: "Skip", status: "skip" },
+  ]);
+  assert.deepEqual(decisionQuickActionsForStatus("booked"), []);
 });
 
 test("setActivityStatus stores status under the activity id", () => {

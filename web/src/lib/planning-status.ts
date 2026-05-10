@@ -40,6 +40,11 @@ export interface PlanningReadinessSummary {
   openItems: PlanningReadinessItem[];
 }
 
+export interface DecisionQuickAction {
+  label: string;
+  status: PlanningStatusValue;
+}
+
 export function defaultPlanningState(): TripPlanningState {
   return {
     statuses: {},
@@ -118,6 +123,22 @@ export function planningReadinessForDocument(document: TripDocument): PlanningRe
 export function nextPlanningStatus(current?: PlanningStatusValue): PlanningStatusValue {
   const index = current ? PLANNING_STATUSES.indexOf(current) : -1;
   return PLANNING_STATUSES[(index + 1) % PLANNING_STATUSES.length];
+}
+
+export function decisionQuickActionsForStatus(status: PlanningStatusValue): DecisionQuickAction[] {
+  if (status === "needs_booking") {
+    return [
+      { label: "Booked", status: "booked" },
+      { label: "Skip", status: "skip" },
+    ];
+  }
+  if (status === "maybe") {
+    return [
+      { label: "Keep", status: "idea" },
+      { label: "Skip", status: "skip" },
+    ];
+  }
+  return [];
 }
 
 export function setActivityStatus(
