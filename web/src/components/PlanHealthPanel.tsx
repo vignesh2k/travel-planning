@@ -71,6 +71,12 @@ export function PlanHealthPanel({
     3,
     decisionFilter,
   );
+  const hasOpenDecisions = readiness.openItems.length > 0;
+
+  function focusDecisionFilter(filter: OpenDecisionFilter) {
+    setDecisionFilter(filter);
+    setShowAllDecisions(false);
+  }
 
   return (
     <section className="frosted rounded-[14px] p-3 flex flex-col gap-3">
@@ -104,7 +110,7 @@ export function PlanHealthPanel({
             {openItems.items.length} of {openItems.totalCount}
           </div>
         </div>
-        {readiness.openItems.length > 0 && (
+        {hasOpenDecisions && (
           <div className="mt-2 flex items-center gap-1">
             {DECISION_FILTERS.map((filter) => {
               const active = filter.value === decisionFilter;
@@ -112,10 +118,7 @@ export function PlanHealthPanel({
                 <button
                   key={filter.value}
                   type="button"
-                  onClick={() => {
-                    setDecisionFilter(filter.value);
-                    setShowAllDecisions(false);
-                  }}
+                  onClick={() => focusDecisionFilter(filter.value)}
                   className={
                     active
                       ? "rounded-full bg-ink-900 px-2 py-0.5 text-[10px] font-medium text-white"
@@ -204,15 +207,26 @@ export function PlanHealthPanel({
                   <div className="text-[11px] font-semibold text-ink-900">{check.title}</div>
                   <div className="text-[10px] leading-4 text-ink-600 mt-0.5">{check.detail}</div>
                 </div>
-                {!readOnly && onDocumentChange && (
-                  <button
-                    type="button"
-                    onClick={() => onDocumentChange(dismissHealthCheck(trip.document, check.id))}
-                    className="shrink-0 rounded-full bg-white/80 border border-amber-700/10 px-2 py-0.5 text-[10px] text-ink-500 hover:text-ink-900 hover:bg-white"
-                  >
-                    Hide
-                  </button>
-                )}
+                <div className="flex shrink-0 items-center gap-1">
+                  {check.decisionFilter && hasOpenDecisions && (
+                    <button
+                      type="button"
+                      onClick={() => focusDecisionFilter(check.decisionFilter!)}
+                      className="rounded-full border border-amber-700/10 bg-white/80 px-2 py-0.5 text-[10px] font-medium text-ink-600 hover:bg-white hover:text-ink-900"
+                    >
+                      Show
+                    </button>
+                  )}
+                  {!readOnly && onDocumentChange && (
+                    <button
+                      type="button"
+                      onClick={() => onDocumentChange(dismissHealthCheck(trip.document, check.id))}
+                      className="rounded-full bg-white/80 border border-amber-700/10 px-2 py-0.5 text-[10px] text-ink-500 hover:text-ink-900 hover:bg-white"
+                    >
+                      Hide
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           ))}

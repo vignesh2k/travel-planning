@@ -60,6 +60,7 @@ test("planHealthForTrip flags open booking statuses", () => {
   });
   assert.equal(summary.severity, "watch");
   assert.equal(summary.checks[0].id, "needs-booking");
+  assert.equal(summary.checks[0].decisionFilter, "needs_booking");
 });
 
 test("planHealthForTrip flags maybe decisions as unfinished planning", () => {
@@ -77,6 +78,7 @@ test("planHealthForTrip flags maybe decisions as unfinished planning", () => {
   });
   assert.equal(summary.severity, "watch");
   assert.equal(summary.checks[0].id, "maybe-decisions");
+  assert.equal(summary.checks[0].decisionFilter, "maybe");
 });
 
 test("dismissHealthCheck hides a health check", () => {

@@ -1,5 +1,9 @@
 import type { PublicTrip, TripDocument, TripFull } from "./types.ts";
-import { ensurePlanningState, planningReadinessForDocument } from "./planning-status.ts";
+import {
+  ensurePlanningState,
+  planningReadinessForDocument,
+  type OpenDecisionFilter,
+} from "./planning-status.ts";
 
 export type PlanHealthSeverity = "good" | "watch" | "risk";
 
@@ -8,6 +12,7 @@ export interface PlanHealthCheck {
   title: string;
   detail: string;
   severity: Exclude<PlanHealthSeverity, "good">;
+  decisionFilter?: OpenDecisionFilter;
 }
 
 export interface PlanHealthSummary {
@@ -66,6 +71,7 @@ export function planHealthForTrip(trip: HealthTrip): PlanHealthSummary {
       title: "Bookings still open",
       detail: `${readiness.needsBooking} item${readiness.needsBooking === 1 ? "" : "s"} marked as needing a booking.`,
       severity: "watch",
+      decisionFilter: "needs_booking",
     });
   }
 
@@ -75,6 +81,7 @@ export function planHealthForTrip(trip: HealthTrip): PlanHealthSummary {
       title: "Decisions still open",
       detail: `${readiness.maybe} item${readiness.maybe === 1 ? "" : "s"} still marked as maybe.`,
       severity: "watch",
+      decisionFilter: "maybe",
     });
   }
 
