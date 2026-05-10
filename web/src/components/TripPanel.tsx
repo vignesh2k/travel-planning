@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { fetchHotels } from "@/lib/api";
 import { getBrowserToken } from "@/lib/auth.browser";
@@ -9,7 +9,7 @@ import type { Budget, Neighborhood, Place, PublicTrip, TripDocument, TripFull } 
 
 import { BudgetTab } from "./BudgetTab";
 import { HotelCard } from "./HotelCard";
-import { Itinerary } from "./Itinerary";
+import { activityDomId, Itinerary } from "./Itinerary";
 import { PlanHealthPanel } from "./PlanHealthPanel";
 import { TripDeskHeader } from "./TripDeskHeader";
 import { TripPanelTabs, type Tab } from "./TripPanelTabs";
@@ -53,9 +53,18 @@ export function TripPanel({
     [panelDocument, trip.document],
   );
   const [editMode, setEditMode] = useState(false);
+  const [activeDay, setActiveDay] = useState<number | undefined>(initialDay);
+  const [focusedActivityId, setFocusedActivityId] = useState<string | null>(null);
+  const focusClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [neighborhoods, setNeighborhoods] = useState<Neighborhood[]>(trip.document.neighborhoods ?? []);
   const [hotelsLoading, setHotelsLoading] = useState(false);
   const viewTrip = useMemo(() => ({ ...trip, document: draftDocument }), [trip, draftDocument]);
+
+  useEffect(() => {
+    return () => {
+      if (focusClearRef.current) clearTimeout(focusClearRef.current);
+    };
+  }, []);
 
   async function loadHotels() {
     if (neighborhoods.length || hotelsLoading) return;
@@ -102,6 +111,20 @@ export function TripPanel({
             trip={viewTrip}
             readOnly={readOnly}
             onDocumentChange={onDocumentChange}
+            onOpenDecision={(item) => {
+              setTab("Plan");
+              setActiveDay(item.dayNumber);
+              setFocusedActivityId(item.id);
+              if (focusClearRef.current) clearTimeout(focusClearRef.current);
+              setTimeout(() => {
+                document
+                  .getElementById(activityDomId(item.id))
+                  ?.scrollIntoView({ behavior: "smooth", block: "center" });
+              }, 50);
+              focusClearRef.current = setTimeout(() => {
+                setFocusedActivityId(null);
+              }, 2200);
+            }}
           />
         )}
 
@@ -113,8 +136,11 @@ export function TripPanel({
             readOnly={readOnly}
             editMode={editMode}
             initialDay={initialDay}
+            activeDay={activeDay}
+            focusedActivityId={focusedActivityId}
             selectedPlaceName={selectedPlaceName}
             onFocusPlaces={onFocusPlaces}
+            onActiveDayChange={setActiveDay}
             onRefinePrefill={onRefinePrefill}
             onDocumentChange={onDocumentChange ?? (() => {})}
             onOpenBudgetDay={(n) => {

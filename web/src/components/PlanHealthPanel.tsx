@@ -1,7 +1,7 @@
 "use client";
 
 import type { PublicTrip, TripDocument, TripFull } from "@/lib/types";
-import { planningReadinessForDocument } from "@/lib/planning-status";
+import { planningReadinessForDocument, type PlanningReadinessItem } from "@/lib/planning-status";
 import { dismissHealthCheck, planHealthForTrip } from "@/lib/trip-health";
 import { StatusChip } from "./StatusChip";
 
@@ -39,10 +39,12 @@ export function PlanHealthPanel({
   trip,
   readOnly,
   onDocumentChange,
+  onOpenDecision,
 }: {
   trip: TripFull | PublicTrip;
   readOnly: boolean;
   onDocumentChange?: (document: TripDocument) => void;
+  onOpenDecision?: (item: PlanningReadinessItem) => void;
 }) {
   const summary = planHealthForTrip(trip);
   const readiness = planningReadinessForDocument(trip.document);
@@ -83,7 +85,12 @@ export function PlanHealthPanel({
         {openItems.length > 0 ? (
           <div className="mt-2 flex flex-col gap-1.5">
             {openItems.map((item) => (
-              <div key={item.id} className="flex items-center gap-2">
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onOpenDecision?.(item)}
+                className="flex w-full items-center gap-2 rounded-[9px] text-left hover:bg-white/70 focus:outline-none focus:ring-2 focus:ring-amber-500/35"
+              >
                 <div className="min-w-0 flex-1">
                   <div className="text-[10px] font-medium text-ink-500">
                     Day {item.dayNumber} - {item.time}
@@ -96,7 +103,7 @@ export function PlanHealthPanel({
                   )}
                 </div>
                 <StatusChip value={item.status} compact />
-              </div>
+              </button>
             ))}
           </div>
         ) : (

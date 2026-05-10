@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { combined } from "@/lib/currency";
 import {
@@ -76,8 +76,11 @@ export function Itinerary({
   readOnly,
   editMode,
   initialDay,
+  activeDay,
+  focusedActivityId,
   selectedPlaceName,
   onFocusPlaces,
+  onActiveDayChange,
   onRefinePrefill,
   onDocumentChange,
   onOpenBudgetDay,
@@ -88,8 +91,11 @@ export function Itinerary({
   readOnly: boolean;
   editMode: boolean;
   initialDay?: number;
+  activeDay?: number;
+  focusedActivityId?: string | null;
   selectedPlaceName?: string | null;
   onFocusPlaces: (places: Place[] | null) => void;
+  onActiveDayChange?: (dayNumber: number) => void;
   onRefinePrefill: (text: string) => void;
   onDocumentChange: (document: TripDocument) => void;
   onOpenBudgetDay: (dayNumber: number) => void;
@@ -103,9 +109,15 @@ export function Itinerary({
     initialDay !== undefined && days.length > 0
       ? Math.min(Math.max(initialDay, 1), days.length)
       : fallbackNum;
-  const [activeNum, setActiveNum] = useState<number>(seed);
+  const [localActiveNum, setLocalActiveNum] = useState<number>(seed);
   const lastSelectedPlaceNameRef = useRef<string | null>(null);
+  const activeNum = activeDay ?? localActiveNum;
   const active = useMemo(() => days.find((d) => d.number === activeNum) ?? days[0], [days, activeNum]);
+
+  const setActiveNumber = useCallback((dayNumber: number) => {
+    setLocalActiveNum(dayNumber);
+    onActiveDayChange?.(dayNumber);
+  }, [onActiveDayChange]);
 
   useEffect(() => {
     if (!selectedPlaceName) {
@@ -122,16 +134,14 @@ export function Itinerary({
     );
     const frame = requestAnimationFrame(() => {
       if (targetDay) {
-        setActiveNum((current) =>
-          current === targetDay.number ? current : targetDay.number,
-        );
+        setActiveNumber(targetDay.number);
       }
       document
         .getElementById(placeDomId(selectedPlaceName))
         ?.scrollIntoView({ behavior: "smooth", block: "center" });
     });
     return () => cancelAnimationFrame(frame);
-  }, [days, places, selectedPlaceName]);
+  }, [days, places, selectedPlaceName, setActiveNumber]);
 
   // When the active day changes, refocus the map.
   useEffect(() => {
@@ -159,7 +169,7 @@ export function Itinerary({
           return (
             <button
               key={d.number}
-              onClick={() => setActiveNum(d.number)}
+              onClick={() => setActiveNumber(d.number)}
               className={
                 isActive
                   ? "shrink-0 rounded-full px-3 py-1 text-xs font-semibold bg-amber-600 text-white shadow-sm"
@@ -246,37 +256,43 @@ export function Itinerary({
                 const selected = place?.name === selectedPlaceName;
                 const id = activityId(active.number, b.time, i);
                 const status = planning?.statuses[id];
+                const isFocused = focusedActivityId === id;
                 return (
                   <li
                     key={`${b.time}-${i}`}
-                    className="relative"
+                    id={activityDomId(id)}
+                    className="relative scroll-mt-4"
                   >
                     {editMode ? (
-                      <ActivityEditorRow
-                        item={item}
-                        place={place}
-                        status={status}
-                        onFocusPlaces={onFocusPlaces}
-                        onStatusChange={(nextStatus) => {
-                          onDocumentChange(setActivityStatus(tripDocument, id, nextStatus));
-                        }}
-                        onChange={(value) => {
-                          onDocumentChange(updateItineraryItem(tripDocument, active.number, b.time, i, value));
-                        }}
-                        onCommit={(value) => {
-                          const trimmed = value.trim();
-                          onDocumentChange(
-                            trimmed
-                              ? updateItineraryItem(tripDocument, active.number, b.time, i, trimmed)
-                              : removeItineraryItem(tripDocument, active.number, b.time, i),
-                          );
-                        }}
-                        onRemove={() => onDocumentChange(removeItineraryItem(tripDocument, active.number, b.time, i))}
-                      />
+                      <div className={isFocused ? "rounded-[14px] ring-2 ring-amber-500/35 ring-offset-2 ring-offset-transparent" : undefined}>
+                        <ActivityEditorRow
+                          item={item}
+                          place={place}
+                          status={status}
+                          onFocusPlaces={onFocusPlaces}
+                          onStatusChange={(nextStatus) => {
+                            onDocumentChange(setActivityStatus(tripDocument, id, nextStatus));
+                          }}
+                          onChange={(value) => {
+                            onDocumentChange(updateItineraryItem(tripDocument, active.number, b.time, i, value));
+                          }}
+                          onCommit={(value) => {
+                            const trimmed = value.trim();
+                            onDocumentChange(
+                              trimmed
+                                ? updateItineraryItem(tripDocument, active.number, b.time, i, trimmed)
+                                : removeItineraryItem(tripDocument, active.number, b.time, i),
+                            );
+                          }}
+                          onRemove={() => onDocumentChange(removeItineraryItem(tripDocument, active.number, b.time, i))}
+                        />
+                      </div>
                     ) : (
                       <div
                         className={
-                          selected
+                          isFocused
+                            ? "rounded-[12px] border flex items-start gap-2 bg-amber-50 border-amber-500/45 shadow-sm ring-2 ring-amber-500/25"
+                            : selected
                             ? "rounded-[12px] border flex items-start gap-2 bg-[rgba(201,100,66,0.10)] border-[rgba(201,100,66,0.45)] shadow-sm"
                             : clickable
                               ? "rounded-[12px] border flex items-start gap-2 bg-white/70 border-amber-700/10 hover:bg-white/95 hover:border-amber-600/30 hover:shadow-sm"
@@ -516,4 +532,8 @@ function StatusPicker({
 
 function placeDomId(name: string): string {
   return `itinerary-place-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+}
+
+export function activityDomId(id: string): string {
+  return `itinerary-activity-${id}`;
 }
