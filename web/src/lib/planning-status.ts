@@ -49,7 +49,10 @@ export interface OpenDecisionDisplay {
   items: PlanningReadinessItem[];
   hiddenCount: number;
   canExpand: boolean;
+  totalCount: number;
 }
+
+export type OpenDecisionFilter = "all" | "needs_booking" | "maybe";
 
 export function defaultPlanningState(): TripPlanningState {
   return {
@@ -151,12 +154,15 @@ export function openDecisionItemsForDisplay(
   items: PlanningReadinessItem[],
   expanded: boolean,
   limit = 3,
+  filter: OpenDecisionFilter = "all",
 ): OpenDecisionDisplay {
-  const visibleItems = expanded ? items : items.slice(0, limit);
+  const filteredItems = filter === "all" ? items : items.filter((item) => item.status === filter);
+  const visibleItems = expanded ? filteredItems : filteredItems.slice(0, limit);
   return {
     items: visibleItems,
-    hiddenCount: expanded ? 0 : Math.max(0, items.length - visibleItems.length),
-    canExpand: items.length > limit,
+    hiddenCount: expanded ? 0 : Math.max(0, filteredItems.length - visibleItems.length),
+    canExpand: filteredItems.length > limit,
+    totalCount: filteredItems.length,
   };
 }
 

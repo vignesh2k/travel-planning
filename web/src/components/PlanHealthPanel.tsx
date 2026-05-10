@@ -8,6 +8,7 @@ import {
   openDecisionItemsForDisplay,
   planningReadinessForDocument,
   setActivityStatus,
+  type OpenDecisionFilter,
   type PlanningReadinessItem,
 } from "@/lib/planning-status";
 import { dismissHealthCheck, planHealthForTrip } from "@/lib/trip-health";
@@ -25,6 +26,12 @@ const METRIC_CLASS = {
   maybe: "bg-amber-50 text-amber-900 border-amber-100",
   ideas: "bg-slate-50 text-slate-700 border-slate-200",
 };
+
+const DECISION_FILTERS: Array<{ label: string; value: OpenDecisionFilter }> = [
+  { label: "All", value: "all" },
+  { label: "Book", value: "needs_booking" },
+  { label: "Maybe", value: "maybe" },
+];
 
 function ReadinessMetric({
   label,
@@ -57,7 +64,13 @@ export function PlanHealthPanel({
   const summary = planHealthForTrip(trip);
   const readiness = planningReadinessForDocument(trip.document);
   const [showAllDecisions, setShowAllDecisions] = useState(false);
-  const openItems = openDecisionItemsForDisplay(readiness.openItems, showAllDecisions);
+  const [decisionFilter, setDecisionFilter] = useState<OpenDecisionFilter>("all");
+  const openItems = openDecisionItemsForDisplay(
+    readiness.openItems,
+    showAllDecisions,
+    3,
+    decisionFilter,
+  );
 
   return (
     <section className="frosted rounded-[14px] p-3 flex flex-col gap-3">
@@ -88,9 +101,33 @@ export function PlanHealthPanel({
             Open decisions
           </div>
           <div className="text-[10px] text-ink-400">
-            {openItems.items.length} of {readiness.openItems.length}
+            {openItems.items.length} of {openItems.totalCount}
           </div>
         </div>
+        {readiness.openItems.length > 0 && (
+          <div className="mt-2 flex items-center gap-1">
+            {DECISION_FILTERS.map((filter) => {
+              const active = filter.value === decisionFilter;
+              return (
+                <button
+                  key={filter.value}
+                  type="button"
+                  onClick={() => {
+                    setDecisionFilter(filter.value);
+                    setShowAllDecisions(false);
+                  }}
+                  className={
+                    active
+                      ? "rounded-full bg-ink-900 px-2 py-0.5 text-[10px] font-medium text-white"
+                      : "rounded-full border border-amber-700/10 bg-white/60 px-2 py-0.5 text-[10px] font-medium text-ink-600 hover:bg-white hover:text-ink-900"
+                  }
+                >
+                  {filter.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
         {openItems.items.length > 0 ? (
           <div className="mt-2 flex flex-col gap-1.5">
             {openItems.items.map((item) => {

@@ -74,6 +74,32 @@ test("openDecisionItemsForDisplay limits collapsed decisions and exposes hidden 
   assert.equal(expanded.hiddenCount, 0);
 });
 
+test("openDecisionItemsForDisplay filters open decisions by status before limiting", () => {
+  const items = [
+    {
+      id: "day-1-morning-0",
+      dayNumber: 1,
+      time: "Morning",
+      itemIndex: 0,
+      text: "Book ferry",
+      status: "needs_booking" as const,
+    },
+    {
+      id: "day-1-morning-1",
+      dayNumber: 1,
+      time: "Morning",
+      itemIndex: 1,
+      text: "Maybe beach",
+      status: "maybe" as const,
+    },
+  ];
+
+  const filtered = openDecisionItemsForDisplay(items, false, 3, "needs_booking");
+  assert.deepEqual(filtered.items.map((item) => item.text), ["Book ferry"]);
+  assert.equal(filtered.totalCount, 1);
+  assert.equal(filtered.hiddenCount, 0);
+});
+
 test("setActivityStatus stores status under the activity id", () => {
   const next = setActivityStatus(document, "day-1-morning-0", "booked");
   assert.equal(next.planning?.statuses["day-1-morning-0"], "booked");
