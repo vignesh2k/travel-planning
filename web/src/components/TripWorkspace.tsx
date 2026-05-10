@@ -186,10 +186,10 @@ function TripWorkspaceContent({
           onPlaceClick={selectPlace}
         />
         <div
-          className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(255,250,242,0.10),rgba(255,250,242,0.46)_68%,rgba(255,250,242,0.78))]"
+          className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(255,250,242,0.78),rgba(255,250,242,0.46)_32%,rgba(255,250,242,0.10))]"
           aria-hidden
         />
-        <div className="absolute inset-y-4 right-4 z-20 hidden w-[min(440px,calc(100vw-2rem))] overflow-hidden rounded-[18px] border border-amber-700/10 bg-white/80 shadow-2xl backdrop-blur-md md:flex">
+        <div className="absolute inset-y-4 left-4 z-20 hidden w-[min(400px,calc(100vw-2rem))] overflow-hidden rounded-[18px] border border-amber-700/10 bg-white/80 shadow-2xl backdrop-blur-md md:flex">
           {panel}
         </div>
         {isMobile && (
