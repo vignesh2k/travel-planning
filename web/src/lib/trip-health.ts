@@ -1,5 +1,5 @@
 import type { PublicTrip, TripDocument, TripFull } from "./types.ts";
-import { ensurePlanningState } from "./planning-status.ts";
+import { ensurePlanningState, planningReadinessForDocument } from "./planning-status.ts";
 
 export type PlanHealthSeverity = "good" | "watch" | "risk";
 
@@ -59,12 +59,21 @@ export function planHealthForTrip(trip: HealthTrip): PlanHealthSummary {
     });
   }
 
-  const needsBooking = Object.values(document.planning?.statuses ?? {}).filter((status) => status === "needs_booking").length;
-  if (needsBooking > 0) {
+  const readiness = planningReadinessForDocument(document);
+  if (readiness.needsBooking > 0) {
     checks.push({
       id: "needs-booking",
       title: "Bookings still open",
-      detail: `${needsBooking} item${needsBooking === 1 ? "" : "s"} marked as needing a booking.`,
+      detail: `${readiness.needsBooking} item${readiness.needsBooking === 1 ? "" : "s"} marked as needing a booking.`,
+      severity: "watch",
+    });
+  }
+
+  if (readiness.maybe > 0) {
+    checks.push({
+      id: "maybe-decisions",
+      title: "Decisions still open",
+      detail: `${readiness.maybe} item${readiness.maybe === 1 ? "" : "s"} still marked as maybe.`,
       severity: "watch",
     });
   }

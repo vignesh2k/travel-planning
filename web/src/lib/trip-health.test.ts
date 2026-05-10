@@ -62,6 +62,23 @@ test("planHealthForTrip flags open booking statuses", () => {
   assert.equal(summary.checks[0].id, "needs-booking");
 });
 
+test("planHealthForTrip flags maybe decisions as unfinished planning", () => {
+  const summary = planHealthForTrip({
+    ...healthyTrip,
+    document: {
+      ...healthyTrip.document,
+      planning: {
+        statuses: { "day-1-morning-0": "maybe" },
+        notes: {},
+        dismissed_health_checks: [],
+        last_editor_version: 1,
+      },
+    },
+  });
+  assert.equal(summary.severity, "watch");
+  assert.equal(summary.checks[0].id, "maybe-decisions");
+});
+
 test("dismissHealthCheck hides a health check", () => {
   const document = dismissHealthCheck(healthyTrip.document, "missing-start-date");
   const summary = planHealthForTrip({
