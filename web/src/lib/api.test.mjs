@@ -32,3 +32,9 @@ test("trip page falls back to browser loading for non-404 server API failures", 
   assert.equal(shouldTryBrowserTripLoad(new ApiRequestError("getTrip 403", 403)), true);
   assert.equal(shouldTryBrowserTripLoad(new ApiRequestError("getTrip 404", 404)), false);
 });
+
+test("trip page falls back to browser loading when server session lookup fails", async () => {
+  const { shouldTryBrowserSessionLoad } = await import("./trip-page-errors.ts");
+
+  assert.equal(shouldTryBrowserSessionLoad(new Error("failed to parse session cookie")), true);
+});

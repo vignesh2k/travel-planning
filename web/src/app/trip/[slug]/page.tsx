@@ -1,11 +1,10 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
 import { TripPanel } from "@/components/TripPanel";
 import { ApiRequestError, getBudget, getTrip } from "@/lib/api";
 import { getServerToken } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { shouldTryBrowserTripLoad } from "@/lib/trip-page-errors";
+import { shouldTryBrowserSessionLoad, shouldTryBrowserTripLoad } from "@/lib/trip-page-errors";
 
 import { TripClientRecovery } from "./TripClientRecovery";
 
@@ -31,23 +30,40 @@ export default async function TripPage({
   const { day } = await searchParams;
   const initialDay = day ? parseInt(day, 10) : undefined;
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/auth/signin");
+  let hasServerUser = false;
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.auth.getUser();
+    hasServerUser = Boolean(data.user);
+  } catch (error) {
+    if (shouldTryBrowserSessionLoad(error)) {
+      return <TripClientRecovery slug={slug} initialDay={initialDay} />;
+    }
+    throw error;
+  }
+  if (!hasServerUser) return <TripClientRecovery slug={slug} initialDay={initialDay} />;
 
-  const token = await getServerToken();
-  if (!token) redirect("/auth/signin");
+  let token: string | null = null;
+  try {
+    token = await getServerToken();
+  } catch (error) {
+    if (shouldTryBrowserSessionLoad(error)) {
+      return <TripClientRecovery slug={slug} initialDay={initialDay} />;
+    }
+    throw error;
+  }
+  if (!token) return <TripClientRecovery slug={slug} initialDay={initialDay} />;
 
-  let tripLoadError: unknown = null;
-  const [trip, budget] = await Promise.all([
-    getTrip(slug, token).catch((error) => {
-      tripLoadError = error;
-      if (error instanceof ApiRequestError && error.status === 404) return null;
-      if (shouldTryBrowserTripLoad(error)) return null;
+  const [tripResult, budget] = await Promise.all([
+    getTrip(slug, token).then((trip) => ({ trip, error: null as unknown })).catch((error) => {
+      if (error instanceof ApiRequestError && error.status === 404) return { trip: null, error };
+      if (shouldTryBrowserTripLoad(error)) return { trip: null, error };
       throw error;
     }),
     getBudget(slug, token).catch(() => null),
   ]);
+  const trip = tripResult?.trip ?? null;
+  const tripLoadError = tripResult?.error ?? null;
 
   if (!trip) {
     if (shouldTryBrowserTripLoad(tripLoadError)) {
