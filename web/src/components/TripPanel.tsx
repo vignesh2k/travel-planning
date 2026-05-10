@@ -11,6 +11,7 @@ import type { WorkspaceTab } from "@/lib/workspace-tabs";
 import { tabsForWorkspace } from "@/lib/workspace-tabs";
 
 import { BudgetTab } from "./BudgetTab";
+import { GuideTab } from "./GuideTab";
 import { HotelCard } from "./HotelCard";
 import { activityDomId, Itinerary } from "./Itinerary";
 import { PlanHealthPanel } from "./PlanHealthPanel";
@@ -238,9 +239,10 @@ export function TripPanel({
         )}
 
         {tab === "Guide" && (
-          <EmptyWorkspaceState
-            title="Guide preview coming next"
-            copy="Build the polished guide from this tab in the next slice."
+          <GuideTab
+            trip={viewTrip}
+            budget={budget}
+            readOnly={readOnly}
           />
         )}
 

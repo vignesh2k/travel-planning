@@ -144,12 +144,14 @@ function TripWorkspaceContent({
         error={saveError}
         onSave={save}
       />
-      <PdfExportMenu
-        slug={currentTrip.slug}
-        destination={currentTrip.destination}
-        days={currentTrip.days}
-        prominent
-      />
+      {workspaceTab !== "Guide" && (
+        <PdfExportMenu
+          slug={currentTrip.slug}
+          destination={currentTrip.destination}
+          days={currentTrip.days}
+          prominent
+        />
+      )}
       <ShareMenu slug={currentTrip.slug} initialToken={currentTrip.share_token} />
     </>
   ) : undefined;
