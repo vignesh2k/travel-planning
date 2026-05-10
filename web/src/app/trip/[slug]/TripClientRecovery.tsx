@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { BrandIcon } from "@/components/BrandMark";
@@ -54,21 +53,7 @@ export function TripClientRecovery({
   }, [router, slug]);
 
   if (trip) {
-    return (
-      <main className="min-h-screen flex flex-col">
-        <header className="px-4 py-3 border-b border-amber-700/10 flex items-center justify-between">
-          <Link href="/" className="text-sm font-medium text-ink-900 hover:text-amber-600">
-            Atlas
-          </Link>
-          <span className="text-sm text-ink-600 truncate max-w-[200px]">
-            {trip.destination}
-          </span>
-        </header>
-        <div className="flex-1 overflow-hidden">
-          <TripWorkspace trip={trip} budget={budget} initialDay={initialDay} />
-        </div>
-      </main>
-    );
+    return <TripWorkspace trip={trip} budget={budget} initialDay={initialDay} />;
   }
 
   return (

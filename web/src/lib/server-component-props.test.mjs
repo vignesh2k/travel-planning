@@ -48,10 +48,16 @@ test("trip workspace only mounts the portal sheet on mobile", async () => {
   );
 });
 
-test("trip workspace exposes authenticated save and PDF actions", async () => {
+test("trip workspace exposes authenticated top-nav actions", async () => {
   const source = await readFile(TRIP_WORKSPACE_FILE, "utf8");
 
   assert.match(source, /<SaveTripButton\b/, "TripWorkspace should render save controls");
   assert.match(source, /<PdfExportMenu\b/, "TripWorkspace should render PDF export controls");
-  assert.match(source, /actions=\{actions\}/, "TripWorkspace should pass actions into TripPanel");
+  assert.match(source, /<ShareMenu\b/, "TripWorkspace should render share controls");
+  assert.match(source, /<header\b/, "TripWorkspace should render the trip top navigation");
+  assert.equal(
+    /actions=\{actions\}/.test(source),
+    false,
+    "TripWorkspace should not pass top-nav actions into the side panel",
+  );
 });
