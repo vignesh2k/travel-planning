@@ -1,22 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { fetchHotels } from "@/lib/api";
 import { getBrowserToken } from "@/lib/auth.browser";
 import { ensurePlanningState } from "@/lib/planning-status";
 import type { Budget, Neighborhood, Place, PublicTrip, TripDocument, TripFull } from "@/lib/types";
+import type { WorkspaceTab } from "@/lib/workspace-tabs";
+import { tabsForWorkspace } from "@/lib/workspace-tabs";
 
 import { BudgetTab } from "./BudgetTab";
 import { HotelCard } from "./HotelCard";
 import { activityDomId, Itinerary } from "./Itinerary";
 import { PlanHealthPanel } from "./PlanHealthPanel";
 import { TripDeskHeader } from "./TripDeskHeader";
-import { TripPanelTabs, type Tab } from "./TripPanelTabs";
+import { TripPanelTabs } from "./TripPanelTabs";
 import { TripSummaryHeader } from "./TripSummaryHeader";
-
-const FULL_TABS: readonly Tab[] = ["Plan", "Stay", "Money"] as const;
-const READONLY_TABS: readonly Tab[] = ["Plan", "Stay"] as const;
 
 function ignoreFocusPlaces(places: Place[] | null) {
   void places;
@@ -30,6 +29,9 @@ export function TripPanel({
   trip,
   budget,
   readOnly = false,
+  activeTab,
+  isMobile,
+  onTabChange,
   initialDay,
   selectedPlaceName,
   onFocusPlaces = ignoreFocusPlaces,
@@ -40,6 +42,9 @@ export function TripPanel({
   trip: TripFull | PublicTrip;
   budget: Budget | null;
   readOnly?: boolean;
+  activeTab?: WorkspaceTab;
+  isMobile?: boolean;
+  onTabChange?: (tab: WorkspaceTab) => void;
   initialDay?: number;
   selectedPlaceName?: string | null;
   onFocusPlaces?: (places: Place[] | null) => void;
@@ -47,7 +52,10 @@ export function TripPanel({
   document?: TripDocument;
   onDocumentChange?: (document: TripDocument) => void;
 }) {
-  const [tab, setTab] = useState<Tab>("Plan");
+  const [localTab, setLocalTab] = useState<WorkspaceTab>("Plan");
+  const tab = activeTab ?? localTab;
+  const visibleTabs = tabsForWorkspace({ readOnly, isMobile: Boolean(isMobile) });
+  const panelTabs = visibleTabs.includes(tab) ? visibleTabs : [...visibleTabs, tab];
   const draftDocument = useMemo(
     () => ensurePlanningState(panelDocument ?? trip.document),
     [panelDocument, trip.document],
@@ -56,18 +64,15 @@ export function TripPanel({
   const [activeDay, setActiveDay] = useState<number | undefined>(initialDay);
   const [focusedActivityId, setFocusedActivityId] = useState<string | null>(null);
   const focusClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hotelsRequestRef = useRef(false);
   const [neighborhoods, setNeighborhoods] = useState<Neighborhood[]>(trip.document.neighborhoods ?? []);
   const [hotelsLoading, setHotelsLoading] = useState(false);
   const viewTrip = useMemo(() => ({ ...trip, document: draftDocument }), [trip, draftDocument]);
 
-  useEffect(() => {
-    return () => {
-      if (focusClearRef.current) clearTimeout(focusClearRef.current);
-    };
-  }, []);
-
-  async function loadHotels() {
-    if (neighborhoods.length || hotelsLoading) return;
+  const loadHotels = useCallback(async () => {
+    if (neighborhoods.length || hotelsRequestRef.current) return;
+    hotelsRequestRef.current = true;
+    await Promise.resolve();
     setHotelsLoading(true);
     try {
       const token = await getBrowserToken();
@@ -75,8 +80,26 @@ export function TripPanel({
       const out = await fetchHotels(trip.slug, 2, token);
       setNeighborhoods(out);
     } finally {
+      hotelsRequestRef.current = false;
       setHotelsLoading(false);
     }
+  }, [neighborhoods.length, trip.slug]);
+
+  useEffect(() => {
+    return () => {
+      if (focusClearRef.current) clearTimeout(focusClearRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "Stay") void loadHotels();
+  }, [activeTab, loadHotels]);
+
+  function changeTab(next: WorkspaceTab) {
+    if (activeTab === undefined) setLocalTab(next);
+    onTabChange?.(next);
+    if (next === "Stay") void loadHotels();
+    if (activeTab === undefined && next !== "Plan") onFocusPlaces(null);
   }
 
   return (
@@ -89,12 +112,8 @@ export function TripPanel({
       />
       <TripPanelTabs
         active={tab}
-        tabs={readOnly ? READONLY_TABS : FULL_TABS}
-        onChange={(t) => {
-          setTab(t);
-          if (t === "Stay") loadHotels();
-          if (t !== "Plan") onFocusPlaces(null);
-        }}
+        tabs={panelTabs}
+        onChange={changeTab}
       />
       <div className="flex-1 p-3 overflow-auto flex flex-col gap-2">
         <TripSummaryHeader
@@ -103,7 +122,7 @@ export function TripPanel({
           readOnly={readOnly}
           onFocusPlaces={onFocusPlaces}
           onOpenMoney={() => {
-            if (!readOnly) setTab("Money");
+            if (!readOnly) changeTab("Money");
           }}
         />
         {tab === "Plan" && (
@@ -112,7 +131,7 @@ export function TripPanel({
             readOnly={readOnly}
             onDocumentChange={onDocumentChange}
             onOpenDecision={(item) => {
-              setTab("Plan");
+              changeTab("Plan");
               setActiveDay(item.dayNumber);
               setFocusedActivityId(item.id);
               if (focusClearRef.current) clearTimeout(focusClearRef.current);
@@ -144,7 +163,7 @@ export function TripPanel({
             onRefinePrefill={onRefinePrefill}
             onDocumentChange={onDocumentChange ?? (() => {})}
             onOpenBudgetDay={(n) => {
-              setTab("Money");
+              changeTab("Money");
               // After tab swap, scroll the matching row into view.
               setTimeout(() => {
                 document
@@ -157,6 +176,20 @@ export function TripPanel({
 
         {tab === "Money" && !readOnly && (
           <BudgetTab slug={trip.slug} initial={budget} />
+        )}
+
+        {tab === "Map" && (
+          <EmptyWorkspaceState
+            title="Map view"
+            copy="The map is active. Use Plan, Stay, or Guide to reopen trip details."
+          />
+        )}
+
+        {tab === "Guide" && (
+          <EmptyWorkspaceState
+            title="Guide preview coming next"
+            copy="Build the polished guide from this tab in the next slice."
+          />
         )}
 
         {tab === "Stay" && (
@@ -185,6 +218,21 @@ export function TripPanel({
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+function EmptyWorkspaceState({
+  title,
+  copy,
+}: {
+  title: string;
+  copy: string;
+}) {
+  return (
+    <div className="frosted rounded-[14px] p-4 text-xs leading-5 text-ink-600">
+      <div className="text-sm font-semibold text-ink-900">{title}</div>
+      <div className="mt-1">{copy}</div>
     </div>
   );
 }

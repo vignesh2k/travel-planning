@@ -7,9 +7,11 @@ import { patchTripDocument, saveTrip } from "@/lib/api";
 import { getBrowserToken } from "@/lib/auth.browser";
 import { selectedPlaceNameForFocus } from "@/lib/map-focus";
 import type { Budget, Place, PublicTrip, TripDocument, TripFull } from "@/lib/types";
+import { isSheetTab, tabsForWorkspace, type WorkspaceTab } from "@/lib/workspace-tabs";
 
 import { BrandMark } from "./BrandMark";
 import { Map } from "./Map";
+import { MobileWorkspaceNav } from "./MobileWorkspaceNav";
 import { MobileSheet } from "./MobileSheet";
 import { PdfExportMenu } from "./PdfExportMenu";
 import { SaveTripButton } from "./SaveTripButton";
@@ -78,10 +80,17 @@ function TripWorkspaceContent({
   const [focusPlaces, setFocusPlaces] = useState<Place[] | null>(null);
   const [selectedPlaceName, setSelectedPlaceName] = useState<string | null>(null);
   const isMobile = useIsMobile();
+  const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>("Plan");
+  const visibleTabs = tabsForWorkspace({ readOnly, isMobile });
 
   function focus(next: Place[] | null) {
     setFocusPlaces(next);
     setSelectedPlaceName(selectedPlaceNameForFocus(next));
+  }
+
+  function changeWorkspaceTab(next: WorkspaceTab) {
+    setWorkspaceTab(next);
+    if (next !== "Plan") focus(null);
   }
 
   function selectPlace(place: Place) {
@@ -155,6 +164,9 @@ function TripWorkspaceContent({
       trip={currentTrip}
       budget={budget}
       readOnly={readOnly}
+      activeTab={workspaceTab}
+      isMobile={isMobile}
+      onTabChange={changeWorkspaceTab}
       initialDay={initialDay}
       selectedPlaceName={selectedPlaceName}
       onFocusPlaces={focus}
@@ -189,11 +201,20 @@ function TripWorkspaceContent({
           className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(255,250,242,0.78),rgba(255,250,242,0.46)_32%,rgba(255,250,242,0.10))]"
           aria-hidden
         />
-        <div className="absolute inset-y-4 left-4 z-20 hidden w-[min(400px,calc(100vw-2rem))] overflow-hidden rounded-[18px] border border-amber-700/10 bg-white/80 shadow-2xl backdrop-blur-md md:flex">
-          {panel}
-        </div>
-        {isMobile && (
+        {!isMobile && (
+          <div className="absolute inset-y-4 left-4 z-20 hidden w-[min(400px,calc(100vw-2rem))] overflow-hidden rounded-[18px] border border-amber-700/10 bg-white/80 shadow-2xl backdrop-blur-md md:flex">
+            {panel}
+          </div>
+        )}
+        {isMobile && isSheetTab(workspaceTab) && (
           <MobileSheet>{panel}</MobileSheet>
+        )}
+        {isMobile && (
+          <MobileWorkspaceNav
+            tabs={visibleTabs}
+            active={workspaceTab}
+            onChange={changeWorkspaceTab}
+          />
         )}
       </div>
     </div>

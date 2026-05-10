@@ -2,15 +2,20 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
+const WEB_ROOT = new URL("../../", import.meta.url);
 const SERVER_ROUTE_FILES = [
-  "web/src/app/trip/[slug]/page.tsx",
-  "web/src/app/s/[token]/page.tsx",
+  "src/app/trip/[slug]/page.tsx",
+  "src/app/s/[token]/page.tsx",
 ];
-const TRIP_WORKSPACE_FILE = "web/src/components/TripWorkspace.tsx";
+const TRIP_WORKSPACE_FILE = "src/components/TripWorkspace.tsx";
+
+function readWorkspaceFile(file) {
+  return readFile(new URL(file, WEB_ROOT), "utf8");
+}
 
 test("server routes do not pass callback props into TripPanel", async () => {
   for (const file of SERVER_ROUTE_FILES) {
-    const source = await readFile(file, "utf8");
+    const source = await readWorkspaceFile(file);
 
     assert.equal(
       /onFocusPlaces=\{/.test(source),
@@ -27,7 +32,7 @@ test("server routes do not pass callback props into TripPanel", async () => {
 
 test("trip server routes mount the map workspace", async () => {
   for (const file of SERVER_ROUTE_FILES) {
-    const source = await readFile(file, "utf8");
+    const source = await readWorkspaceFile(file);
 
     assert.match(source, /<TripWorkspace\b/, `${file} should render the trip map workspace`);
     assert.equal(
@@ -39,17 +44,17 @@ test("trip server routes mount the map workspace", async () => {
 });
 
 test("trip workspace only mounts the portal sheet on mobile", async () => {
-  const source = await readFile(TRIP_WORKSPACE_FILE, "utf8");
+  const source = await readWorkspaceFile(TRIP_WORKSPACE_FILE);
 
   assert.match(
     source,
-    /\{isMobile && \(\s*<MobileSheet>/,
-    "MobileSheet portals outside its parent, so it must be conditionally mounted",
+    /\{isMobile && isSheetTab\(workspaceTab\) && \(\s*<MobileSheet>/,
+    "MobileSheet portals outside its parent, so it must be conditionally mounted on mobile sheet tabs",
   );
 });
 
 test("trip workspace exposes authenticated top-nav actions", async () => {
-  const source = await readFile(TRIP_WORKSPACE_FILE, "utf8");
+  const source = await readWorkspaceFile(TRIP_WORKSPACE_FILE);
 
   assert.match(source, /<SaveTripButton\b/, "TripWorkspace should render save controls");
   assert.match(source, /<PdfExportMenu\b/, "TripWorkspace should render PDF export controls");
