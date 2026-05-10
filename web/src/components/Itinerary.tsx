@@ -18,7 +18,7 @@ import type {
   TripDocument,
 } from "@/lib/types";
 
-import { StatusChip } from "./StatusChip";
+import { ActivityCard } from "./ActivityCard";
 
 const TIME_META: Record<ItineraryDay["bullets"][number]["time"], { icon: string; tint: string }> = {
   Morning:   { icon: "☀️", tint: "text-amber-600" },
@@ -110,7 +110,6 @@ export function Itinerary({
       ? Math.min(Math.max(initialDay, 1), days.length)
       : fallbackNum;
   const [localActiveNum, setLocalActiveNum] = useState<number>(seed);
-  const lastSelectedPlaceNameRef = useRef<string | null>(null);
   const activeNum = activeDay ?? localActiveNum;
   const active = useMemo(() => days.find((d) => d.number === activeNum) ?? days[0], [days, activeNum]);
 
@@ -118,30 +117,6 @@ export function Itinerary({
     setLocalActiveNum(dayNumber);
     onActiveDayChange?.(dayNumber);
   }, [onActiveDayChange]);
-
-  useEffect(() => {
-    if (!selectedPlaceName) {
-      lastSelectedPlaceNameRef.current = null;
-      return;
-    }
-    if (lastSelectedPlaceNameRef.current === selectedPlaceName) return;
-    lastSelectedPlaceNameRef.current = selectedPlaceName;
-
-    const targetDay = days.find((day) =>
-      day.bullets.some((group) =>
-        group.items.some((item) => placeForText(item, places)?.name === selectedPlaceName),
-      ),
-    );
-    const frame = requestAnimationFrame(() => {
-      if (targetDay) {
-        setActiveNumber(targetDay.number);
-      }
-      document
-        .getElementById(placeDomId(selectedPlaceName))
-        ?.scrollIntoView({ behavior: "smooth", block: "center" });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [days, places, selectedPlaceName, setActiveNumber]);
 
   // When the active day changes, refocus the map.
   useEffect(() => {
@@ -252,7 +227,7 @@ export function Itinerary({
             <ul className="flex flex-col gap-1.5">
               {b.items.map((item, i) => {
                 const place = placeForText(item, places);
-                const clickable = place && place.lat !== null && place.lng !== null;
+                const clickable = Boolean(place && place.lat !== null && place.lng !== null);
                 const selected = place?.name === selectedPlaceName;
                 const id = activityId(active.number, b.time, i);
                 const status = planning?.statuses[id];
@@ -288,39 +263,21 @@ export function Itinerary({
                         />
                       </div>
                     ) : (
-                      <div
-                        className={
-                          isFocused
-                            ? "rounded-[12px] border flex items-start gap-2 bg-amber-50 border-amber-500/45 shadow-sm ring-2 ring-amber-500/25"
-                            : selected
-                            ? "rounded-[12px] border flex items-start gap-2 bg-[rgba(201,100,66,0.10)] border-[rgba(201,100,66,0.45)] shadow-sm"
-                            : clickable
-                              ? "rounded-[12px] border flex items-start gap-2 bg-white/70 border-amber-700/10 hover:bg-white/95 hover:border-amber-600/30 hover:shadow-sm"
-                              : "rounded-[12px] border flex items-start gap-2 bg-white/40 border-amber-700/10"
-                        }
-                      >
-                        <button
-                          id={place ? placeDomId(place.name) : undefined}
-                          onClick={() => clickable && onFocusPlaces([place])}
-                          onMouseEnter={() => clickable && onFocusPlaces([place])}
-                          onMouseLeave={() => {
-                            const dayPlaces = placesForDay(active, places);
-                            onFocusPlaces(dayPlaces.length > 0 ? dayPlaces : null);
-                          }}
-                          disabled={!clickable}
-                          className="min-w-0 flex-1 text-left px-3 py-2 text-[12px] text-ink-900 leading-snug flex items-start gap-2 disabled:cursor-default"
-                        >
-                          <span className="text-[14px] leading-none mt-0.5 shrink-0" aria-hidden>
-                            {clickable ? CATEGORY_EMOJI[place.category] : "•"}
-                          </span>
-                          <span className="flex-1">{item}</span>
-                        </button>
-                        {status && (
-                          <div className="shrink-0 pr-2 py-2">
-                            <StatusChip value={status} compact />
-                          </div>
-                        )}
-                      </div>
+                      <ActivityCard
+                        id={undefined}
+                        text={item}
+                        place={place}
+                        status={status}
+                        selected={selected}
+                        focused={isFocused}
+                        onFocus={() => {
+                          if (clickable && place) onFocusPlaces([place]);
+                        }}
+                        onResetFocus={() => {
+                          const dayPlaces = placesForDay(active, places);
+                          onFocusPlaces(dayPlaces.length > 0 ? dayPlaces : null);
+                        }}
+                      />
                     )}
                   </li>
                 );
@@ -528,10 +485,6 @@ function StatusPicker({
       </div>
     </div>
   );
-}
-
-function placeDomId(name: string): string {
-  return `itinerary-place-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
 }
 
 export function activityDomId(id: string): string {

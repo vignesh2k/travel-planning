@@ -18,9 +18,14 @@ function normalize(value: string): string {
 
 export function activityMatchesPlace(activityText: string, placeName: string): boolean {
   const normalizedActivity = normalize(activityText);
-  const normalizedPlace = normalize(placeName);
-  if (!normalizedActivity || !normalizedPlace) return false;
-  return normalizedActivity.includes(normalizedPlace);
+  const normalizedPlaces = [
+    normalize(placeName),
+    normalize(placeName.split(",")[0] ?? ""),
+  ].filter((value, index, values) => value && values.indexOf(value) === index);
+  if (!normalizedActivity || normalizedPlaces.length === 0) return false;
+  return normalizedPlaces.some((normalizedPlace) =>
+    normalizedActivity.includes(normalizedPlace),
+  );
 }
 
 export function activityIndexForPlace(

@@ -69,6 +69,10 @@ test("activityMatchesPlace ignores case and punctuation differences", () => {
   assert.equal(activityMatchesPlace("green-valley lunch", "Green Valley"), true);
 });
 
+test("activityMatchesPlace matches the comma-qualified place head", () => {
+  assert.equal(activityMatchesPlace("Louvre Museum tour", "Louvre Museum, Paris"), true);
+});
+
 test("activityIndexForPlace returns the first matching activity in itinerary order", () => {
   assert.deepEqual(activityIndexForPlace(document, "Alvor Boardwalk"), {
     dayNumber: 2,

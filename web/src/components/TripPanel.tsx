@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchHotels } from "@/lib/api";
 import { getBrowserToken } from "@/lib/auth.browser";
 import { ensurePlanningState } from "@/lib/planning-status";
+import { activityIndexForPlace } from "@/lib/trip-activity-index";
 import type { Budget, Neighborhood, Place, PublicTrip, TripDocument, TripFull } from "@/lib/types";
 import type { WorkspaceTab } from "@/lib/workspace-tabs";
 import { tabsForWorkspace } from "@/lib/workspace-tabs";
@@ -87,9 +88,60 @@ export function TripPanel({
 
   useEffect(() => {
     return () => {
-      if (focusClearRef.current) clearTimeout(focusClearRef.current);
+      if (focusClearRef.current) {
+        clearTimeout(focusClearRef.current);
+        focusClearRef.current = null;
+      }
     };
   }, []);
+
+  useEffect(() => {
+    const clearPendingFocusReset = () => {
+      if (focusClearRef.current) {
+        clearTimeout(focusClearRef.current);
+        focusClearRef.current = null;
+      }
+    };
+    const clearFocusFrame = () =>
+      requestAnimationFrame(() => {
+        setFocusedActivityId(null);
+      });
+
+    if (!selectedPlaceName) {
+      clearPendingFocusReset();
+      const frame = clearFocusFrame();
+      return () => cancelAnimationFrame(frame);
+    }
+    const match = activityIndexForPlace(draftDocument, selectedPlaceName);
+    if (!match) {
+      clearPendingFocusReset();
+      const frame = clearFocusFrame();
+      return () => cancelAnimationFrame(frame);
+    }
+    clearPendingFocusReset();
+    let scrollFrame: number | null = null;
+    const frame = requestAnimationFrame(() => {
+      setActiveDay(match.dayNumber);
+      setFocusedActivityId(match.activityId);
+      scrollFrame = requestAnimationFrame(() => {
+        document
+          .getElementById(activityDomId(match.activityId))
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    });
+    const focusClear = setTimeout(() => {
+      setFocusedActivityId(null);
+    }, 2200);
+    focusClearRef.current = focusClear;
+    return () => {
+      cancelAnimationFrame(frame);
+      if (scrollFrame !== null) cancelAnimationFrame(scrollFrame);
+      if (focusClearRef.current === focusClear) {
+        clearTimeout(focusClear);
+        focusClearRef.current = null;
+      }
+    };
+  }, [draftDocument, selectedPlaceName]);
 
   useEffect(() => {
     if (activeTab === "Stay") void loadHotels();
