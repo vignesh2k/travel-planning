@@ -1,7 +1,8 @@
 """Render a PdfPlan into a print-quality PDF in the Montenegro reference style.
 
 Layout:
-  • Cover page — monogram, red destination, subtitle, compact trip summary
+  • Cover page — Atlas brand mark, destination, subtitle, compact trip summary
+  • Overview page — route and day-by-day preview for quick scanning
   • Per day:
       ─ Single-line red day header with underline
       ─ Dense red-headed schedule table
@@ -48,6 +49,8 @@ TAG_GREEN_BG = (46, 125, 50)
 TAG_BLUE_BG = (36, 111, 190)
 TAG_DARK_BG = (64, 64, 64)
 TAG_RED_BG = (190, 25, 28)
+PAPER_TINT = (255, 251, 244)
+SAGE = (82, 119, 102)
 
 
 def _find_font(candidates: list[str]) -> str | None:
@@ -100,8 +103,26 @@ TIPS_EMOJI = "💡"
 # ── Public API ───────────────────────────────────────────────────────────────
 
 
+class AtlasPDF(FPDF):
+    footer_font = "Helvetica"
+
+    def footer(self) -> None:
+        if self.page_no() <= 1:
+            return
+        self.set_y(-13)
+        self.set_draw_color(*RULE)
+        self.set_line_width(0.15)
+        self.line(self.l_margin, self.get_y(), self.w - self.r_margin, self.get_y())
+        self.set_y(-10)
+        self.set_font(self.footer_font, "", 7.5)
+        self.set_text_color(*INK_MUTED)
+        self.cell(0, 5, "ATLAS TRAVEL DESK", align="L")
+        self.set_x(self.l_margin)
+        self.cell(self.epw, 5, f"Page {self.page_no()}", align="R")
+
+
 def render_plan_pdf(plan: PdfPlan) -> bytes:
-    pdf = FPDF()
+    pdf = AtlasPDF()
     pdf.set_auto_page_break(auto=True, margin=18)
     pdf.set_margins(16, 25, 16)
 
@@ -111,6 +132,7 @@ def render_plan_pdf(plan: PdfPlan) -> bytes:
         reg, bold = "body", "body"
     else:
         reg, bold = "Helvetica", "Helvetica"
+    pdf.footer_font = reg
 
     if FONT_SYMBOLS:
         # Register the symbol font under BOTH styles so the fallback works
@@ -124,11 +146,15 @@ def render_plan_pdf(plan: PdfPlan) -> bytes:
     pdf.add_page()
     _render_cover(pdf, reg, bold, plan)
 
-    pdf.add_page()
-    for i, day in enumerate(plan.days):
-        if i > 0:
-            pdf.ln(8)
-        _render_day(pdf, reg, bold, day)
+    if plan.days:
+        pdf.add_page()
+        _render_overview(pdf, reg, bold, plan)
+
+        pdf.add_page()
+        for i, day in enumerate(plan.days):
+            if i > 0:
+                pdf.ln(8)
+            _render_day(pdf, reg, bold, day)
 
     if plan.costs is not None:
         _render_costs_page(pdf, reg, bold, plan.costs)
@@ -215,26 +241,28 @@ def _render_cover(pdf: FPDF, reg: str, bold: str, plan: PdfPlan) -> None:
     page_h = pdf.h
     cx = pdf.w / 2
 
-    pdf.set_y(page_h * 0.22)
+    pdf.set_fill_color(*PAPER_TINT)
+    pdf.rect(0, 0, pdf.w, pdf.h, "F")
+    pdf.set_fill_color(255, 255, 255)
+    pdf.rect(0, 0, pdf.w, 42, "F")
+    pdf.set_fill_color(*ACCENT)
+    pdf.rect(0, 0, pdf.w, 2.2, "F")
 
-    # Reference monogram: two small outlined boxes above the title.
-    box = 12
-    gap = 2.6
-    logo_x = cx - box - gap / 2
-    logo_y = pdf.get_y()
-    pdf.set_draw_color(70, 70, 70)
-    pdf.set_line_width(0.35)
-    pdf.set_dash_pattern(dash=1, gap=1)
-    pdf.rect(logo_x, logo_y, box, box)
-    pdf.rect(logo_x + box + gap, logo_y, box, box)
-    pdf.set_dash_pattern()
-    pdf.set_text_color(45, 45, 45)
-    pdf.set_font(bold, "B", 10)
-    pdf.set_xy(logo_x, logo_y + 2.5)
-    pdf.cell(box, 6, "M", align="C")
-    pdf.set_xy(logo_x + box + gap, logo_y + 2.5)
-    pdf.cell(box, 6, "E", align="C")
-    pdf.set_y(logo_y + box + 15)
+    pdf.set_y(page_h * 0.16)
+
+    # Atlas brand mark.
+    mark_w = 24
+    mark_h = 9
+    mark_x = cx - mark_w / 2
+    mark_y = pdf.get_y()
+    pdf.set_draw_color(*ACCENT)
+    pdf.set_line_width(0.45)
+    pdf.rect(mark_x, mark_y, mark_w, mark_h)
+    pdf.set_text_color(*ACCENT)
+    pdf.set_font(bold, "B", 8.8)
+    pdf.set_xy(mark_x, mark_y + 2.1)
+    pdf.cell(mark_w, 4.5, "ATLAS", align="C")
+    pdf.set_y(mark_y + mark_h + 15)
 
     # Destination
     pdf.set_text_color(*ACCENT)
@@ -248,7 +276,7 @@ def _render_cover(pdf: FPDF, reg: str, bold: str, plan: PdfPlan) -> None:
     pdf.set_font(reg, "", 11)
     pdf.set_x(0)
     pdf.cell(pdf.w, 7, plan.subtitle, align="C", new_x="LMARGIN", new_y="NEXT")
-    pdf.ln(22)
+    pdf.ln(18)
 
     # Centered trip-info card.
     sections = _cover_summary_sections(plan)
@@ -280,7 +308,7 @@ def _render_cover(pdf: FPDF, reg: str, bold: str, plan: PdfPlan) -> None:
 
     card_y = pdf.get_y()
     pdf.set_fill_color(255, 255, 255)
-    pdf.set_draw_color(225, 225, 225)
+    pdf.set_draw_color(*CARD_BORDER)
     pdf.set_line_width(0.35)
     pdf.rect(card_x, card_y, card_w, card_h, "DF")
 
@@ -316,6 +344,111 @@ def _render_cover(pdf: FPDF, reg: str, bold: str, plan: PdfPlan) -> None:
         pdf.set_text_color(*INK_MUTED)
         pdf.set_font(reg, "", 9.5)
         pdf.multi_cell(pdf.w - x - pdf.r_margin - label_w, 5, route)
+
+
+def _day_preview(day: PdfDay, limit: int = 2) -> str:
+    pieces = [
+        f"{item.time}: {item.activity}"
+        for item in day.schedule[:limit]
+        if item.time and item.activity
+    ]
+    if pieces:
+        return " · ".join(pieces)
+    if day.tips:
+        return day.tips[0]
+    if day.food_spots:
+        first = day.food_spots[0]
+        return f"{first.meal or 'Food'}: {first.name}"
+    return "Details to be confirmed"
+
+
+def _render_overview(pdf: FPDF, reg: str, bold: str, plan: PdfPlan) -> None:
+    pdf.set_fill_color(*PAPER_TINT)
+    pdf.rect(0, 0, pdf.w, pdf.h, "F")
+    pdf.set_fill_color(255, 255, 255)
+    pdf.rect(pdf.l_margin, pdf.t_margin - 5, pdf.epw, pdf.h - pdf.t_margin - pdf.b_margin + 5, "F")
+
+    pdf.set_text_color(*ACCENT)
+    pdf.set_font(bold, "B", 18)
+    pdf.cell(0, 9, "Trip at a glance", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_text_color(*INK_MUTED)
+    pdf.set_font(reg, "", 9.5)
+    pdf.multi_cell(pdf.epw, 5, f"{plan.destination} · {plan.subtitle}")
+    pdf.ln(5)
+
+    if plan.route:
+        _render_overview_route(pdf, reg, bold, plan.route)
+        pdf.ln(6)
+
+    _render_section_title(pdf, reg, bold, "Daily rhythm")
+    for day in plan.days:
+        _render_overview_day_row(pdf, reg, bold, day)
+
+
+def _render_overview_route(pdf: FPDF, reg: str, bold: str, route: list[str]) -> None:
+    x0 = pdf.l_margin
+    top = pdf.get_y()
+    pad = 4
+    route_text = "  →  ".join(route[:7])
+    if len(route) > 7:
+        route_text += f"  →  …  →  {route[-1]}"
+
+    lines = _text_lines(pdf, pdf.epw - pad * 2, 4.7, route_text, reg, "", 9.2)
+    box_h = pad * 2 + max(1, len(lines)) * 4.7 + 6
+    _ensure_room(pdf, box_h)
+
+    pdf.set_fill_color(*CALLOUT_BG)
+    pdf.set_draw_color(*CALLOUT_BORDER)
+    pdf.set_line_width(0.18)
+    pdf.rect(x0, top, pdf.epw, box_h, "DF")
+    pdf.set_text_color(*SAGE)
+    pdf.set_font(bold, "B", 7.5)
+    pdf.set_xy(x0 + pad, top + pad)
+    pdf.cell(0, 4, "ROUTE")
+    pdf.set_text_color(*INK)
+    pdf.set_font(reg, "", 9.2)
+    pdf.set_xy(x0 + pad, top + pad + 5.2)
+    pdf.multi_cell(pdf.epw - pad * 2, 4.7, route_text)
+    pdf.set_y(top + box_h)
+
+
+def _render_overview_day_row(pdf: FPDF, reg: str, bold: str, day: PdfDay) -> None:
+    x0 = pdf.l_margin
+    row_top = pdf.get_y()
+    num_w = 17
+    pad = 3.2
+    text_w = pdf.epw - num_w - pad * 2
+    preview = _day_preview(day)
+    title = f"{day.label} · {day.title}"
+    title_lines = _text_lines(pdf, text_w, 4.9, title, bold, "B", 9.8)
+    preview_lines = _text_lines(pdf, text_w, 4.4, preview, reg, "", 8.7)
+    row_h = max(14, pad * 2 + len(title_lines) * 4.9 + len(preview_lines) * 4.4 + 1)
+
+    if row_top + row_h > pdf.h - pdf.b_margin:
+        pdf.add_page()
+        row_top = pdf.get_y()
+
+    pdf.set_fill_color(255, 255, 255)
+    pdf.set_draw_color(*RULE)
+    pdf.set_line_width(0.15)
+    pdf.rect(x0, row_top, pdf.epw, row_h, "D")
+    pdf.set_fill_color(*ACCENT)
+    pdf.rect(x0, row_top, num_w, row_h, "F")
+
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font(bold, "B", 10)
+    pdf.set_xy(x0, row_top + row_h / 2 - 3)
+    pdf.cell(num_w, 5, str(day.number), align="C")
+
+    pdf.set_text_color(*INK)
+    pdf.set_font(bold, "B", 9.8)
+    pdf.set_xy(x0 + num_w + pad, row_top + pad)
+    pdf.multi_cell(text_w, 4.9, title)
+    pdf.set_text_color(*INK_MUTED)
+    pdf.set_font(reg, "", 8.7)
+    pdf.set_x(x0 + num_w + pad)
+    pdf.multi_cell(text_w, 4.4, preview)
+    pdf.set_y(row_top + row_h + 2)
 
 
 # ── Day page ────────────────────────────────────────────────────────────────

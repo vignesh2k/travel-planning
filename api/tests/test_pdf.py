@@ -1,5 +1,5 @@
-from api.models import PdfCostCategory, PdfCosts, PdfDay, PdfPlan
-from api.pdf import _cover_summary_sections, generate_pdf
+from api.models import PdfCostCategory, PdfCosts, PdfDay, PdfFoodSpot, PdfPlan, PdfScheduleItem
+from api.pdf import _cover_summary_sections, _day_preview, generate_pdf, render_plan_pdf
 
 
 def test_generate_pdf_returns_valid_pdf_bytes() -> None:
@@ -57,3 +57,54 @@ def test_cover_summary_sections_include_route_and_costs() -> None:
     assert sections[0] == ("ITINERARY", ["2 days · curated by Atlas"])
     assert ("ROUTE", ["Canals → Dunes → City Lights"]) in sections
     assert ("ESTIMATED COST", ["€620 total · £533 GBP"]) in sections
+
+
+def test_day_preview_uses_schedule_items_in_order() -> None:
+    day = PdfDay(
+        number=1,
+        title="Canals",
+        label="Day 1",
+        schedule=[
+            PdfScheduleItem(time="Morning", activity="Walk the canal belt"),
+            PdfScheduleItem(time="Lunch", activity="Pancakes in Jordaan"),
+            PdfScheduleItem(time="Evening", activity="Concertgebouw"),
+        ],
+    )
+
+    assert _day_preview(day) == "Morning: Walk the canal belt · Lunch: Pancakes in Jordaan"
+
+
+def test_render_plan_pdf_returns_rich_pdf_bytes() -> None:
+    plan = PdfPlan(
+        destination="Amsterdam, Netherlands",
+        subtitle="2 days · curated by Atlas",
+        route=["Canals", "Dunes", "City Lights"],
+        days=[
+            PdfDay(
+                number=1,
+                title="Canals",
+                label="Day 1",
+                schedule=[
+                    PdfScheduleItem(time="Morning", activity="Walk the canal belt"),
+                    PdfScheduleItem(time="Lunch", activity="Pancakes in Jordaan"),
+                ],
+                food_spots=[
+                    PdfFoodSpot(name="Cafe Winkel 43", meal="Lunch", tags=["Book"], notes="Classic apple pie stop."),
+                ],
+                tips=["Buy tram tickets before the first ride."],
+            ),
+            PdfDay(
+                number=2,
+                title="Dunes",
+                label="Day 2",
+                schedule=[
+                    PdfScheduleItem(time="Morning", activity="Train to Zandvoort"),
+                ],
+            ),
+        ],
+    )
+
+    out = render_plan_pdf(plan)
+
+    assert out.startswith(b"%PDF-")
+    assert len(out) > 4000
