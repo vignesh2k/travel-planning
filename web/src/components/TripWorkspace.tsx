@@ -2,11 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { patchTripDocument, saveTrip } from "@/lib/api";
+import { getBrowserToken } from "@/lib/auth.browser";
 import { selectedPlaceNameForFocus } from "@/lib/map-focus";
-import type { Budget, Place, PublicTrip, TripFull } from "@/lib/types";
+import type { Budget, Place, PublicTrip, TripDocument, TripFull } from "@/lib/types";
 
 import { Map } from "./Map";
 import { MobileSheet } from "./MobileSheet";
+import { PdfExportMenu } from "./PdfExportMenu";
+import { SaveTripButton } from "./SaveTripButton";
+import { ShareMenu } from "./ShareMenu";
 import { TripPanel } from "./TripPanel";
 
 type WorkspaceTrip = TripFull | PublicTrip;
@@ -25,6 +30,10 @@ function useIsMobile() {
   return isMobile;
 }
 
+function isPrivateTrip(trip: WorkspaceTrip): trip is TripFull {
+  return "is_saved" in trip;
+}
+
 export function TripWorkspace({
   trip,
   budget,
@@ -36,7 +45,34 @@ export function TripWorkspace({
   initialDay?: number;
   readOnly?: boolean;
 }) {
-  const places = useMemo(() => trip.document.places ?? [], [trip.document.places]);
+  return (
+    <TripWorkspaceContent
+      key={trip.slug}
+      trip={trip}
+      budget={budget}
+      initialDay={initialDay}
+      readOnly={readOnly}
+    />
+  );
+}
+
+function TripWorkspaceContent({
+  trip,
+  budget,
+  initialDay,
+  readOnly,
+}: {
+  trip: WorkspaceTrip;
+  budget: Budget | null;
+  initialDay?: number;
+  readOnly: boolean;
+}) {
+  const [currentTrip, setCurrentTrip] = useState<WorkspaceTrip>(trip);
+  const [draftDocument, setDraftDocument] = useState<TripDocument>(trip.document);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const places = useMemo(() => draftDocument.places ?? [], [draftDocument.places]);
   const [focusPlaces, setFocusPlaces] = useState<Place[] | null>(null);
   const [selectedPlaceName, setSelectedPlaceName] = useState<string | null>(null);
   const isMobile = useIsMobile();
@@ -51,14 +87,74 @@ export function TripWorkspace({
     setSelectedPlaceName(place.name);
   }
 
+  function updateDocument(document: TripDocument) {
+    setDraftDocument(document);
+    setHasUnsavedChanges(true);
+    setSaveError(null);
+  }
+
+  async function save() {
+    if (readOnly || !isPrivateTrip(currentTrip)) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const token = await getBrowserToken();
+      if (!token) {
+        setSaveError("Not signed in");
+        return;
+      }
+
+      let nextTrip = currentTrip;
+      if (hasUnsavedChanges) {
+        nextTrip = await patchTripDocument(nextTrip.slug, draftDocument, token);
+      }
+      if (!nextTrip.is_saved) {
+        nextTrip = await saveTrip(nextTrip.slug, token);
+      }
+
+      setCurrentTrip(nextTrip);
+      setDraftDocument(nextTrip.document);
+      setHasUnsavedChanges(false);
+    } catch (error) {
+      console.error("save trip failed", error);
+      setSaveError("Could not save");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const saved = !isPrivateTrip(currentTrip) || currentTrip.is_saved;
+  const actions = !readOnly && isPrivateTrip(currentTrip) ? (
+    <div className="flex items-center gap-1.5">
+      <SaveTripButton
+        saved={saved}
+        hasUnsavedChanges={hasUnsavedChanges}
+        saving={saving}
+        error={saveError}
+        onSave={save}
+      />
+      <PdfExportMenu
+        slug={currentTrip.slug}
+        destination={currentTrip.destination}
+        days={currentTrip.days}
+        prominent
+      />
+      <ShareMenu slug={currentTrip.slug} initialToken={currentTrip.share_token} />
+    </div>
+  ) : undefined;
+
   const panel = (
     <TripPanel
-      trip={trip}
+      trip={currentTrip}
       budget={budget}
       readOnly={readOnly}
       initialDay={initialDay}
       selectedPlaceName={selectedPlaceName}
       onFocusPlaces={focus}
+      document={draftDocument}
+      hasUnsavedChanges={hasUnsavedChanges}
+      onDocumentChange={updateDocument}
+      actions={actions}
     />
   );
 

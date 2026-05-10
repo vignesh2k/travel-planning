@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 import type { PublicTrip, TripFull } from "@/lib/types";
 import { planHealthForTrip } from "@/lib/trip-health";
 
@@ -14,12 +16,14 @@ export function TripDeskHeader({
   readOnly,
   editMode,
   hasUnsavedChanges,
+  actions,
   onToggleEdit,
 }: {
   trip: TripFull | PublicTrip;
   readOnly: boolean;
   editMode: boolean;
   hasUnsavedChanges: boolean;
+  actions?: ReactNode;
   onToggleEdit: () => void;
 }) {
   const health = planHealthForTrip(trip);
@@ -59,6 +63,7 @@ export function TripDeskHeader({
         </div>
         {!readOnly && (
           <div className="shrink-0 flex items-center gap-1.5">
+            {actions}
             <button
               type="button"
               onClick={onToggleEdit}

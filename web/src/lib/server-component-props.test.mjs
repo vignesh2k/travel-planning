@@ -47,3 +47,11 @@ test("trip workspace only mounts the portal sheet on mobile", async () => {
     "MobileSheet portals outside its parent, so it must be conditionally mounted",
   );
 });
+
+test("trip workspace exposes authenticated save and PDF actions", async () => {
+  const source = await readFile(TRIP_WORKSPACE_FILE, "utf8");
+
+  assert.match(source, /<SaveTripButton\b/, "TripWorkspace should render save controls");
+  assert.match(source, /<PdfExportMenu\b/, "TripWorkspace should render PDF export controls");
+  assert.match(source, /actions=\{actions\}/, "TripWorkspace should pass actions into TripPanel");
+});
