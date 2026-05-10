@@ -113,18 +113,27 @@ export function Itinerary({
   const activeNum = activeDay ?? localActiveNum;
   const active = useMemo(() => days.find((d) => d.number === activeNum) ?? days[0], [days, activeNum]);
 
+  const focusActiveDay = useCallback((day: ItineraryDay | undefined) => {
+    if (!day) return;
+    const dayPlaces = placesForDay(day, places);
+    onFocusPlaces(dayPlaces.length > 0 ? dayPlaces : null);
+  }, [onFocusPlaces, places]);
+
   const setActiveNumber = useCallback((dayNumber: number) => {
     setLocalActiveNum(dayNumber);
     onActiveDayChange?.(dayNumber);
   }, [onActiveDayChange]);
 
+  const selectDay = useCallback((day: ItineraryDay) => {
+    setActiveNumber(day.number);
+    focusActiveDay(day);
+  }, [focusActiveDay, setActiveNumber]);
+
   // When the active day changes, refocus the map.
   useEffect(() => {
-    if (!active) return;
-    const dayPlaces = placesForDay(active, places);
-    onFocusPlaces(dayPlaces.length > 0 ? dayPlaces : null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active?.number]);
+    if (!active || selectedPlaceName) return;
+    focusActiveDay(active);
+  }, [active, focusActiveDay, selectedPlaceName]);
 
   const dayRestaurants = useMemo(
     () => (active ? restaurantsForDay(active, restaurants, days) : []),
@@ -144,7 +153,7 @@ export function Itinerary({
           return (
             <button
               key={d.number}
-              onClick={() => setActiveNumber(d.number)}
+              onClick={() => selectDay(d)}
               className={
                 isActive
                   ? "shrink-0 rounded-full px-3 py-1 text-xs font-semibold bg-amber-600 text-white shadow-sm"

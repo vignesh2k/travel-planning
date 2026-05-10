@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 import { patchTripDocument, saveTrip } from "@/lib/api";
@@ -83,20 +83,21 @@ function TripWorkspaceContent({
   const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>("Plan");
   const visibleTabs = tabsForWorkspace({ readOnly, isMobile });
 
-  function focus(next: Place[] | null) {
+  const focus = useCallback((next: Place[] | null) => {
     setFocusPlaces(next);
     setSelectedPlaceName(selectedPlaceNameForFocus(next));
-  }
+  }, []);
 
-  function changeWorkspaceTab(next: WorkspaceTab) {
+  const changeWorkspaceTab = useCallback((next: WorkspaceTab) => {
     setWorkspaceTab(next);
     if (next !== "Plan") focus(null);
-  }
+  }, [focus]);
 
-  function selectPlace(place: Place) {
+  const selectPlace = useCallback((place: Place) => {
     setFocusPlaces([place]);
+    setWorkspaceTab("Plan");
     setSelectedPlaceName(place.name);
-  }
+  }, []);
 
   function updateDocument(document: TripDocument) {
     setDraftDocument(document);
