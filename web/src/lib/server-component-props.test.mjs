@@ -23,3 +23,16 @@ test("server routes do not pass callback props into TripPanel", async () => {
     );
   }
 });
+
+test("trip server routes mount the map workspace", async () => {
+  for (const file of SERVER_ROUTE_FILES) {
+    const source = await readFile(file, "utf8");
+
+    assert.match(source, /<TripWorkspace\b/, `${file} should render the trip map workspace`);
+    assert.equal(
+      /<TripPanel\b/.test(source),
+      false,
+      `${file} should not bypass the map workspace with TripPanel directly`,
+    );
+  }
+});

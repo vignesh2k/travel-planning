@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { TripPanel } from "@/components/TripPanel";
+import { TripWorkspace } from "@/components/TripWorkspace";
 import { ApiRequestError, getBudget, getTrip } from "@/lib/api";
 import { getServerToken } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -83,7 +83,7 @@ export default async function TripPage({
         </span>
       </header>
       <div className="flex-1 overflow-hidden">
-        <TripPanel
+        <TripWorkspace
           trip={trip}
           budget={budget}
           initialDay={initialDay}

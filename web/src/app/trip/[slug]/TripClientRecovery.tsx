@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { BrandIcon } from "@/components/BrandMark";
-import { TripPanel } from "@/components/TripPanel";
+import { TripWorkspace } from "@/components/TripWorkspace";
 import { getBudget, getTrip } from "@/lib/api";
 import { getBrowserToken } from "@/lib/auth.browser";
 import type { Budget, TripFull } from "@/lib/types";
@@ -65,11 +65,7 @@ export function TripClientRecovery({
           </span>
         </header>
         <div className="flex-1 overflow-hidden">
-          <TripPanel
-            trip={trip}
-            budget={budget}
-            initialDay={initialDay}
-          />
+          <TripWorkspace trip={trip} budget={budget} initialDay={initialDay} />
         </div>
       </main>
     );

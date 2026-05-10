@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { TripPanel } from "@/components/TripPanel";
+import { TripWorkspace } from "@/components/TripWorkspace";
 import { getTrip } from "@/lib/api";
 import type { TripFull } from "@/lib/types";
 
@@ -45,10 +45,11 @@ export default async function SharedTripPage({
         </span>
       </header>
       <div className="flex-1 overflow-hidden">
-        <TripPanel
+        <TripWorkspace
           trip={trip}
           budget={null}
           initialDay={initialDay}
+          readOnly
         />
       </div>
     </main>
