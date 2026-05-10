@@ -8,6 +8,7 @@ import { getBrowserToken } from "@/lib/auth.browser";
 import { selectedPlaceNameForFocus } from "@/lib/map-focus";
 import type { Budget, Place, PublicTrip, TripDocument, TripFull } from "@/lib/types";
 
+import { BrandMark } from "./BrandMark";
 import { Map } from "./Map";
 import { MobileSheet } from "./MobileSheet";
 import { PdfExportMenu } from "./PdfExportMenu";
@@ -165,8 +166,8 @@ function TripWorkspaceContent({
   return (
     <div className="flex h-dvh min-h-[520px] flex-col bg-[var(--color-paper-cream)]">
       <header className="z-30 flex min-h-14 items-center justify-between gap-3 border-b border-amber-700/10 bg-white/70 px-4 py-2 backdrop-blur-md">
-        <Link href="/" className="shrink-0 text-sm font-medium text-ink-900 hover:text-amber-600">
-          Atlas
+        <Link href="/" className="contents" aria-label="Atlas home">
+          <BrandMark />
         </Link>
         <div className="min-w-0 flex-1 text-center text-sm font-medium text-ink-700">
           <span className="block truncate">{currentTrip.destination}</span>
