@@ -45,6 +45,12 @@ export interface DecisionQuickAction {
   status: PlanningStatusValue;
 }
 
+export interface OpenDecisionDisplay {
+  items: PlanningReadinessItem[];
+  hiddenCount: number;
+  canExpand: boolean;
+}
+
 export function defaultPlanningState(): TripPlanningState {
   return {
     statuses: {},
@@ -139,6 +145,19 @@ export function decisionQuickActionsForStatus(status: PlanningStatusValue): Deci
     ];
   }
   return [];
+}
+
+export function openDecisionItemsForDisplay(
+  items: PlanningReadinessItem[],
+  expanded: boolean,
+  limit = 3,
+): OpenDecisionDisplay {
+  const visibleItems = expanded ? items : items.slice(0, limit);
+  return {
+    items: visibleItems,
+    hiddenCount: expanded ? 0 : Math.max(0, items.length - visibleItems.length),
+    canExpand: items.length > limit,
+  };
 }
 
 export function setActivityStatus(

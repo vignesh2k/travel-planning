@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from "react";
+
 import type { PublicTrip, TripDocument, TripFull } from "@/lib/types";
 import {
   decisionQuickActionsForStatus,
+  openDecisionItemsForDisplay,
   planningReadinessForDocument,
   setActivityStatus,
   type PlanningReadinessItem,
@@ -53,7 +56,8 @@ export function PlanHealthPanel({
 }) {
   const summary = planHealthForTrip(trip);
   const readiness = planningReadinessForDocument(trip.document);
-  const openItems = readiness.openItems.slice(0, 3);
+  const [showAllDecisions, setShowAllDecisions] = useState(false);
+  const openItems = openDecisionItemsForDisplay(readiness.openItems, showAllDecisions);
 
   return (
     <section className="frosted rounded-[14px] p-3 flex flex-col gap-3">
@@ -84,12 +88,12 @@ export function PlanHealthPanel({
             Open decisions
           </div>
           <div className="text-[10px] text-ink-400">
-            {openItems.length} of {readiness.openItems.length}
+            {openItems.items.length} of {readiness.openItems.length}
           </div>
         </div>
-        {openItems.length > 0 ? (
+        {openItems.items.length > 0 ? (
           <div className="mt-2 flex flex-col gap-1.5">
-            {openItems.map((item) => {
+            {openItems.items.map((item) => {
               const actions = decisionQuickActionsForStatus(item.status);
               const canAct = !readOnly && onDocumentChange && actions.length > 0;
 
@@ -133,6 +137,15 @@ export function PlanHealthPanel({
                 </div>
               );
             })}
+            {openItems.canExpand && (
+              <button
+                type="button"
+                onClick={() => setShowAllDecisions((value) => !value)}
+                className="self-start rounded-full border border-amber-700/10 bg-white/60 px-2.5 py-1 text-[10px] font-medium text-ink-600 hover:bg-white hover:text-ink-900"
+              >
+                {showAllDecisions ? "Show fewer" : `Show ${openItems.hiddenCount} more`}
+              </button>
+            )}
           </div>
         ) : (
           <div className="mt-2 text-[11px] leading-4 text-ink-600">

@@ -6,6 +6,7 @@ import {
   decisionQuickActionsForStatus,
   ensurePlanningState,
   nextPlanningStatus,
+  openDecisionItemsForDisplay,
   planningReadinessForDocument,
   setActivityNote,
   setActivityStatus,
@@ -47,6 +48,30 @@ test("decisionQuickActionsForStatus offers status actions that clear open decisi
     { label: "Skip", status: "skip" },
   ]);
   assert.deepEqual(decisionQuickActionsForStatus("booked"), []);
+});
+
+test("openDecisionItemsForDisplay limits collapsed decisions and exposes hidden count", () => {
+  const items = [0, 1, 2, 3, 4].map((itemIndex) => ({
+    id: `day-1-morning-${itemIndex}`,
+    dayNumber: 1,
+    time: "Morning",
+    itemIndex,
+    text: `Decision ${itemIndex}`,
+    status: "maybe" as const,
+  }));
+
+  const collapsed = openDecisionItemsForDisplay(items, false);
+  assert.deepEqual(collapsed.items.map((item) => item.text), [
+    "Decision 0",
+    "Decision 1",
+    "Decision 2",
+  ]);
+  assert.equal(collapsed.hiddenCount, 2);
+  assert.equal(collapsed.canExpand, true);
+
+  const expanded = openDecisionItemsForDisplay(items, true);
+  assert.equal(expanded.items.length, 5);
+  assert.equal(expanded.hiddenCount, 0);
 });
 
 test("setActivityStatus stores status under the activity id", () => {
