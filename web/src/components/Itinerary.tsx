@@ -148,83 +148,85 @@ export function Itinerary({
   return (
     <div className="flex flex-col gap-3">
       {/* Day stepper */}
-      <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 pb-1">
-        {days.map((d) => {
-          const isActive = d.number === activeNum;
-          return (
-            <button
-              key={d.number}
-              onClick={() => selectDay(d)}
-              className={
-                isActive
-                  ? "shrink-0 rounded-full px-3 py-1 text-xs font-semibold bg-amber-600 text-white shadow-sm"
-                  : "shrink-0 rounded-full px-3 py-1 text-xs text-ink-700 bg-white/60 border border-amber-700/10 hover:bg-white/85 hover:border-amber-600/30"
-              }
-            >
-              Day {d.number}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Active day header */}
-      <div className="flex items-start justify-between gap-2 px-1">
-        <div>
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-amber-600">
-            Day {active.number}
-          </div>
-          <div className="text-base font-semibold text-ink-900 leading-tight mt-0.5">
-            {active.title}
-          </div>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {(() => {
-            const bd = budget?.days.find((d) => d.number === active.number);
-            if (!bd || !budget) return null;
-            const total = (bd.override ?? bd.estimated)
-              + bd.items.reduce((s, it) => s + it.amount, 0);
+      <div className="sticky top-0 z-10 -mx-2.5 border-b border-amber-700/10 bg-white/88 px-2.5 pb-2 pt-2 backdrop-blur-md">
+        <div className="flex gap-1.5 overflow-x-auto pb-1">
+          {days.map((d) => {
+            const isActive = d.number === activeNum;
             return (
               <button
-                type="button"
-                onClick={() => onOpenBudgetDay(active.number)}
-                className="text-[11px] rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 hover:bg-amber-200"
-                title="Open in Money"
+                key={d.number}
+                onClick={() => selectDay(d)}
+                className={
+                  isActive
+                    ? "shrink-0 rounded-full px-3 py-1 text-xs font-semibold bg-amber-600 text-white shadow-sm"
+                    : "shrink-0 rounded-full px-3 py-1 text-xs text-ink-700 bg-white/70 border border-amber-700/10 hover:bg-white/90 hover:border-amber-600/30"
+                }
               >
-                {combined(total, budget.currency, budget.gbp_rate)}
+                Day {d.number}
               </button>
             );
-          })()}
-          {!readOnly && (
-            <button
-              onClick={() => onRefinePrefill(`Refine Day ${active.number}: `)}
-              className="text-[10px] text-ink-500 hover:text-amber-600 px-2 py-1 rounded-md"
-              title="Open the refine input prefilled for this day"
-            >
-              Refine
-            </button>
-          )}
+          })}
         </div>
-      </div>
 
-      {!readOnly && (
-        <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 pb-1">
-        {[
-          ["Slower", `Refine Day ${active.number}: make the day slower with fewer stops and more breathing room.`],
-          ["Less touristy", `Refine Day ${active.number}: make this less touristy and more local.`],
-          ["Rain backup", `Refine Day ${active.number}: add rainy-day backup options.`],
-          ["Cheaper", `Refine Day ${active.number}: lower the cost without making the day feel thin.`],
-        ].map(([label, prompt]) => (
-          <button
-            key={label}
-            type="button"
-            onClick={() => onRefinePrefill(prompt)}
-            className="shrink-0 rounded-full bg-white/60 border border-amber-700/10 px-2.5 py-1 text-[11px] text-ink-700 hover:bg-white/90 hover:border-amber-600/30"
-          >
-            {label}
-          </button>
-        ))}
+        {/* Active day header */}
+        <div className="mt-1 flex items-start justify-between gap-2 px-1">
+          <div className="min-w-0">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-amber-600">
+              Day {active.number}
+            </div>
+            <div className="mt-0.5 text-[15px] font-semibold leading-tight text-ink-900">
+              {active.title}
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {(() => {
+              const bd = budget?.days.find((d) => d.number === active.number);
+              if (!bd || !budget) return null;
+              const total = (bd.override ?? bd.estimated)
+                + bd.items.reduce((s, it) => s + it.amount, 0);
+              return (
+                <button
+                  type="button"
+                  onClick={() => onOpenBudgetDay(active.number)}
+                  className="rounded-full border border-amber-300/60 bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800 hover:bg-amber-200"
+                  title="Open in Money"
+                >
+                  {combined(total, budget.currency, budget.gbp_rate)}
+                </button>
+              );
+            })()}
+            {!readOnly && (
+              <button
+                onClick={() => onRefinePrefill(`Refine Day ${active.number}: `)}
+                className="rounded-md px-2 py-1 text-[10px] font-medium text-ink-500 hover:text-amber-600"
+                title="Open the refine input prefilled for this day"
+              >
+                Refine
+              </button>
+            )}
+          </div>
         </div>
-      )}
+
+        {!readOnly && (
+          <div className="mt-2 flex gap-1.5 overflow-x-auto px-1">
+          {[
+            ["Slower", `Refine Day ${active.number}: make the day slower with fewer stops and more breathing room.`],
+            ["Less touristy", `Refine Day ${active.number}: make this less touristy and more local.`],
+            ["Rain backup", `Refine Day ${active.number}: add rainy-day backup options.`],
+            ["Cheaper", `Refine Day ${active.number}: lower the cost without making the day feel thin.`],
+          ].map(([label, prompt]) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() => onRefinePrefill(prompt)}
+              className="shrink-0 rounded-full bg-white/68 border border-amber-700/10 px-2.5 py-1 text-[11px] text-ink-700 hover:bg-white/95 hover:border-amber-600/30"
+            >
+              {label}
+            </button>
+          ))}
+          </div>
+        )}
+      </div>
 
       {/* Time-of-day sections */}
       <div className="flex flex-col gap-3">

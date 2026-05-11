@@ -135,6 +135,13 @@ function TripWorkspaceContent({
     }
   }
 
+  const dateLabel = currentTrip.start_date
+    ? new Date(`${currentTrip.start_date}T00:00:00`).toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
+    : "Dates open";
   const saved = !isPrivateTrip(currentTrip) || currentTrip.is_saved;
   const actions = !readOnly && isPrivateTrip(currentTrip) ? (
     <>
@@ -184,8 +191,13 @@ function TripWorkspaceContent({
         <Link href="/" className="contents" aria-label="Atlas home">
           <BrandMark />
         </Link>
-        <div className="min-w-0 text-right text-sm font-medium text-ink-700 sm:text-center">
-          <span className="block truncate">{currentTrip.destination}</span>
+        <div className="min-w-0 text-right sm:text-center">
+          <span className="block truncate text-sm font-semibold text-ink-900">
+            {currentTrip.destination}
+          </span>
+          <span className="hidden truncate text-[10px] font-medium uppercase tracking-wider text-ink-500 sm:block">
+            {currentTrip.days} days · {dateLabel}
+          </span>
         </div>
         <div className="col-span-2 flex min-w-0 items-center justify-end gap-1.5 overflow-x-auto pb-0.5 sm:col-span-1 sm:overflow-visible sm:pb-0">
           {actions}
@@ -201,11 +213,11 @@ function TripWorkspaceContent({
           onPlaceClick={selectPlace}
         />
         <div
-          className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(255,250,242,0.78),rgba(255,250,242,0.46)_32%,rgba(255,250,242,0.10))]"
+          className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(255,250,242,0.62),rgba(255,250,242,0.30)_32%,rgba(255,250,242,0.04))]"
           aria-hidden
         />
         {!isMobile && (
-          <div className="absolute inset-y-4 left-4 z-20 hidden w-[min(400px,calc(100vw-2rem))] overflow-hidden rounded-[18px] border border-amber-700/10 bg-white/80 shadow-2xl backdrop-blur-md md:flex">
+          <div className="absolute inset-y-4 left-4 z-20 hidden w-[min(390px,calc(100vw-2rem))] overflow-hidden rounded-[18px] border border-amber-700/10 bg-white/82 shadow-2xl backdrop-blur-md md:flex">
             {panel}
           </div>
         )}

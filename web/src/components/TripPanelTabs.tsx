@@ -15,14 +15,14 @@ export function TripPanelTabs({
   tabs: readonly WorkspaceTab[];
 }) {
   return (
-    <div className="flex gap-4 overflow-x-auto border-b border-amber-700/10 px-4 pt-3">
+    <div className="flex gap-3 overflow-x-auto border-b border-amber-700/10 bg-white/24 px-4 pt-2.5">
       {tabs.map((tab) => (
         <button
           key={tab}
           type="button"
           onClick={() => onChange(tab)}
           className={cx(
-            "shrink-0 pb-2 text-xs",
+            "shrink-0 pb-2 text-xs font-medium",
             tab === active
               ? "border-b-2 border-amber-600 font-semibold text-ink-900"
               : "text-ink-500 hover:text-ink-700",

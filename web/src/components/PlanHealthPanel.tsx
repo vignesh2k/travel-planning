@@ -43,9 +43,9 @@ function ReadinessMetric({
   tone: keyof typeof METRIC_CLASS;
 }) {
   return (
-    <div className={`rounded-[10px] border px-2 py-2 ${METRIC_CLASS[tone]}`}>
-      <div className="text-sm font-semibold leading-none">{value}</div>
-      <div className="mt-1 text-[9px] font-semibold uppercase leading-tight">{label}</div>
+    <div className={`rounded-[9px] border px-2 py-1.5 ${METRIC_CLASS[tone]}`}>
+      <div className="text-[15px] font-semibold leading-none">{value}</div>
+      <div className="mt-1 text-[8.5px] font-semibold uppercase leading-tight">{label}</div>
     </div>
   );
 }
@@ -79,7 +79,7 @@ export function PlanHealthPanel({
   }
 
   return (
-    <section className="frosted rounded-[14px] p-3 flex flex-col gap-3">
+    <section className="frosted rounded-[14px] p-3 flex flex-col gap-2.5">
       <div className="flex items-center justify-between gap-3">
         <div>
           <div className="text-[10px] font-semibold uppercase tracking-wider text-ink-500">
@@ -89,7 +89,7 @@ export function PlanHealthPanel({
             {summary.severity === "good" ? "Ready to travel" : summary.severity === "watch" ? "Worth a pass" : "Needs attention"}
           </div>
         </div>
-        <div className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${SEVERITY_CLASS[summary.severity]}`}>
+        <div className={`grid h-11 w-11 place-items-center rounded-full border text-[12px] font-bold ${SEVERITY_CLASS[summary.severity]}`}>
           {summary.score}%
         </div>
       </div>

@@ -41,9 +41,9 @@ export function ActivityCard({
   return (
     <div
       className={cx(
-        "rounded-[13px] border bg-white/68 shadow-sm transition",
-        focused && "border-amber-500/45 bg-amber-50 ring-2 ring-amber-500/25",
-        selected && !focused && "border-amber-600/45 bg-[rgba(201,100,66,0.10)]",
+        "rounded-[13px] border bg-white/76 shadow-sm transition",
+        focused && "border-amber-500/45 bg-amber-50 ring-2 ring-amber-500/25 shadow-md",
+        selected && !focused && "border-amber-600/45 bg-[rgba(201,100,66,0.11)] shadow-md",
         !selected && !focused && "border-amber-700/10",
         clickable && !selected && !focused && "hover:border-amber-600/30 hover:bg-white/92",
       )}
@@ -59,14 +59,14 @@ export function ActivityCard({
         }}
         onMouseLeave={onResetFocus}
         disabled={!clickable}
-        className="flex w-full min-w-0 items-start gap-2 px-3 py-2 text-left disabled:cursor-default"
+        className="flex w-full min-w-0 items-start gap-2.5 px-3 py-2 text-left disabled:cursor-default"
       >
         {badge ? (
-          <AtlasIconBadge tone={badge.tone}>{badge.label}</AtlasIconBadge>
+          <AtlasIconBadge tone={badge.tone} className="h-7 w-7 text-[13px] shadow-sm">{badge.label}</AtlasIconBadge>
         ) : (
-          <AtlasIconBadge tone="ink">•</AtlasIconBadge>
+          <AtlasIconBadge tone="ink" className="h-7 w-7 text-[13px] shadow-sm">•</AtlasIconBadge>
         )}
-        <span className="min-w-0 flex-1 text-[12px] leading-5 text-ink-900">
+        <span className="min-w-0 flex-1 text-[12px] leading-[1.55] text-ink-900">
           {text}
         </span>
         {status && (

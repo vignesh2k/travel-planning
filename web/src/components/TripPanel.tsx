@@ -168,7 +168,7 @@ export function TripPanel({
         tabs={panelTabs}
         onChange={changeTab}
       />
-      <div className="flex-1 p-3 overflow-auto flex flex-col gap-2">
+      <div className="flex-1 overflow-auto px-2.5 pb-3 pt-2.5 flex flex-col gap-2">
         <TripSummaryHeader
           trip={viewTrip}
           budget={budget}
@@ -196,6 +196,18 @@ export function TripPanel({
               focusClearRef.current = setTimeout(() => {
                 setFocusedActivityId(null);
               }, 2200);
+            }}
+          />
+        )}
+
+        {tab === "Plan" && (
+          <NextActionStrip
+            hasOpenDecisions={planHasOpenDecisions(draftDocument)}
+            hasDates={Boolean(trip.start_date)}
+            readOnly={readOnly}
+            onGuide={() => changeTab("Guide")}
+            onMoney={() => {
+              if (!readOnly) changeTab("Money");
             }}
           />
         )}
@@ -273,6 +285,62 @@ export function TripPanel({
         )}
       </div>
     </div>
+  );
+}
+
+function planHasOpenDecisions(document: TripDocument): boolean {
+  const planning = document.planning;
+  if (!planning?.statuses) return false;
+  return Object.values(planning.statuses).some((status) => status === "needs_booking" || status === "maybe");
+}
+
+function NextActionStrip({
+  hasOpenDecisions,
+  hasDates,
+  readOnly,
+  onGuide,
+  onMoney,
+}: {
+  hasOpenDecisions: boolean;
+  hasDates: boolean;
+  readOnly: boolean;
+  onGuide: () => void;
+  onMoney: () => void;
+}) {
+  const title = !hasDates
+    ? "Next: preview timing"
+    : hasOpenDecisions
+    ? "Next: clear open decisions"
+    : "Next: export the guide";
+  const copy = !hasDates
+    ? "The plan is readable now; dates will add weekday labels and sharper pacing checks."
+    : hasOpenDecisions
+    ? "Review bookings and maybes before sharing the finished itinerary."
+    : "The plan is ready enough to preview as a polished travel guide.";
+
+  return (
+    <section className="rounded-[13px] border border-amber-700/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.82),rgba(255,248,232,0.72))] px-3 py-2.5 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-amber-700">
+            Next best action
+          </div>
+          <div className="mt-0.5 text-xs font-semibold text-ink-900">{title}</div>
+          <div className="mt-0.5 text-[11px] leading-4 text-ink-500">{copy}</div>
+        </div>
+        <div className="flex shrink-0 flex-col gap-1">
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={hasOpenDecisions ? onMoney : onGuide}
+              className="rounded-full bg-ink-900 px-3 py-1 text-[10px] font-semibold text-white hover:opacity-90"
+            >
+              {hasOpenDecisions ? "Open money" : "Guide"}
+            </button>
+          )}
+        </div>
+      </div>
+    </section>
   );
 }
 

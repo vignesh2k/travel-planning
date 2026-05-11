@@ -96,8 +96,8 @@ export function Map({
         layout: { "line-cap": "round", "line-join": "round" },
         paint: {
           "line-color": "#b45309",
-          "line-opacity": 0.5,
-          "line-width": 3,
+          "line-opacity": 0.72,
+          "line-width": 3.5,
           "line-dasharray": [2, 2],
         },
       });
@@ -182,8 +182,8 @@ export function Map({
 
       for (const p of geocoded) {
         const root = document.createElement("div");
-        root.style.width = "14px";
-        root.style.height = "14px";
+        root.style.width = "16px";
+        root.style.height = "16px";
         root.style.cursor = "pointer";
 
         const dot = document.createElement("div");
@@ -191,7 +191,7 @@ export function Map({
         dot.style.height = "100%";
         dot.style.borderRadius = "50%";
         dot.style.background = CATEGORY_COLOR[p.category];
-        dot.style.border = "2px solid #fff";
+        dot.style.border = "2.5px solid #fff";
         dot.style.boxSizing = "border-box";
         dot.style.boxShadow =
           p.name === selectedRef.current
