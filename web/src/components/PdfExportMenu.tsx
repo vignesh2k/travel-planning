@@ -12,6 +12,8 @@ import {
   type PdfStyleKey,
 } from "@/lib/pdf-options";
 
+import { topNavButtonClass } from "./TopNavButton";
+
 type Phase = "menu" | "building" | "done" | "error";
 
 type StageStatus = "pending" | "running" | "done" | "error";
@@ -348,7 +350,7 @@ export function PdfExportMenu({
         }}
         className={
           prominent
-            ? "inline-flex shrink-0 items-center gap-1 rounded-[10px] border border-amber-700/12 bg-white/85 px-3 py-1.5 text-xs font-semibold text-ink-900 hover:bg-white"
+            ? topNavButtonClass("px-4")
             : "frosted inline-flex shrink-0 items-center gap-1 rounded-[10px] px-3 py-1 text-xs hover:bg-white/85"
         }
       >

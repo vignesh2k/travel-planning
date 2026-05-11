@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import { createShare, revokeShare } from "@/lib/api";
 import { getBrowserToken } from "@/lib/auth.browser";
 
+import { topNavButtonClass } from "./TopNavButton";
+
 type Phase = "idle" | "busy" | "error";
 
 export function ShareMenu({
@@ -83,13 +85,13 @@ export function ShareMenu({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={
+        className={topNavButtonClass(
           token
-            ? "inline-flex shrink-0 items-center rounded-[10px] bg-amber-100 text-amber-800 text-xs font-semibold px-3 py-1.5 hover:bg-amber-200"
+            ? "bg-amber-100 text-amber-800 hover:bg-amber-200"
             : prominent
-              ? "inline-flex shrink-0 items-center rounded-[10px] bg-ink-900 text-white text-xs font-semibold px-3 py-1.5 shadow-sm hover:shadow-md"
-            : "inline-flex shrink-0 items-center rounded-[10px] bg-white/70 text-ink-700 text-xs px-3 py-1.5 border border-amber-700/12 hover:bg-white/90"
-        }
+              ? "bg-ink-900 text-white hover:opacity-90"
+              : undefined,
+        )}
         title={token ? "Public link active — manage" : "Share this trip"}
       >
         {token ? "Public" : "Share"}

@@ -1,5 +1,7 @@
 "use client";
 
+import { topNavButtonClass } from "./TopNavButton";
+
 export function SaveTripButton({
   saved,
   hasUnsavedChanges = false,
@@ -33,11 +35,11 @@ export function SaveTripButton({
       <button
         onClick={onSave}
         disabled={disabled}
-        className={
+        className={topNavButtonClass(
           disabled
-            ? "inline-flex shrink-0 items-center gap-1.5 rounded-[10px] bg-white/65 border border-amber-700/10 text-ink-400 text-xs px-3 py-1 font-medium cursor-default"
-            : "inline-flex shrink-0 items-center gap-1.5 rounded-[10px] bg-gradient-to-br from-amber-400 to-amber-600 text-white text-xs px-3 py-1 font-medium shadow-sm hover:shadow-md"
-        }
+            ? "bg-white/65 text-ink-500 shadow-none"
+            : "bg-gradient-to-br from-amber-400 to-amber-600 text-white hover:shadow-md",
+        )}
         title={isError ? error ?? "Could not save. Try again." : saved ? "Save itinerary changes" : "Save to Logbook"}
       >
         {isSaving ? (

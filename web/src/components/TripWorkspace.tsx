@@ -14,6 +14,7 @@ import { Map } from "./Map";
 import { MobileWorkspaceNav } from "./MobileWorkspaceNav";
 import { MobileSheet } from "./MobileSheet";
 import { PdfExportMenu } from "./PdfExportMenu";
+import { RefineInput } from "./RefineInput";
 import { SaveTripButton } from "./SaveTripButton";
 import { ShareMenu } from "./ShareMenu";
 import { TripPanel } from "./TripPanel";
@@ -76,6 +77,8 @@ function TripWorkspaceContent({
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [refinePrefill, setRefinePrefill] = useState("");
+  const [refinePrefillKey, setRefinePrefillKey] = useState(0);
   const places = useMemo(() => draftDocument.places ?? [], [draftDocument.places]);
   const [focusPlaces, setFocusPlaces] = useState<Place[] | null>(null);
   const [selectedPlaceName, setSelectedPlaceName] = useState<string | null>(null);
@@ -104,6 +107,19 @@ function TripWorkspaceContent({
     setHasUnsavedChanges(true);
     setSaveError(null);
   }
+
+  function updateTrip(nextTrip: TripFull) {
+    setCurrentTrip(nextTrip);
+    setDraftDocument(nextTrip.document);
+    setHasUnsavedChanges(false);
+    setSaveError(null);
+  }
+
+  const prefillRefine = useCallback((text: string) => {
+    setWorkspaceTab("Plan");
+    setRefinePrefill(text);
+    setRefinePrefillKey((key) => key + 1);
+  }, []);
 
   async function save() {
     if (readOnly || !isPrivateTrip(currentTrip)) return;
@@ -180,6 +196,7 @@ function TripWorkspaceContent({
       initialDay={initialDay}
       selectedPlaceName={selectedPlaceName}
       onFocusPlaces={focus}
+      onRefinePrefill={prefillRefine}
       document={draftDocument}
       onDocumentChange={updateDocument}
     />
@@ -187,11 +204,11 @@ function TripWorkspaceContent({
 
   return (
     <div className="flex h-dvh min-h-[520px] flex-col bg-[var(--color-paper-cream)]">
-      <header className="z-30 grid min-h-14 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-2 border-b border-amber-700/10 bg-white/75 px-3 py-2 backdrop-blur-md sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:px-4">
-        <Link href="/" className="contents" aria-label="Atlas home">
+      <header className="relative z-30 grid min-h-14 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-2 border-b border-amber-700/10 bg-white/75 px-3 py-2 backdrop-blur-md sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:px-4">
+        <Link href="/" className="contents sm:inline-flex" aria-label="Atlas home">
           <BrandMark />
         </Link>
-        <div className="min-w-0 text-right sm:text-center">
+        <div className="min-w-0 text-right sm:absolute sm:left-1/2 sm:top-1/2 sm:w-[min(560px,42vw)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:text-center">
           <span className="block truncate text-sm font-semibold text-ink-900">
             {currentTrip.destination}
           </span>
@@ -217,8 +234,18 @@ function TripWorkspaceContent({
           aria-hidden
         />
         {!isMobile && (
-          <div className="absolute inset-y-4 left-4 z-20 hidden w-[min(390px,calc(100vw-2rem))] overflow-hidden rounded-[18px] border border-amber-700/10 bg-white/82 shadow-2xl backdrop-blur-md md:flex">
+          <div className="absolute inset-y-4 left-4 z-20 hidden w-[min(390px,calc(100vw-2rem))] overflow-hidden rounded-[18px] border border-amber-700/10 bg-white/82 shadow-2xl backdrop-blur-md md:flex md:flex-col">
             {panel}
+            {!readOnly && isPrivateTrip(currentTrip) && (
+              <div className="shrink-0 border-t border-amber-700/10 bg-white/72 p-2.5 backdrop-blur-md">
+                <RefineInput
+                  slug={currentTrip.slug}
+                  onUpdated={updateTrip}
+                  prefill={refinePrefill}
+                  prefillKey={refinePrefillKey}
+                />
+              </div>
+            )}
           </div>
         )}
         {isMobile && isSheetTab(workspaceTab) && (

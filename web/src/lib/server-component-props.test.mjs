@@ -102,3 +102,29 @@ test("trip workspace exposes authenticated top-nav actions", async () => {
     "TripWorkspace should not pass top-nav actions into the side panel",
   );
 });
+
+test("trip workspace centers the title independently from top-nav actions", async () => {
+  const source = await readWorkspaceFile(TRIP_WORKSPACE_FILE);
+
+  assert.match(
+    source,
+    /sm:absolute sm:left-1\/2 sm:top-1\/2[\s\S]*sm:-translate-x-1\/2 sm:-translate-y-1\/2/,
+    "The destination title should be centered in the viewport, not between uneven header columns",
+  );
+});
+
+test("trip workspace wires itinerary refine pills into the refine input", async () => {
+  const source = await readWorkspaceFile(TRIP_WORKSPACE_FILE);
+
+  assert.match(source, /<RefineInput\b/, "TripWorkspace should mount the refine input");
+  assert.match(
+    source,
+    /onRefinePrefill=\{prefillRefine\}/,
+    "TripPanel quick refine actions should prefill the refine input",
+  );
+  assert.match(
+    source,
+    /prefillKey=\{refinePrefillKey\}/,
+    "Repeated quick refine clicks should re-apply the prefill",
+  );
+});
