@@ -1,6 +1,7 @@
 "use client";
 
 import type { Place, PlanningStatusValue } from "@/lib/types";
+import { PLACE_CATEGORY_EMOJI } from "@/lib/place-category";
 
 import { StatusChip } from "./StatusChip";
 import { AtlasIconBadge, cx } from "./ui/AtlasPrimitives";
@@ -9,10 +10,10 @@ const CATEGORY_BADGE: Record<
   Place["category"],
   { label: string; tone: "amber" | "sage" | "blue" | "ink" }
 > = {
-  neighbourhood: { label: "N", tone: "blue" },
-  restaurant: { label: "F", tone: "sage" },
-  photography_spot: { label: "P", tone: "amber" },
-  logistics: { label: "L", tone: "ink" },
+  neighbourhood: { label: PLACE_CATEGORY_EMOJI.neighbourhood, tone: "blue" },
+  restaurant: { label: PLACE_CATEGORY_EMOJI.restaurant, tone: "sage" },
+  photography_spot: { label: PLACE_CATEGORY_EMOJI.photography_spot, tone: "amber" },
+  logistics: { label: PLACE_CATEGORY_EMOJI.logistics, tone: "ink" },
 };
 
 export function ActivityCard({

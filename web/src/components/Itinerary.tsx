@@ -8,6 +8,7 @@ import {
   removeItineraryItem,
   updateItineraryItem,
 } from "@/lib/itinerary-editing";
+import { PLACE_CATEGORY_EMOJI } from "@/lib/place-category";
 import { activityId, PLANNING_STATUSES, setActivityStatus, STATUS_META } from "@/lib/planning-status";
 import { placeForText, placesForDay } from "@/lib/trip-insights";
 import type {
@@ -344,13 +345,6 @@ export function Itinerary({
   );
 }
 
-export const CATEGORY_EMOJI: Record<Place["category"], string> = {
-  neighbourhood: "🏛️",
-  restaurant: "🍽️",
-  photography_spot: "📷",
-  logistics: "🧭",
-};
-
 function ActivityEditorRow({
   item,
   place,
@@ -382,7 +376,7 @@ function ActivityEditorRow({
           className="mt-1 text-[14px] leading-none shrink-0 disabled:opacity-50"
           title={clickable ? "Focus map" : undefined}
         >
-          {clickable ? CATEGORY_EMOJI[place.category] : "•"}
+          {clickable ? PLACE_CATEGORY_EMOJI[place.category] : "•"}
         </button>
         <textarea
           value={item}
